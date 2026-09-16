@@ -766,6 +766,7 @@ async function syncObs() {
       sources: windowSources(view),
       allRegionSources: view.regions.map((r) => r.obsSource).filter(Boolean),
       crop: barCrop(win),
+      muted: Boolean(view.muted),
       regions: regions.filter((r) => r.enabled).map((r) => ({ name: r.name, obsSource: r.obsSource, crop: cropFor(win, r) })),
     });
   }
@@ -1006,8 +1007,12 @@ function resolveDisplay(displayId) {
 }
 
 // Lay the windows out left to right from the top-left of the display,
-// wrapping to a new row when the next one would not fit.
+// wrapping to a new row when the next one would not fit. A parked window
+// isn't actually moved by this (applyViewSettings skips repositioning
+// anything parked, so it would silently record a new x/y that never takes
+// visual effect) -- undock everything first so the arrange is real.
 function arrangeViews(displayId) {
+  if (parked.size > 0) expandViews();
   const display = resolveDisplay(displayId);
   const area = display.workArea;
   let x = area.x;
@@ -1547,6 +1552,7 @@ function registerIpc() {
     setupTray();
     setupDock();
     buildMenu();
+    scheduleObsSync();
     broadcastStatus();
     return saved;
   });
@@ -1556,6 +1562,7 @@ function registerIpc() {
     setupTray();
     setupDock();
     buildMenu();
+    scheduleObsSync();
     broadcastStatus();
     return saved;
   });
@@ -1828,6 +1835,7 @@ function registerIpc() {
     }
     await obs.createInput(name, windowId);
     await obs.ensureCropFilter(name, cropFor(win, region));
+    await obs.setInputMuted(name, Boolean(view.muted)).catch(() => {});
     configStore.saveRegion(id, { ...region, obsSource: name });
     broadcastStatus();
     return name;

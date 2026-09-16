@@ -65,10 +65,6 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   display scaling in the captured-size readout, a colour tray icon at 16 and 32 px (the current
   one is a macOS template image), quit on close instead of living in the Dock, and a SmartScreen
   note in the README.
-- **Release v0.1.9** once testing is green: bump `package.json`, run the Build macOS app
-  workflow with the tag.
-- **Default branch on GitHub is still the old feature branch**, not `main` -- PR #1 and #2
-  merged into `main` anyway, so it never blocked anything, but it's still wrong: a fresh clone,
-  and anyone opening a PR without picking a base by hand, lands against the wrong branch. Switch
-  it in Settings > Branches once this repo's last open PR is merged, then the feature branch can
-  go away for good and everything from here on develops straight against `main`.
+- ~~**Release v0.1.9**~~ Shipped as v0.1.10 instead (PR #4, tag pushed 2026-09-16) -- covers this
+  whole batch of Tavern visibility work, not just what v0.1.9 covered.
+- ~~**Default branch on GitHub is still the old feature branch.**~~ It's `main` now.

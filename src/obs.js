@@ -422,6 +422,14 @@ class ObsBridge extends EventEmitter {
           report.missing.push(name);
           continue;
         }
+        // macOS window/region capture taps the window's own system audio
+        // independently of anything Electron does with its webContents mute
+        // -- confirmed live, muting the page did not stop this input from
+        // carrying audio. Keep OBS's own per-input mute in lockstep with the
+        // window's "Mute audio" setting instead of leaving it at whatever
+        // OBS's own default is. Applied whether or not the window is open
+        // right now, so it's already correct the moment it starts.
+        await this.setInputMuted(name, Boolean(view.muted)).catch(() => {});
         if (!windowId) continue; // window not open or not yet visible
         const current = this.inputs.find((i) => i.name === name);
         const unchanged = current && current.window === windowId;
