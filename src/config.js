@@ -127,6 +127,21 @@ function defaultObs() {
 // anyone else on the network, so the server refuses to start without one.
 const AUTOMATIONS_LIMITS = { maxRules: 40, maxEventLen: 60, maxParamLen: 200 };
 const AUTOMATIONS_ACTIONS = ['sceneSwitch', 'sourceShow', 'sourceHide', 'startRecording', 'stopRecording', 'startStreaming', 'stopStreaming'];
+// What each action means and what its `param` is for -- the authoritative
+// copy. GET /api/automations/capabilities (main.js) reads this directly so
+// a caller can discover Studio's action vocabulary instead of hardcoding
+// it; src/control/control.js keeps its own renderer-side copy for the
+// Rules UI (kept in sync by hand, same reasoning as TAVERN_KINDS there),
+// since it can't require this file directly across the preload boundary.
+const AUTOMATIONS_ACTION_SCHEMA = [
+  { action: 'sceneSwitch', param: 'scene name' },
+  { action: 'sourceShow', param: 'source name' },
+  { action: 'sourceHide', param: 'source name' },
+  { action: 'startRecording', param: null },
+  { action: 'stopRecording', param: null },
+  { action: 'startStreaming', param: null },
+  { action: 'stopStreaming', param: null },
+];
 
 function defaultAutomations() {
   return { enabled: false, port: 9500, token: '', rules: [] };
@@ -456,6 +471,7 @@ module.exports = {
   REGION_LIMITS,
   AUTOMATIONS_LIMITS,
   AUTOMATIONS_ACTIONS,
+  AUTOMATIONS_ACTION_SCHEMA,
   CONFIG_VERSION,
   DEFAULT_GROUP,
 };

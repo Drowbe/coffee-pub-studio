@@ -52,6 +52,8 @@ class AutomationsServer extends EventEmitter {
     this.message = '';
     this.port = 0;
     this.getToken = null;
+    this.getRules = null; // () => the currently configured rules -- see GET /api/automations/capabilities
+    this.actions = []; // the static action vocabulary Studio supports, same endpoint
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
@@ -84,7 +86,7 @@ class AutomationsServer extends EventEmitter {
   // one-time "trust this" exception is tied to the actual certificate, and
   // a fresh one on every launch would mean re-clicking through the warning
   // every time.
-  async start({ port, getToken, certDir }) {
+  async start({ port, getToken, certDir, getRules, actions }) {
     await this.stop();
     if (!getToken()) {
       this.setState('error', 'Set a token before enabling Automations.');
@@ -100,6 +102,8 @@ class AutomationsServer extends EventEmitter {
     this.certPem = cert.cert.toString();
     this.caCertPem = cert.caCert.toString();
     this.getToken = getToken;
+    this.getRules = getRules || null;
+    this.actions = actions || [];
     await new Promise((resolve) => {
       const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
       server.on('error', (err) => {
@@ -118,6 +122,7 @@ class AutomationsServer extends EventEmitter {
 
   async stop() {
     this.getToken = null;
+    this.getRules = null;
     if (!this.server) {
       if (this.state !== 'stopped') this.setState('stopped', '');
       return;
@@ -164,6 +169,17 @@ class AutomationsServer extends EventEmitter {
     if (req.method === 'GET' && url === '/api/automations/ping') {
       if (!authed()) return send(401, { error: 'Unauthorized' });
       return send(200, { ok: true });
+    }
+
+    // Lets a caller discover Studio's action vocabulary and the rules
+    // actually configured right now, instead of hardcoding or guessing
+    // either -- authenticated, like everything else that isn't the CA cert
+    // itself, since rule params (scene/source names) reveal a bit about
+    // this Studio's own setup.
+    if (req.method === 'GET' && url === '/api/automations/capabilities') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      const rules = (this.getRules ? this.getRules() : []).map((r) => ({ event: r.event, action: r.action, param: r.param }));
+      return send(200, { actions: this.actions, rules });
     }
 
     // No auth: a CA's public certificate isn't a secret (only its private

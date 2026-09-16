@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage } = require('electron');
-const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP } = require('./config');
+const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA } = require('./config');
 const { ObsBridge } = require('./obs');
 const { TavernBridge } = require('./tavern');
 const { AutomationsServer } = require('./automations');
@@ -525,7 +525,13 @@ async function runAutomationRules(entry) {
 async function syncAutomationsServer() {
   const a = configStore.get().automations;
   if (a.enabled) {
-    await automations.start({ port: a.port, getToken: () => configStore.get().automations.token, certDir: app.getPath('userData') });
+    await automations.start({
+      port: a.port,
+      getToken: () => configStore.get().automations.token,
+      getRules: () => configStore.get().automations.rules,
+      actions: AUTOMATIONS_ACTION_SCHEMA,
+      certDir: app.getPath('userData'),
+    });
   } else {
     await automations.stop();
   }

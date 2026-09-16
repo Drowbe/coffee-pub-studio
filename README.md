@@ -358,6 +358,25 @@ module's code has to work around.
   to check the token and connection alone.
 - The body is capped at 16 KB and must be valid JSON with a string `event` field, or the request
   is rejected before anything is recorded.
+- `GET /api/automations/capabilities` (same auth) returns what Studio can actually do right now,
+  instead of a module hardcoding or guessing either one:
+  ```json
+  {
+    "actions": [
+      { "action": "sceneSwitch", "param": "scene name" },
+      { "action": "sourceShow", "param": "source name" },
+      { "action": "startRecording", "param": null }
+    ],
+    "rules": [
+      { "event": "combat:start", "action": "sceneSwitch", "param": "Combat" }
+    ]
+  }
+  ```
+  `actions` is the fixed vocabulary of OBS actions a rule can trigger (see the table below);
+  `rules` is whatever's actually configured on the Automations tab right now, i.e. which event
+  names Studio will actually respond to. Useful for a module to validate an event name is wired to
+  something before sending it, or to build its own UI around Studio's real, current configuration
+  instead of a copy-pasted assumption.
 
 #### Example: Herald reporting combat start
 
