@@ -45,11 +45,11 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   an OBS action (switch scene, show/hide a source, start/stop recording or streaming) --
   verified live end to end, including a real OBS WebSocket round trip. The Automations tab also
   works as a plain manual OBS remote with no Foundry module involved. Full HTTP contract and a
-  worked Herald example (`combatStart` via Blacksmith's `HookManager`) are in the README. What's
-  still open: nothing on Herald's side actually calls this yet -- that's a real feature to build
-  in `coffee-pub-herald`, not just a settings toggle, and the hook names in the README's example
-  are a suggested starting point, not verified against a live v14 client the way the rest of
-  Herald's own wiki insists on. Also open here: only `event`/`data` are read today, no
+  worked Herald example (`combatStart` via Blacksmith's `HookManager`) are on the wiki, at
+  `api-automations`. What's still open: nothing on Herald's side actually calls this yet -- that's
+  a real feature to build in `coffee-pub-herald`, not just a settings toggle, and the hook names in
+  that example are a suggested starting point, not verified against a live v14 client the way the
+  rest of Herald's own wiki insists on. Also open here: only `event`/`data` are read today, no
   Studio -> Foundry direction exists (not needed for the stated goals: "Herald tells Studio" and
   "Studio drives OBS directly" both only need this one direction), and the Rules UI is a flat
   list with no per-rule enable/disable or event-name autocomplete against what's actually been
@@ -73,6 +73,24 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   display scaling in the captured-size readout, a colour tray icon at 16 and 32 px (the current
   one is a macOS template image), quit on close instead of living in the Dock, and a SmartScreen
   note in the README.
-- ~~**Release v0.1.9**~~ Shipped as v0.1.10 instead (PR #4, tag pushed 2026-09-16) -- covers this
-  whole batch of Tavern visibility work, not just what v0.1.9 covered.
-- ~~**Default branch on GitHub is still the old feature branch.**~~ It's `main` now.
+
+## Documentation
+
+This adoption pass covers the API (`api/api-automations.md`), one paired architecture document
+(`architecture/architecture-automations.md`), and the floor user guide
+(`userguides/userguide-getting-started.md`) -- the rest of the standard's checklist is still
+open:
+
+- ~~**README is not yet the strict product-page template.**~~ Done: the deep walkthrough moved
+  out into `userguide-settings.md`, `userguide-obs.md`, `userguide-tavern.md` and
+  `userguide-configuration.md`; README now keeps only the short version plus links to the wiki
+  guides, alongside the Automations section (already a wiki pointer) and the maintainer-facing
+  sections (requirements, install, releasing, dev setup, project layout).
+- **`documentation/assets/` has no screenshots yet.** A product screenshot for `home.md` and
+  README, and any screenshots a future user guide needs, are still owed.
+- **No `CHANGELOG.md` exists yet.** The standard requires one at the repository root; this
+  adoption pass did not attempt to reconstruct history for it, only added the file structure
+  the wiki publisher needs.
+- **`architecture/` covers only the Automations feature.** The rest of Studio (window
+  management, the OBS bridge, the Tavern bridge, the control panel's own structure) has no
+  architecture documentation yet.
