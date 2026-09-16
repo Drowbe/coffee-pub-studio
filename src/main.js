@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage } = require('electron');
-const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA } = require('./config');
+const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA, STUDIO_ACTION_SCHEMA } = require('./config');
 const { ObsBridge } = require('./obs');
 const { TavernBridge } = require('./tavern');
 const { AutomationsServer } = require('./automations');
@@ -473,63 +473,159 @@ async function unpublishPlayer(key, removeFromObs = true) {
 const automations = new AutomationsServer();
 automations.on('status', () => broadcastStatus());
 automations.on('event', (entry) => {
-  runAutomationRules(entry).catch((err) => console.warn(`[automations] rule dispatch failed: ${err.message}`));
+  runAutomationRuleSets(entry).catch((err) => console.warn(`[automations] rule set dispatch failed: ${err.message}`));
 });
 
-// One rule's action -> the OBS call it makes. `param` is the rule's own
-// free-text field: a scene name for sceneSwitch, a source name for
-// sourceShow/sourceHide, ignored for the recording/streaming actions.
-async function runAutomationAction(action, param) {
+function requireObs() {
   if (!obs.connected) throw new Error('OBS is not connected.');
+}
+
+// One step's action -> the OBS or Studio call it makes. `param` is the
+// step's own value: a scene name for sceneSwitch, a source name for
+// sourceShow/sourceHide/sourceToggle, ignored otherwise. OBS actions need
+// OBS connected; Studio actions (everything from wakeAudio down) work
+// regardless -- none of them but syncObs touches OBS at all.
+async function runAutomationAction(action, param) {
   switch (action) {
     case 'sceneSwitch':
+      requireObs();
       if (!param) throw new Error('sceneSwitch needs a scene name.');
-      return obs.setCurrentScene(param);
+      return obs.switchToScene(param);
     case 'sourceShow':
+      requireObs();
       if (!param) throw new Error('sourceShow needs a source name.');
       return obs.setSourceVisible(param, true);
     case 'sourceHide':
+      requireObs();
       if (!param) throw new Error('sourceHide needs a source name.');
       return obs.setSourceVisible(param, false);
+    case 'sourceToggle':
+      requireObs();
+      if (!param) throw new Error('sourceToggle needs a source name.');
+      return obs.toggleSourceVisible(param);
     case 'startRecording':
+      requireObs();
       return obs.startRecording();
+    case 'pauseRecording':
+      requireObs();
+      return obs.pauseRecording();
+    case 'resumeRecording':
+      requireObs();
+      return obs.resumeRecording();
     case 'stopRecording':
+      requireObs();
       return obs.stopRecording();
     case 'startStreaming':
+      requireObs();
       return obs.startStreaming();
     case 'stopStreaming':
+      requireObs();
       return obs.stopStreaming();
+    case 'wakeAudio':
+      for (const id of viewWindows.keys()) {
+        if (wakeAudio(id)) wakeWhenReady(id, 5000);
+      }
+      return;
+    case 'startAll':
+      return openAllViews();
+    case 'stopAll':
+      return closeAllViews();
+    case 'dockAll':
+      return collapseViews();
+    case 'undockAll':
+      return expandViews();
+    case 'syncObs':
+      requireObs();
+      return syncObs();
     default:
       throw new Error(`Unknown action: ${action}`);
   }
 }
 
-// Every rule whose `event` matches the incoming one runs, in whatever order
-// they're saved in; one rule failing (OBS not connected, a scene that
-// doesn't exist) does not stop the others from running.
-async function runAutomationRules(entry) {
-  const { rules } = configStore.get().automations;
-  const matched = rules.filter((r) => r.event === entry.event);
-  for (const rule of matched) {
-    try {
-      await runAutomationAction(rule.action, rule.param);
-    } catch (err) {
-      console.warn(`[automations] rule "${rule.event}" -> ${rule.action} failed: ${err.message}`);
+// A rule set's numbered sequence, grouped into stages: a plain (non-`and`)
+// action step, or a delay step, starts a new stage; a following `and`
+// action step joins the current stage instead of starting its own. An
+// action stage runs every step in it at once; a delay stage just waits.
+function stagesFor(steps) {
+  const stages = [];
+  for (const step of steps) {
+    if (step.type === 'delay') {
+      stages.push({ kind: 'delay', seconds: step.seconds });
+      continue;
     }
+    if (step.and && stages.length && stages[stages.length - 1].kind === 'action') {
+      stages[stages.length - 1].steps.push(step);
+    } else {
+      stages.push({ kind: 'action', steps: [step] });
+    }
+  }
+  return stages;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Runs a rule set's stages in order. OBS never tells Studio a scene "is
+// done" -- there is no such event on the WebSocket API -- so delays are
+// plain timers Studio keeps itself, not a wait for OBS to confirm anything.
+// One step failing (OBS not connected, a scene that doesn't exist) does not
+// stop the rest of its stage or the stages after it.
+async function runRuleSet(ruleSet) {
+  for (const stage of stagesFor(ruleSet.steps)) {
+    if (stage.kind === 'delay') {
+      await sleep(stage.seconds * 1000);
+      continue;
+    }
+    await Promise.all(
+      stage.steps.map((step) =>
+        runAutomationAction(step.action, step.param).catch((err) => {
+          console.warn(`[automations] rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`);
+        })
+      )
+    );
+  }
+}
+
+// Every enabled rule set whose `event` matches the incoming one runs, each
+// independently -- one rule set's sequence does not wait for another's, and
+// a rule set that matches again while already mid-sequence just runs a
+// second, overlapping time (OBS actions are idempotent, so overlap is
+// harmless; nothing here tracks or cancels an in-flight run).
+async function runAutomationRuleSets(entry) {
+  const { ruleSets } = configStore.get().automations;
+  const matched = ruleSets.filter((r) => r.enabled && r.event === entry.event);
+  for (const ruleSet of matched) {
+    runRuleSet(ruleSet).catch((err) => console.warn(`[automations] rule set "${ruleSet.name}" failed: ${err.message}`));
   }
 }
 
 // Starts or stops the HTTPS server to match current settings -- called at
 // launch and again whenever Automations settings are saved, so toggling
-// Enable or editing the port/token takes effect immediately.
+// Enable, editing the port/token, or ticking a Studio action takes effect
+// immediately.
 async function syncAutomationsServer() {
   const a = configStore.get().automations;
   if (a.enabled) {
+    const studioActions = STUDIO_ACTION_SCHEMA.filter((s) => a.studioActions.includes(s.action));
     await automations.start({
       port: a.port,
       getToken: () => configStore.get().automations.token,
-      getRules: () => configStore.get().automations.rules,
-      actions: AUTOMATIONS_ACTION_SCHEMA,
+      getRuleSets: () => configStore.get().automations.ruleSets,
+      actions: [...AUTOMATIONS_ACTION_SCHEMA, ...studioActions],
+      runAction: (action, param) => runAutomationAction(action, param),
+      getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
+      getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
+      getObsStatus: () => {
+        const o = obs.status();
+        return {
+          obsConnected: o.state === 'connected',
+          recording: o.outputs.recording,
+          recordingPaused: o.outputs.recordingPaused,
+          streaming: o.outputs.streaming,
+          scene: o.outputs.scene,
+        };
+      },
       certDir: app.getPath('userData'),
     });
   } else {
@@ -1712,8 +1808,11 @@ function registerIpc() {
   });
   ipcMain.handle('obs:sync', () => syncObs());
   ipcMain.handle('obs:listScenes', () => obs.listScenes());
+  ipcMain.handle('obs:listSources', () => obs.listSourceNames());
   ipcMain.handle('obs:setScene', (_event, sceneName) => obs.setCurrentScene(sceneName));
   ipcMain.handle('obs:startRecording', () => obs.startRecording());
+  ipcMain.handle('obs:pauseRecording', () => obs.pauseRecording());
+  ipcMain.handle('obs:resumeRecording', () => obs.resumeRecording());
   ipcMain.handle('obs:stopRecording', () => obs.stopRecording());
   ipcMain.handle('obs:startStreaming', () => obs.startStreaming());
   ipcMain.handle('obs:stopStreaming', () => obs.stopStreaming());
@@ -1857,6 +1956,16 @@ function registerIpc() {
     if (!event) throw new Error('Enter an event name.');
     automations.recordEvent(event, data && typeof data === 'object' ? data : {});
     return fullStatus().automations;
+  });
+  // Runs one stage's worth of steps on demand (the Automations tab's own
+  // "Time it" button, which fires a delay step's preceding action so the
+  // user can watch it happen and measure how long the delay should
+  // actually be). The exact same runAutomationAction a real rule set uses;
+  // errors are thrown back to the caller here, unlike a real trigger, since
+  // there is a person at the control panel waiting to see whether it worked.
+  ipcMain.handle('automations:runSteps', async (_event, steps) => {
+    const list = Array.isArray(steps) ? steps : [];
+    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param)));
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {

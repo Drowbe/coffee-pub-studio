@@ -41,19 +41,23 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
 - ~~**An "Automations" tab.**~~ Studio's side is done: a local HTTP server (`src/automations.js`,
   bound to every network interface, not just localhost, since Foundry usually runs on a
   different machine than Studio) that a Foundry module POSTs `{event, data}` to
-  (`/api/automations/event`, token-authed), matched against user-configured rules that trigger
-  an OBS action (switch scene, show/hide a source, start/stop recording or streaming) --
-  verified live end to end, including a real OBS WebSocket round trip. The Automations tab also
-  works as a plain manual OBS remote with no Foundry module involved. Full HTTP contract and a
-  worked Herald example (`combatStart` via Blacksmith's `HookManager`) are on the wiki, at
-  `api-automations`. What's still open: nothing on Herald's side actually calls this yet -- that's
-  a real feature to build in `coffee-pub-herald`, not just a settings toggle, and the hook names in
-  that example are a suggested starting point, not verified against a live v14 client the way the
-  rest of Herald's own wiki insists on. Also open here: only `event`/`data` are read today, no
-  Studio -> Foundry direction exists (not needed for the stated goals: "Herald tells Studio" and
-  "Studio drives OBS directly" both only need this one direction), and the Rules UI is a flat
-  list with no per-rule enable/disable or event-name autocomplete against what's actually been
-  received.
+  (`/api/automations/event`, token-authed), matched against user-configured, named and grouped
+  rule sets, each a numbered sequence of OBS and Studio actions and delays (steps marked AND run
+  together instead of waiting) -- verified live end to end, including a real OBS WebSocket round
+  trip. The Automations tab also works as a plain manual OBS remote with no Foundry module
+  involved, and a Studio Control card exposes Studio's own commands (wake audio, start/stop/dock
+  all windows, sync OBS) opt-in per command. Full HTTP contract and a worked Herald example
+  (`combatStart` via Blacksmith's `HookManager`) are on the wiki, at `api-automations`. What's
+  still open: nothing on Herald's side actually calls this yet -- that's a real feature to build
+  in `coffee-pub-herald`, not just a settings toggle, and the hook names in that example are a
+  suggested starting point, not verified against a live v14 client the way the rest of Herald's
+  own wiki insists on. Also open here: only `event`/`data` are read today, no Studio -> Foundry
+  direction exists (not needed for the stated goals: "Herald tells Studio" and "Studio drives OBS
+  directly" both only need this one direction), and there is no conditional ("if/then") trigger --
+  a rule set matches on the event name alone, never on a field inside `data` (e.g. "if the event's
+  `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching, not
+  just a delay-then-hide step sequence, and nothing sends payload data structured enough to match
+  against yet, so it stays an idea, not a build, until a real use case does.
 - **Unify the control panel's design system.** Fixing the CP Tavern tab's layout surfaced a
   pattern: styling for the same kind of thing (a sub-section heading partway down a card, a
   divider row, spacing around a title) kept getting re-declared per instance instead of shared,

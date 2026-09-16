@@ -698,6 +698,42 @@ select:focus {
   background: var(--ok);
 }
 
+.dot.connecting {
+  background: var(--accent);
+}
+
+.dot.error {
+  background: var(--danger);
+}
+
+/* A scoreboard for the services Studio talks to (OBS, Tavern, Automations),
+   at the top of the Session tab so it's obvious at a glance when one of
+   them isn't actually connected, without having to open its own tab. */
+.connections-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connection-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.connection-name {
+  font-weight: 600;
+}
+
+.connection-state {
+  margin-left: auto;
+}
+
 .tab-panel[hidden] {
   display: none;
 }
@@ -990,17 +1026,195 @@ select:focus {
   gap: 14px;
 }
 
-.automations-rule-row {
-  align-items: flex-end;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  margin-top: 10px;
+.automations-scene-buttons:empty::after {
+  content: 'Connect to OBS to see its scenes.';
+  color: var(--text-dim);
+  font-size: 12px;
 }
 
-.automations-rule-row:first-child {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
+.automations-scene-buttons .btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.automations-studio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.ruleset-card .region-head {
+  align-items: center;
+}
+
+/* The rule set's name reads as this card's own title -- same colour and
+   weight as an <h2>, transparent and borderless until touched, so it looks
+   like a heading rather than another plain field next to Group. */
+.ruleset-name {
+  flex: 2;
+  min-width: 140px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ruleset-name:hover {
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+.ruleset-name::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.ruleset-group-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ruleset-group {
+  flex: 1;
+  min-width: 100px;
+}
+
+.ruleset-group,
+.automation-step-seconds {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 7px 9px;
+  font: inherit;
+  min-width: 0;
+}
+
+.ruleset-name:focus,
+.ruleset-group:focus,
+.automation-step-seconds:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ruleset-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.automation-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Each step is its own boxed row (same treatment as a Tavern .player-card),
+   tinted by kind -- see tintClassFor() in control.js -- so a whole
+   sequence can be scanned by colour instead of read word by word. The tint
+   itself is a muted background wash on the row and the actual colour on
+   its number badge; nothing on the row's edge. */
+.automation-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.automation-step-tint-scenes {
+  background: color-mix(in srgb, #5b8fc7 5%, var(--bg-input));
+}
+
+.automation-step-tint-obs {
+  background: color-mix(in srgb, #4fb0a5 5%, var(--bg-input));
+}
+
+.automation-step-tint-studio {
+  background: color-mix(in srgb, #9b7fd4 5%, var(--bg-input));
+}
+
+.automation-step-tint-timer {
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-input));
+}
+
+.automation-step-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.automation-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.automation-step-tint-scenes .automation-step-number {
+  background: #5b8fc7;
+  color: #0f1c28;
+}
+
+.automation-step-tint-obs .automation-step-number {
+  background: #4fb0a5;
+  color: #0a201d;
+}
+
+.automation-step-tint-studio .automation-step-number {
+  background: #9b7fd4;
+  color: #1c1330;
+}
+
+.automation-step-tint-timer .automation-step-number {
+  background: var(--accent);
+  color: #2a1a08;
+}
+
+.automation-step-and {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+.automation-step-and input:disabled {
+  opacity: 0.4;
+}
+
+.automation-step-label {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.automation-step-seconds {
+  width: 64px;
+}
+
+.automation-step select {
+  min-width: 130px;
+  flex: 1;
 }
 
 .automations-events {

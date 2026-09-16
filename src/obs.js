@@ -42,7 +42,7 @@ class ObsBridge extends EventEmitter {
     this.lastSync = null;
     this.reconnectTimer = null;
     this.connecting = null;
-    this.outputs = { recording: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
+    this.outputs = { recording: false, recordingPaused: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
     this.pollTimer = null;
 
     this.obs.on('ConnectionClosed', (err) => {
@@ -81,6 +81,7 @@ class ObsBridge extends EventEmitter {
       ]);
       const next = {
         recording: Boolean(rec.outputActive),
+        recordingPaused: Boolean(rec.outputPaused),
         recordTime: rec.outputActive ? String(rec.outputTimecode || '').replace(/\.\d+$/, '') : '',
         streaming: Boolean(stream.outputActive),
         streamTime: stream.outputActive ? String(stream.outputTimecode || '').replace(/\.\d+$/, '') : '',
@@ -104,7 +105,7 @@ class ObsBridge extends EventEmitter {
   stopPolling() {
     clearInterval(this.pollTimer);
     this.pollTimer = null;
-    this.outputs = { recording: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
+    this.outputs = { recording: false, recordingPaused: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
   }
 
   setState(state, message = '') {
@@ -283,6 +284,35 @@ class ObsBridge extends EventEmitter {
       await apply(scene.sceneName, sceneItems);
     }
     return changed;
+  }
+
+  // Flip a source's visibility to whatever it currently is not, so a single
+  // event can toggle a source instead of needing a separate show and hide
+  // event. Reads the first scene item's current state and applies its
+  // opposite everywhere via setSourceVisible above; a source with no scene
+  // item anywhere is treated as hidden, so toggling it shows it.
+  async toggleSourceVisible(sourceName) {
+    const { scenes } = await this.obs.call('GetSceneList');
+    let current = null;
+    const find = async (sceneName, items) => {
+      for (const item of items) {
+        if (current !== null) return;
+        if (item.sourceName === sourceName) {
+          current = item.sceneItemEnabled;
+          return;
+        }
+        if (item.isGroup) {
+          const { sceneItems } = await this.obs.call('GetGroupSceneItemList', { sceneName: item.sourceName });
+          await find(item.sourceName, sceneItems);
+        }
+      }
+    };
+    for (const scene of scenes) {
+      if (current !== null) break;
+      const { sceneItems } = await this.obs.call('GetSceneItemList', { sceneName: scene.sceneName });
+      await find(scene.sceneName, sceneItems);
+    }
+    return this.setSourceVisible(sourceName, current !== true);
   }
 
   // Scale every scene item of a source to `scale` (the Retina correction),
@@ -476,12 +506,47 @@ class ObsBridge extends EventEmitter {
     return scenes.map((s) => ({ name: s.sceneName, current: s.sceneName === currentProgramSceneName })).reverse();
   }
 
+  // Every source name OBS knows, of any kind, for the Automations step
+  // editor's scene/source pickers -- reuses allInputNames above rather than
+  // restricting to a single input kind, since a rule can target any source.
+  async listSourceNames() {
+    const names = await this.allInputNames();
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }
+
   async setCurrentScene(sceneName) {
+    await this.obs.call('SetCurrentProgramScene', { sceneName });
+  }
+
+  // Same, but restarts the scene if it's already the active one, instead of
+  // the silent no-op OBS otherwise makes of "switch to the scene already
+  // showing" -- nothing in that scene (a media source, a browser source set
+  // to refresh when the scene becomes active) restarts on its own. Bounces
+  // through another scene first, so this only ever fires from an
+  // automation's own sceneSwitch action (a real trigger firing again, or
+  // the Automations tab's "Time it" testing it) -- never from the plain
+  // manual Switch button/scene buttons, where a defensive re-click on the
+  // current scene should stay a genuine no-op.
+  async switchToScene(sceneName) {
+    const { currentProgramSceneName } = await this.obs.call('GetCurrentProgramScene');
+    if (currentProgramSceneName === sceneName) {
+      const { scenes } = await this.obs.call('GetSceneList');
+      const other = scenes.find((s) => s.sceneName !== sceneName);
+      if (other) await this.obs.call('SetCurrentProgramScene', { sceneName: other.sceneName });
+    }
     await this.obs.call('SetCurrentProgramScene', { sceneName });
   }
 
   async startRecording() {
     await this.obs.call('StartRecord');
+  }
+
+  async pauseRecording() {
+    await this.obs.call('PauseRecord');
+  }
+
+  async resumeRecording() {
+    await this.obs.call('ResumeRecord');
   }
 
   async stopRecording() {
