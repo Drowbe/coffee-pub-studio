@@ -287,8 +287,12 @@ Foundry module involved at all.
 Foundry usually runs on a different machine than Studio — this app assumes a Mac, Foundry a
 Windows box on the same LAN, and nothing about the design assumes otherwise. So unlike OBS
 (loopback only, since OBS and Studio share a Mac) and Tavern (Studio is the client, calling out
-to a server), Automations is a small HTTP server Studio itself runs, listening on every network
-interface, not just localhost, waiting for the Foundry side to call in.
+to a server), Automations is a small HTTPS server Studio itself runs, listening on every network
+interface, not just localhost, waiting for the Foundry side to call in. HTTPS, not HTTP: Foundry
+is commonly served over HTTPS itself (this README's own example URLs are), and a browser flatly
+blocks an HTTPS page from making a plain-HTTP request at all — "mixed content", no CORS header
+gets around it. Studio generates and serves a self-signed certificate for this on its own (via
+the `openssl` CLI every Mac already has); the one real cost is a one-time step below.
 
 1. On the Session tab, in **Automations**, tick **Enable Automations**, set a **Port** (9500 by
    default), then either type a **Token** or click **Generate token**. The server refuses to
@@ -298,7 +302,14 @@ interface, not just localhost, waiting for the Foundry side to call in.
 2. The card shows the address once it's listening — one per network interface this Mac has, since
    a laptop often has more than one. Give the Foundry side the one actually reachable from the
    Windows machine (same Wi-Fi/LAN segment), together with the token.
-3. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
+3. **On the Foundry machine**, open that address directly in a browser once and click through
+   the self-signed certificate's "not private" warning. A browser only trusts a self-signed cert
+   for a given host once someone's done this by hand; skip it and every call a module makes will
+   fail silently (rejected before it reaches Studio at all, so nothing shows up in **Recent
+   Events** either — that's the tell that this step was missed). It only has to happen once per
+   browser, and survives Studio restarts (the certificate itself is reused, not regenerated,
+   unless this Mac's LAN address changes).
+4. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
    **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
    else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show
    source**, **Hide source** (both take the exact OBS source name), or the four
@@ -312,12 +323,17 @@ interface, not just localhost, waiting for the Foundry side to call in.
 A Foundry module reports an event with a single request:
 
 ```
-POST http://<studio-host>:<port>/api/automations/event
+POST https://<studio-host>:<port>/api/automations/event
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {"event": "combat:start", "data": {"sceneId": "..."}}
 ```
+
+Self-signed, so the browser making this request has to have visited that address directly once
+and clicked through the warning first (step 3 above) — a plain `fetch()` from a module's own code
+needs no special handling beyond that; it's a one-time thing done by hand, not something a
+module's code has to work around.
 
 - `event` (string, required) is matched against a rule's **Event** field exactly — case-sensitive,
   no wildcards. Pick a small, stable vocabulary (`combat:start`, `combat:end`, `scene:change`, ...)
@@ -353,7 +369,7 @@ BlacksmithHookManager.registerHook({
   description: 'Tell Coffee Pub Studio combat has started',
   context: 'herald-automations',
   callback: async (combat) => {
-    const url = game.settings.get('coffee-pub-herald', 'studioAutomationsUrl'); // e.g. http://10.0.0.5:9500
+    const url = game.settings.get('coffee-pub-herald', 'studioAutomationsUrl'); // e.g. https://10.0.0.5:9500
     const token = game.settings.get('coffee-pub-herald', 'studioAutomationsToken');
     if (!url || !token) return;
     try {

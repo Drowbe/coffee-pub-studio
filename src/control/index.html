@@ -255,7 +255,10 @@
           <p class="hint">
             Give a Foundry module this address and token. It sends a <code>POST</code> to
             <code>/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code> header and a
-            JSON body like <code>{"event":"combat:start"}</code>.
+            JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS with a self-signed certificate
+            (needed so it works from a Foundry page that's itself served over HTTPS) — open the address below
+            directly in a browser <strong>on the Foundry machine</strong> once and click through the "not private"
+            warning first, or every call from a module will silently fail.
           </p>
           <div class="details">
             <div class="details-row">

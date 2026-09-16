@@ -518,13 +518,13 @@ async function runAutomationRules(entry) {
   }
 }
 
-// Starts or stops the HTTP server to match current settings -- called at
+// Starts or stops the HTTPS server to match current settings -- called at
 // launch and again whenever Automations settings are saved, so toggling
 // Enable or editing the port/token takes effect immediately.
 async function syncAutomationsServer() {
   const a = configStore.get().automations;
   if (a.enabled) {
-    await automations.start({ port: a.port, getToken: () => configStore.get().automations.token });
+    await automations.start({ port: a.port, getToken: () => configStore.get().automations.token, certDir: app.getPath('userData') });
   } else {
     await automations.stop();
   }

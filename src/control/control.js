@@ -1357,7 +1357,7 @@ function renderAutomationsStatus() {
   automationsEls.tag.hidden = !listening;
   automationsEls.dot.classList.toggle('on', listening);
   automationsEls.address.textContent =
-    listening && a.addresses.length ? a.addresses.map((ip) => `http://${ip}:${a.port}/api/automations/event`).join(', ') : '—';
+    listening && a.addresses.length ? a.addresses.map((ip) => `https://${ip}:${a.port}/api/automations/event`).join(', ') : '—';
   const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
   automationsEls.status.textContent = labels[a.state] || '';
   automationsEls.status.classList.toggle('hint-error', a.state === 'error');
