@@ -179,13 +179,35 @@ tavern.on('status', () => broadcastStatus());
 tavern.on('connected', () => syncTavern().catch(() => {}));
 tavern.on('party', () => syncTavern().catch(() => {}));
 
-function tavernSourceName(user, kind = 'player') {
-  return kind === 'character' ? `Tavern - ${user.displayName} (character)` : `Tavern - ${user.displayName}`;
+function tavernSourceName(user, kind = 'player', n = 1) {
+  const type = kind === 'character' ? 'Character' : 'Participant';
+  const name = n > 1 ? `${user.displayName} ${n}` : user.displayName;
+  return `${type}: ${name} (CP Studio)`;
 }
 
-// The Player source: video, or the player image when the camera is off, with
-// the talking border, overlay images and name plate as set on the Tavern. Audio
-// always on and routed to the OBS mixer.
+// A room's profile gates which source kinds it offers: 'roleplaying' (the
+// default, for a room with no profile) offers both, 'participants' offers
+// only the Participant source, 'characters' offers only the Character source.
+// This is the same room the Tavern tab's picker is showing -- a purely
+// manual choice, "this room is for this OBS session," never overridden by
+// wherever the admin happens to be live -- everyone is a member of Lobby as
+// well as their own room, so picking "the first room this user belongs to"
+// would silently resolve to Lobby's profile instead of the room actually
+// on screen.
+function currentTavernRoom() {
+  const t = configStore.get().tavern;
+  return tavern.room(t.room || 'lobby');
+}
+function allowsPlayer(room) {
+  return !room || room.profile !== 'characters';
+}
+function allowsCharacter(room) {
+  return !room || room.profile !== 'participants';
+}
+
+// The Participant source: video, or the player image when the camera is off,
+// with the talking border, overlay images and name plate as set on the
+// Tavern. Audio always on and routed to the OBS mixer.
 function tavernPlayerSource(user) {
   const t = configStore.get().tavern;
   return { url: tavern.viewUrl(user, { kind: 'player' }), width: t.playerWidth, height: t.playerHeight, audio: true };
@@ -200,8 +222,12 @@ function tavernCharacterSource(user) {
 
 // Make OBS match the published players: one Browser Source each, named after
 // the player, pointed at their view link at the chosen size.
+// Sources already hidden because their room stopped offering that kind, so
+// syncTavern does not re-issue the same OBS visibility call every poll.
+const gatedHidden = new Set();
+
 async function syncTavern() {
-  const report = { at: Date.now(), inputs: [], created: [], updated: [], renamed: [], missing: [], note: '' };
+  const report = { at: Date.now(), inputs: [], created: [], updated: [], renamed: [], missing: [], hidden: [], note: '' };
   const t = configStore.get().tavern;
   const entries = Object.entries(t.players);
   if (!tavern.connected) {
@@ -250,30 +276,83 @@ async function syncTavern() {
       report.updated.push(name);
     }
   };
-  for (const [key, entry] of entries) {
+  // A room's profile may have changed since a source was published (or the
+  // server may not have sent a profile at all before this existed): hide
+  // whichever source the room no longer offers instead of maintaining it,
+  // and re-show it (if its tick is still on) once the room allows it again.
+  // The tick and the source name are left alone either way -- this is not
+  // the user unpublishing, so nothing should look "removed" or lose its
+  // OBS placement; Delete from OBS is the only thing that deletes it.
+  const gateSource = async (key, kind, name, ticked, allowed) => {
+    if (!name) return;
+    if (!allowed) {
+      if (gatedHidden.has(name)) return;
+      await obs.setSourceVisible(name, false).catch(() => {});
+      gatedHidden.add(name);
+      report.hidden.push(`${name}: this room offers ${kind === 'character' ? 'Participant' : 'Character'} sources only`);
+      return;
+    }
+    if (gatedHidden.delete(name) && ticked) await obs.setSourceVisible(name, true).catch(() => {});
+  };
+  const room = currentTavernRoom();
+  for (const [key] of entries) {
     const user = tavern.party.find((u) => u.key === key);
     if (!user) continue; // deleted on the server; the card shows it
-    if (entry.source) await ensure(key, 'source', 'player', user, tavernPlayerSource(user));
-    if (entry.characterSource) await ensure(key, 'characterSource', 'character', user, tavernCharacterSource(user));
+    const entry = players[key];
+    await gateSource(key, 'player', entry.source, entry.player, allowsPlayer(room));
+    await gateSource(key, 'character', entry.characterSource, entry.character, allowsCharacter(room));
+    if (entry.source && allowsPlayer(room)) await ensure(key, 'source', 'player', user, tavernPlayerSource(user));
+    if (entry.characterSource && allowsCharacter(room)) await ensure(key, 'characterSource', 'character', user, tavernCharacterSource(user));
   }
-  // "Follow the admin": the stream should show only the room the admin is
-  // actually in right now, a pull-aside room included -- a private word is
-  // private from the rest of the table, not from the recording, so while
-  // the admin is aside with someone, that conversation is what airs and the
-  // room they stepped out of goes quiet, exactly like moving to any other
-  // room. A published user who has stepped out of the admin's room gets
-  // their scene items hidden, not unpublished, so their ticks and OBS
-  // source survive and they reappear the moment they are back together. A
-  // user who is not currently online at all is left alone: publishing
-  // ahead of when someone joins is a normal workflow and should not hide
-  // anything.
-  if (t.followAdmin) {
+  // Two independent, separately-triggered mutes for someone who isn't part
+  // of the current conversation right now -- checked per source, not just
+  // per user, since a user's actual room and Enable Asides can each change
+  // independently of the other. Neither hides or dims the source -- Tavern
+  // owns everything visual now (its own page is what's actually on screen);
+  // Studio only ever mutes.
+  //
+  // - Private Conversation (`ephemeral && private`): muted for as long as
+  //   they're live in it. Unconditional -- a privacy guarantee, not a
+  //   production preference, so it does not depend on Enable Asides and
+  //   cannot be left accidentally off by an unrelated setting. What's
+  //   actually shown for them while private is Tavern's call, per our
+  //   agreement -- Studio no longer hides the source itself.
+  // - Live, but in a different room than wherever the admin/GM currently
+  //   is (`tavern.activeRoom`, only meaningful while an admin actually is
+  //   online -- with none online there's no "current conversation" to be
+  //   aside from, so nobody is treated as aside in that case, same bug in
+  //   a new form otherwise): muted, since they're genuinely live elsewhere
+  //   with real audio that would otherwise bleed into the stream. This is
+  //   NOT the dropdown's manually-picked room (`room`, used only for
+  //   Participant/Character gating above) -- when the GM steps into a
+  //   pulled-aside room, THAT becomes the live conversation, and everyone
+  //   else (including anyone left behind in the room the dropdown still
+  //   shows) is who should mute, not the people the GM actually pulled
+  //   aside. Only while Enable Asides is on, and only for someone actually
+  //   elsewhere -- ordinary room navigation by the operator (the dropdown)
+  //   must never mute anyone, that was the original bug.
+  // Offline is deliberately NOT muted here -- there's no live audio track
+  // from a source that isn't even in the Tavern call, so muting it would be
+  // a no-op with nothing to suppress.
+  const adminOnline = tavern.party.some((u) => u.role === 'admin' && u.online);
+  {
     for (const [key, entry] of entries) {
       const user = tavern.party.find((u) => u.key === key);
       if (!user) continue;
-      const onStream = !user.online || user.online.room === tavern.activeRoom;
-      if (entry.source) await obs.setSourceVisible(entry.source, onStream).catch(() => {});
-      if (entry.characterSource) await obs.setSourceVisible(entry.characterSource, onStream).catch(() => {});
+      const stepRoom = user.online ? tavern.rooms.find((r) => r.id === user.online.room) : null;
+      const inPrivateRoom = Boolean(stepRoom && stepRoom.ephemeral && stepRoom.private);
+      const offline = !inPrivateRoom && !user.online;
+      const steppedOutToAside = t.followAdmin && adminOnline && !inPrivateRoom && !offline && user.online.room !== tavern.activeRoom;
+      const apply = async (name) => {
+        // A source its room's profile doesn't offer is hidden entirely by
+        // the gating pass above; leave that alone rather than layer a
+        // second, unrelated reason for hiding it on top.
+        if (!name || gatedHidden.has(name)) return;
+        await obs.setInputMuted(name, steppedOutToAside || inPrivateRoom).catch(() => {});
+        await obs.removeDimFilter(name).catch(() => {});
+      };
+      await apply(entry.source);
+      await apply(entry.characterSource);
     }
   }
   if (changedConfig) {
@@ -287,19 +366,21 @@ async function syncTavern() {
 }
 
 // A fresh source name: never take over a Browser Source that is not ours.
+// The number that disambiguates a collision (two people sharing a display
+// name, most likely) goes on the person's name, not after the "(CP Studio)"
+// tail.
 function freeSourceName(user, kind, players) {
   const ours = new Set(Object.values(players).flatMap((p) => [p.source, p.characterSource].filter(Boolean)));
-  const taken = new Set(tavernSync.inputs.filter((n) => !ours.has(n)));
-  const base = tavernSourceName(user, kind);
-  let name = base;
-  let n = 2;
-  while (taken.has(name)) name = `${base} ${n++}`;
+  const taken = new Set(tavernSync.inputs.filter((inputName) => !ours.has(inputName)));
+  let count = 1;
+  let name = tavernSourceName(user, kind, count);
+  while (taken.has(name)) name = tavernSourceName(user, kind, ++count);
   return name;
 }
 
-// A user's entry: which sources they get (the Player and Character ticks)
-// and the OBS source names while published. Untouched users default to
-// Player on and Character per the Session tab setting.
+// A user's entry: which sources they get (the Participant and Character
+// ticks) and the OBS source names while published. Untouched users default
+// to Participant on and Character per the Session tab setting.
 function playerEntry(tavernConfig, key) {
   const entry = tavernConfig.players[key];
   return {
@@ -315,25 +396,27 @@ function isPublished(entry) {
 }
 
 // Make a user's OBS sources match `wanted` ({ player, character }): create
-// the ticked ones, remove the others, then sync.
+// a source the first time it's ticked on, otherwise just show or hide the
+// one it already has -- turning a tick off never deletes anything in OBS,
+// so any placement, scale or filters set by hand there survive. Deleting a
+// source is a separate, explicit action (Delete from OBS).
 async function applyPublish(key, wanted) {
   const user = tavern.party.find((u) => u.key === key);
   if (!user) throw new Error('That user is not on the Tavern any more.');
   const current = configStore.get();
   const players = { ...current.tavern.players };
+  const room = currentTavernRoom();
+  if (wanted.player && !allowsPlayer(room)) throw new Error('This room offers Character sources only.');
+  if (wanted.character && !allowsCharacter(room)) throw new Error('This room offers Participant sources only.');
   const entry = { ...playerEntry(current.tavern, key), ...wanted };
   if (entry.player && !entry.source) entry.source = freeSourceName(user, 'player', players);
-  if (!entry.player && entry.source) {
-    await removeObsInput(entry.source);
-    entry.source = '';
-  }
   if (entry.character && !entry.characterSource) entry.characterSource = freeSourceName(user, 'character', players);
-  if (!entry.character && entry.characterSource) {
-    await removeObsInput(entry.characterSource);
-    entry.characterSource = '';
-  }
   players[key] = entry;
   configStore.save({ ...current, tavern: { ...current.tavern, players } });
+  if (entry.source) await obs.setSourceVisible(entry.source, entry.player).catch(() => {});
+  if (entry.characterSource) await obs.setSourceVisible(entry.characterSource, entry.character).catch(() => {});
+  if (entry.player) gatedHidden.delete(entry.source);
+  if (entry.character) gatedHidden.delete(entry.characterSource);
   await syncTavern();
   return players[key];
 }
@@ -341,13 +424,16 @@ async function applyPublish(key, wanted) {
 // Publish: the sources a user has ticked.
 async function publishPlayer(key) {
   const entry = playerEntry(configStore.get().tavern, key);
-  if (!entry.player && !entry.character) throw new Error('Tick Player or Character first.');
+  if (!entry.player && !entry.character) throw new Error('Tick Participant or Character first.');
   return applyPublish(key, { player: entry.player, character: entry.character });
 }
 
 // A tick changed: remembered always, applied at once when they are published.
 async function setChoice(key, field, on) {
   if (field !== 'player' && field !== 'character') throw new Error('Unknown option.');
+  const room = currentTavernRoom();
+  if (on && field === 'player' && !allowsPlayer(room)) throw new Error('This room offers Character sources only.');
+  if (on && field === 'character' && !allowsCharacter(room)) throw new Error('This room offers Participant sources only.');
   const current = configStore.get();
   const entry = playerEntry(current.tavern, key);
   if (isPublished(entry)) return applyPublish(key, { [field]: on });
@@ -1236,6 +1322,11 @@ function createControlWindow() {
     minWidth: 720,
     minHeight: 560,
     backgroundColor: '#1a1410',
+    // The native title bar was its own separate, system-colored strip above
+    // the app's own dark .topbar (which already has -webkit-app-region:
+    // drag set up for exactly this); hiddenInset keeps the traffic lights
+    // but folds the bar itself into the page's own background.
+    titleBarStyle: 'hiddenInset',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -1385,6 +1476,18 @@ function trayMenuTemplate() {
     { label: 'Stop All', click: () => closeAllViews() },
     { type: 'separator' },
     {
+      label: 'Wake Audio',
+      enabled: viewWindows.size > 0,
+      click: () => {
+        for (const id of viewWindows.keys()) {
+          if (wakeAudio(id)) wakeWhenReady(id, 5000);
+        }
+        setTimeout(broadcastStatus, 800);
+      },
+    },
+    { label: 'Auto Arrange on Display', click: () => arrangeViews(configStore.get().arrangeDisplayId) },
+    { type: 'separator' },
+    {
       label: collapsed ? 'Undock Windows' : 'Dock Windows',
       enabled: viewWindows.size > 0,
       click: () => (collapsed ? expandViews() : collapseViews()),
@@ -1410,6 +1513,7 @@ function setupTray() {
     icon.setTemplateImage(true);
     tray = new Tray(icon);
     tray.setToolTip(APP_NAME);
+    tray.on('double-click', () => createControlWindow());
     refreshTrayMenu();
   } else if (!menuBarIcon && tray) {
     tray.destroy();
@@ -1484,7 +1588,7 @@ function registerIpc() {
         if (wakeAudio(id)) wakeWhenReady(id, 5000);
       }
       setTimeout(broadcastStatus, 800);
-    }
+    } else if (name === 'arrange') arrangeViews(configStore.get().arrangeDisplayId);
   });
 
   // --- OBS ---
@@ -1588,8 +1692,6 @@ function registerIpc() {
     return fullStatus().tavern;
   });
   ipcMain.handle('tavern:sync', () => syncTavern());
-  ipcMain.handle('tavern:publish', (_event, key) => publishPlayer(String(key)));
-  ipcMain.handle('tavern:unpublish', (_event, key, removeFromObs) => unpublishPlayer(String(key), removeFromObs !== false));
   ipcMain.handle('tavern:publishAll', async () => {
     for (const user of tavern.membersOf(configStore.get().tavern.room)) {
       const entry = playerEntry(configStore.get().tavern, user.key);
@@ -1599,6 +1701,29 @@ function registerIpc() {
   });
   ipcMain.handle('tavern:unpublishAll', async (_event, removeFromObs) => {
     for (const key of Object.keys(configStore.get().tavern.players)) await unpublishPlayer(key, removeFromObs !== false);
+    return fullStatus().tavern;
+  });
+  // Hide/Show all: the room's current members only (like Publish all), and
+  // visibility-only -- unlike Publish/Unpublish all, nothing is created or
+  // deleted, so a broken source elsewhere is never touched by mistake.
+  ipcMain.handle('tavern:hideAll', async () => {
+    for (const user of tavern.membersOf(configStore.get().tavern.room)) {
+      const entry = playerEntry(configStore.get().tavern, user.key);
+      const wanted = {};
+      if (entry.player) wanted.player = false;
+      if (entry.character) wanted.character = false;
+      if (Object.keys(wanted).length) await applyPublish(user.key, wanted).catch(() => {});
+    }
+    return fullStatus().tavern;
+  });
+  ipcMain.handle('tavern:showAll', async () => {
+    for (const user of tavern.membersOf(configStore.get().tavern.room)) {
+      const entry = playerEntry(configStore.get().tavern, user.key);
+      const wanted = {};
+      if (entry.source && !entry.player) wanted.player = true;
+      if (entry.characterSource && !entry.character) wanted.character = true;
+      if (Object.keys(wanted).length) await applyPublish(user.key, wanted).catch(() => {});
+    }
     return fullStatus().tavern;
   });
   ipcMain.handle('tavern:setChoice', (_event, key, field, on) => setChoice(String(key), String(field), Boolean(on)));
@@ -1646,13 +1771,34 @@ function registerIpc() {
   });
   // Deletes a source from OBS. A region forgets the name so the next Add
   // picks a fresh one; a window keeps its name so Add to OBS re-creates it.
+  // A Tavern source forgets its name too, and its tick turns off -- unlike
+  // a window's name, Tavern's is auto-assigned, and syncTavern recreates
+  // any source whose name is still on file, so leaving it in place would
+  // just bring the deleted input right back on the next sync.
   ipcMain.handle('obs:removeSource', async (_event, inputName) => {
     if (typeof inputName !== 'string' || !inputName) return;
-    if (obs.status().inputs.includes(inputName)) await obs.removeInput(inputName);
+    // status().inputs only ever lists screen_capture inputs (windows and
+    // regions); a Tavern source is a browser_source, so that check always
+    // missed it and this deleted nothing in OBS while still forgetting the
+    // name -- allInputNames() is kind-agnostic.
+    if ((await obs.allInputNames()).has(inputName)) await obs.removeInput(inputName);
     for (const view of configStore.get().views) {
       const regions = view.regions.map((r) => (r.obsSource === inputName ? { ...r, obsSource: '' } : r));
       if (regions.some((r, i) => r !== view.regions[i])) configStore.updateView(view.id, { regions });
     }
+    const current = configStore.get();
+    const players = { ...current.tavern.players };
+    let changed = false;
+    for (const [key, entry] of Object.entries(players)) {
+      if (entry.source === inputName) {
+        players[key] = { ...entry, source: '', player: false };
+        changed = true;
+      } else if (entry.characterSource === inputName) {
+        players[key] = { ...entry, characterSource: '', character: false };
+        changed = true;
+      }
+    }
+    if (changed) configStore.save({ ...current, tavern: { ...current.tavern, players } });
     broadcastStatus();
   });
   ipcMain.handle('regions:remove', (_event, id, regionId) => {
@@ -1668,10 +1814,15 @@ function registerIpc() {
     const windowId = systemWindowId(win);
     if (!windowId) throw new Error('Start the window first so OBS can capture it.');
     const taken = new Set(obs.status().inputs);
-    let name = region.obsSource || `${view.label} - ${region.name}`;
-    if (!region.obsSource) {
-      let n = 2;
-      while (taken.has(name)) name = `${view.label} - ${region.name} ${n++}`;
+    // The number that disambiguates a collision goes on the region's own
+    // name, not the window's (the window>region pair is what has to be
+    // unique, and the region name is the more specific of the two).
+    const regionSourceName = (n) => `Region: ${view.label}>${region.name}${n > 1 ? ` ${n}` : ''} (CP Studio)`;
+    let name = region.obsSource;
+    if (!name) {
+      let n = 1;
+      name = regionSourceName(n);
+      while (taken.has(name)) name = regionSourceName(++n);
     } else if (taken.has(name)) {
       throw new Error(`"${name}" already exists in OBS.`);
     }
@@ -1690,6 +1841,21 @@ function registerIpc() {
     const id = viewIdOf(BrowserWindow.fromWebContents(event.sender));
     const wc = id ? pageOf(id) : null;
     if (wc) wc.focus();
+  });
+  ipcMain.on('bar:reload', (event) => {
+    const id = viewIdOf(BrowserWindow.fromWebContents(event.sender));
+    if (id) reloadView(id);
+  });
+  ipcMain.on('bar:wakeAudio', (event) => {
+    const id = viewIdOf(BrowserWindow.fromWebContents(event.sender));
+    if (!id) return;
+    if (wakeAudio(id)) wakeWhenReady(id, 5000);
+    setTimeout(broadcastStatus, 800);
+  });
+  ipcMain.on('bar:devTools', (event) => {
+    const id = viewIdOf(BrowserWindow.fromWebContents(event.sender));
+    const wc = id ? pageOf(id) : null;
+    if (wc) wc.toggleDevTools();
   });
   ipcMain.handle('config:reveal', () => shell.showItemInFolder(configStore.filePath));
   ipcMain.handle('status:get', () => fullStatus());

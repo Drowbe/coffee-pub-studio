@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: https: http:">
   <title>Coffee Pub Studio - Control Panel</title>
+  <link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css">
   <link rel="stylesheet" href="control.css">
 </head>
 <body>
@@ -24,7 +26,7 @@
 
   <nav class="tabs" id="tabs">
     <button class="tab" data-tab="session" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Session</button>
-    <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>Tavern</button>
+    <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
     <span id="view-tabs" class="view-tabs"></span>
     <button class="tab tab-add" data-tab="add" type="button" title="Add a window">+</button>
   </nav>
@@ -39,8 +41,14 @@
             <select id="arrange-display"></select>
           </label>
           <button id="arrange" class="btn" type="button" title="Windows go left to right from the top-left corner, wrapping to a new row when they no longer fit">Auto-arrange on display</button>
-          <span class="hint">Also where the edge dock lives.</span>
         </div>
+        <div class="row">
+          <label class="check" title="OBS captures a window on a Retina display at twice the pixels of its size here. Unticked, the app scales its window and region sources by half in OBS so they land at the sizes set here. Ticked, it keeps the double pixels.">
+            <input id="retina-double" type="checkbox">
+            <span>Retina display: double the pixel dimensions</span>
+          </label>
+        </div>
+        <p class="hint" id="retina-hint"></p>
         <div class="row">
           <label class="check">
             <input id="dock-enabled" type="checkbox">
@@ -57,8 +65,8 @@
             <span>Overlap</span>
             <input id="dock-overlap" type="number" min="0" max="36" step="1" size="4" title="Points of a docked window left on screen; 0 slides it fully off screen">
           </label>
-          <span class="hint">Hover the dock to see every window; click one to dock it or bring it back. Docked windows stay captured by OBS while some of the window is on screen; try Overlap 0 to test fully off screen.</span>
         </div>
+        <p class="hint">Click a window in the dock to bring it back, or hover for a thumbnail. Try Overlap 0 to slide fully off screen.</p>
         <div class="row checks-column">
           <label class="check">
             <input id="menu-bar-icon" type="checkbox">
@@ -68,10 +76,6 @@
             <input id="hide-dock-icon" type="checkbox">
             <span>Hide the Dock icon (menu bar only)</span>
           </label>
-          <label class="check" title="OBS captures a window on a Retina display at twice the pixels of its size here. Unticked, the app scales its window and region sources by half in OBS so they land at the sizes set here. Ticked, it keeps the double pixels.">
-            <input id="retina-double" type="checkbox">
-            <span>Retina display: double the pixel dimensions</span>
-          </label>
         </div>
         <div class="row wake-row">
           <label class="field field-inline wake-field">
@@ -79,12 +83,17 @@
             <input id="wake-delay" type="range" min="10" max="300" step="5">
             <b id="wake-delay-value">30 s</b>
           </label>
-          <span class="hint">How long after a page loads before the app sends the click that lets Foundry start its audio. Foundry ignores clicks until it has fully loaded, which can take longer than the page says.</span>
+          <span class="hint">Foundry ignores clicks until fully loaded; this is how long to wait first.</span>
         </div>
-        <p class="hint" id="retina-hint"></p>
-        <div class="row session-row">
+      </div>
+
+      <div class="card">
+        <h2>Reset &amp; Diagnostics</h2>
+        <div class="row">
           <span class="hint">Windows in the same session group log into Foundry together.</span>
           <button id="clear-session" class="btn btn-danger" type="button">Sign out (clear cookies)</button>
+        </div>
+        <div class="row">
           <button id="reveal-config" class="btn" type="button">Show config file</button>
           <button id="reset-config" class="btn" type="button">Reset to defaults</button>
         </div>
@@ -124,7 +133,7 @@
             <span>Password</span>
             <input id="obs-password" type="password" size="16" autocomplete="off" placeholder="not set">
           </label>
-          <button id="obs-save-password" class="btn" type="button">Save password</button>
+          <button id="obs-save-password" class="btn" type="button" hidden>Save password</button>
         </div>
         <p class="hint" id="obs-status">Not connected.</p>
       </div>
@@ -132,7 +141,7 @@
       <div class="card tavern">
         <div class="view-head">
           <div class="view-head-left">
-            <h2>Tavern</h2>
+            <h2>CP Tavern</h2>
             <span class="tag" id="tavern-tag" hidden>SIGNED IN</span>
           </div>
           <div class="view-actions">
@@ -142,7 +151,7 @@
         </div>
         <p class="hint">
           Coffee Pub Tavern is the voice and video server for the people at your table. Sign in with an admin account and the
-          <strong>Tavern</strong> tab lists everyone; publish a player to give them their own OBS Browser Source.
+          <strong>CP Tavern</strong> tab lists everyone; publish a player to give them their own OBS Browser Source.
         </p>
         <div class="row">
           <label class="check">
@@ -170,34 +179,43 @@
             <span>Password</span>
             <input id="tavern-password" type="password" size="14" autocomplete="off" placeholder="not set">
           </label>
-          <button id="tavern-save-password" class="btn" type="button">Save password</button>
+          <button id="tavern-save-password" class="btn" type="button" hidden>Save password</button>
         </div>
-        <div class="row">
-          <span class="field-label">Player source</span>
-          <label class="field field-inline">
-            <span>Width</span>
-            <input id="tavern-width" type="number" min="64" max="3840" step="1" size="5">
-          </label>
-          <label class="field field-inline">
-            <span>Height</span>
-            <input id="tavern-height" type="number" min="64" max="2160" step="1" size="5">
-          </label>
-          <label class="check" title="Keep width and height at 16:9, the shape of the camera"><input id="tavern-lock" type="checkbox"><span>Constrain proportions</span></label>
+        <div class="card-subsection">
+          <h3 class="section-title">Participant Source</h3>
+          <div class="row">
+            <label class="field field-inline">
+              <span>Width</span>
+              <input id="tavern-width" type="number" min="64" max="3840" step="1" size="5">
+            </label>
+            <label class="field field-inline">
+              <span>Height</span>
+              <input id="tavern-height" type="number" min="64" max="2160" step="1" size="5">
+            </label>
+            <label class="check" title="Keep width and height at 16:9, the shape of the camera"><input id="tavern-lock" type="checkbox"><span>Constrain proportions</span></label>
+          </div>
+          <p class="hint">Their video, or a still image when the camera's off — borders and overlays are set on the Tavern. Audio routes through OBS's own <strong>Control audio via OBS</strong> toggle.</p>
         </div>
-        <p class="hint">The player's video, or their player image when the camera is off, with the talking border, overlay images and name plate set on the Tavern. Audio is always included; use the source's <strong>Control audio via OBS</strong> in OBS for the mixer.</p>
-        <div class="row">
-          <span class="field-label">Character source</span>
-          <label class="field field-inline">
-            <span>Width</span>
-            <input id="tavern-status-width" type="number" min="32" max="3840" step="1" size="5">
-          </label>
-          <label class="field field-inline">
-            <span>Height</span>
-            <input id="tavern-status-height" type="number" min="32" max="2160" step="1" size="5">
-          </label>
-          <label class="check" title="Whether the Character box starts ticked on each user's card"><input id="tavern-indicator" type="checkbox"><span>Ticked by default for each user</span></label>
+
+        <div class="card-subsection">
+          <h3 class="section-title">Character Source</h3>
+          <div class="row">
+            <label class="field field-inline">
+              <span>Width</span>
+              <input id="tavern-status-width" type="number" min="32" max="3840" step="1" size="5">
+            </label>
+            <label class="field field-inline">
+              <span>Height</span>
+              <input id="tavern-status-height" type="number" min="32" max="2160" step="1" size="5">
+            </label>
+          </div>
+          <p class="hint">Their character image, transparent until they talk or mute — good for overlaying a character bar.</p>
+          <div class="row">
+            <label class="check" title="Whether a new user's Character source is ticked on by default"><input id="tavern-indicator" type="checkbox"><span>New users get Character on by default</span></label>
+          </div>
         </div>
-        <p class="hint">A second source: the character image with the talking and muted images on top, set on the Tavern. With no character image it stays transparent until they talk or mute, so it can sit over a character bar.</p>
+
+        <p class="hint">Someone who's stepped into an ordinary aside gets muted while Enable Asides is on, so their conversation there doesn't bleed into the stream — their source stays on screen either way. Offline sources are left alone; there's no live audio to mute. No visual dim or tint on the Studio side; that's the Tavern server's call now.</p>
         <p class="hint" id="tavern-status">Not signed in.</p>
         </div>
       </div>
@@ -210,7 +228,7 @@
             <h2 id="tavern-title">Room</h2>
           </div>
           <div class="view-actions">
-            <label class="check" title="Keep this on whatever room the admin is in at the table"><input type="checkbox" id="tavern-follow-admin"> Follow the admin</label>
+            <label class="check" title="While on, OBS mutes and dims anyone live in a different room than the one picked below -- an aside pulled out of it, most likely. It never changes which room is picked; that's always this dropdown's own choice. Offline users are always muted and dimmed regardless of this setting."><input type="checkbox" id="tavern-follow-admin"> Enable Asides</label>
             <select id="tavern-room" title="The room whose users are listed below"></select>
           </div>
         </div>
@@ -230,14 +248,24 @@
             <span class="hint" id="tavern-summary"></span>
           </div>
           <div class="view-actions">
-            <button id="tavern-publish-all" class="btn btn-primary" type="button" title="Publish everyone who is not in OBS yet, with the sources they have ticked">Publish all</button>
-            <button id="tavern-unpublish-all" class="btn" type="button" title="Remove every Tavern source from OBS">Unpublish all</button>
+            <button id="tavern-show-all" class="btn btn-primary" type="button" title="Show every already-added source in this room that's currently hidden">Show All in OBS</button>
+            <button id="tavern-hide-all" class="btn" type="button" title="Hide every source in this room that's currently showing, without deleting it">Hide All in OBS</button>
+            <button id="tavern-publish-all" class="btn" type="button" title="Add to OBS everyone in this room who is ticked but not there yet">Add All in OBS</button>
+            <button id="tavern-unpublish-all" class="btn btn-danger" type="button" title="Delete every Tavern source from OBS">Delete All from OBS</button>
             <button id="tavern-sync" class="btn" type="button" title="Make OBS match: create, re-point and rename the Tavern sources">Sync OBS</button>
           </div>
         </div>
         <p class="hint" id="tavern-empty">Sign in to the Tavern on the Session tab to see its users here.</p>
-        <div id="tavern-party" class="party"></div>
-        <p class="hint" id="tavern-sync-note"></p>
+      </div>
+
+      <div class="card" id="tavern-participants-section">
+        <h2>Participants</h2>
+        <div id="tavern-participants" class="party"></div>
+      </div>
+
+      <div class="card" id="tavern-characters-section">
+        <h2>Characters</h2>
+        <div id="tavern-characters" class="party"></div>
       </div>
     </section>
 
@@ -325,7 +353,11 @@
           <input type="checkbox" data-wfield="enabled">
         </label>
         <span class="field-label window-source-label">Whole window</span>
-        <input class="region-name-input" data-wfield="name" type="text" maxlength="200" list="obs-window-inputs" spellcheck="false" placeholder="OBS source name">
+        <span class="chip name-compose">
+          <span class="name-compose-prefix" data-role="name-prefix" hidden>Window: </span>
+          <input class="name-compose-input" data-wfield="name" type="text" maxlength="200" spellcheck="false" placeholder="OBS source name">
+          <span class="name-compose-suffix" data-role="name-suffix" hidden> (CP Studio)</span>
+        </span>
         <span class="region-obs" data-role="window-obs"></span>
       </header>
       <div class="region-body">
@@ -343,28 +375,28 @@
   </template>
 
   <datalist id="session-groups"></datalist>
-  <datalist id="obs-window-inputs"></datalist>
 
-  <template id="player-template">
+  <!-- Cloned once per user in the Participants list and once in the
+       Characters list; renderTavern()'s renderRow() fills in the
+       kind-specific bits (thumbnail slot, tooltip, source field). -->
+  <template id="tavern-row-template">
     <article class="player-card">
       <img class="player-thumb" data-role="thumb" alt="">
       <div class="player-main">
         <div class="player-head">
           <span class="dot" data-role="online"></span>
-          <strong data-role="name"></strong>
-          <span class="hint" data-role="live"></span>
-          <span class="tag" data-role="published" hidden>IN OBS</span>
-          <span class="tag tag-dim" data-role="off-stream" hidden title="Online, but not in the room the admin is in right now">OFF STREAM</span>
-        </div>
-        <div class="player-source">
           <span class="chips" data-role="chips"></span>
+          <i class="fa-solid fa-microphone av-icon" data-role="mic" hidden aria-hidden="true"></i>
+          <i class="fa-solid fa-video av-icon" data-role="video" hidden aria-hidden="true"></i>
+          <span class="tag tag-dim" data-role="room" hidden></span>
+          <span class="tag tag-dim" data-role="offline" hidden>OFFLINE</span>
+          <span class="tag tag-dim" data-role="off-stream" hidden title="Online, but not in the room the admin is in right now">OFF STREAM</span>
         </div>
       </div>
       <div class="player-actions">
-        <button class="btn btn-small btn-primary" data-action="publish" type="button">Publish</button>
-        <label class="check" title="The Player source: their video, or their player image when the camera is off"><input type="checkbox" data-choice="player"><span>Player</span></label>
-        <label class="check" title="The Character source: their character image with the talking and muted images on top"><input type="checkbox" data-choice="character"><span>Character</span></label>
-        <button class="btn btn-small btn-icon" data-action="copy-link" type="button" title="Copy the Player view link" aria-label="Copy the Player view link"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg></button>
+        <button class="btn btn-small btn-icon" data-action="copy-link" type="button" title="Copy the view link" aria-label="Copy the view link"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg></button>
+        <button class="btn btn-small btn-danger" data-action="remove-source" type="button">Delete from OBS</button>
+        <button class="btn btn-small btn-primary" data-action="toggle" type="button">Add to OBS</button>
       </div>
     </article>
   </template>
@@ -375,7 +407,11 @@
         <label class="check" title="Disabled regions are hidden in OBS and not maintained">
           <input type="checkbox" data-rfield="enabled">
         </label>
-        <input class="region-name-input" data-rfield="name" type="text" maxlength="40" placeholder="Region name">
+        <span class="chip name-compose">
+          <span class="name-compose-prefix" data-role="name-prefix"></span>
+          <input class="name-compose-input" data-rfield="name" type="text" maxlength="40" placeholder="Region name">
+          <span class="name-compose-suffix"> (CP Studio)</span>
+        </span>
         <span class="region-obs" data-role="region-obs"></span>
         <button class="btn btn-small btn-danger" data-action="delete-region" type="button">Delete</button>
       </header>

@@ -3,6 +3,7 @@
 const barEl = document.getElementById('bar');
 const labelEl = document.getElementById('label');
 const readoutEl = document.getElementById('readout');
+const controlsEl = document.getElementById('controls');
 
 window.bar.onState((state) => {
   labelEl.textContent = state.label;
@@ -28,3 +29,12 @@ barEl.addEventListener('keydown', (event) => {
 // Double-clicking the bar focuses the page so you can type into Foundry.
 barEl.addEventListener('dblclick', () => window.bar.focusPage());
 barEl.focus();
+
+// Per-window controls: Reload, Wake audio, Developer tools.
+controlsEl.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  if (button.dataset.action === 'reload') window.bar.reload();
+  else if (button.dataset.action === 'wakeAudio') window.bar.wakeAudio();
+  else if (button.dataset.action === 'devTools') window.bar.devTools();
+});

@@ -13,6 +13,14 @@ const CAPTURE_TYPE_WINDOW = 1; // settings.type: 0 display, 1 window, 2 applicat
 const BROWSER_KIND = 'browser_source';
 const CROP_FILTER_KIND = 'crop_filter'; // OBS "Crop/Pad"
 const CROP_FILTER_NAME = 'Coffee Pub Crop';
+// Formerly an OBS "Color Correction" filter used to dim/tint offline and
+// aside sources. Pulled out entirely: applied to these (alpha-transparent)
+// Tavern browser sources, it corrupted the rendered image into static-like
+// colour noise even at neutral (opacity 1.0, no tint) settings -- confirmed
+// live, deleting the filter was what fixed it, not adjusting its settings.
+// The name is kept only so removeDimFilter can clean up leftovers from
+// before this was reverted.
+const DIM_FILTER_NAME = 'Coffee Pub Dim';
 const RECONNECT_MS = 10000;
 
 class ObsBridge extends EventEmitter {
@@ -242,6 +250,17 @@ class ObsBridge extends EventEmitter {
     await this.refreshInputs();
   }
 
+  // Best-effort cleanup of a "Coffee Pub Dim" filter left over from before
+  // OBS-side dimming was reverted (see the constant's comment above). A
+  // no-op once a source has none.
+  async removeDimFilter(inputName) {
+    await this.obs.call('RemoveSourceFilter', { sourceName: inputName, filterName: DIM_FILTER_NAME }).catch(() => {});
+  }
+
+  async setInputMuted(inputName, muted) {
+    await this.obs.call('SetInputMute', { inputName, inputMuted: muted });
+  }
+
   // Show or hide every scene item that references a source, in top-level
   // scenes and inside groups. Returns how many items were changed.
   async setSourceVisible(sourceName, visible) {
@@ -290,6 +309,17 @@ class ObsBridge extends EventEmitter {
       const { sceneItems } = await this.obs.call('GetSceneItemList', { sceneName: scene.sceneName });
       await apply(scene.sceneName, sceneItems);
     }
+  }
+
+  // Every input's name, of any kind -- unlike status().inputs (screen_capture
+  // only, for the window/region tracking above) or browserInputs() (browser
+  // sources only), this is for a plain "does this name exist at all" check
+  // before deleting something whose kind the caller doesn't know or care
+  // about.
+  async allInputNames() {
+    if (!this.connected) return new Set();
+    const { inputs } = await this.obs.call('GetInputList');
+    return new Set(inputs.map((i) => i.inputName));
   }
 
   // --- Browser sources (Coffee Pub Tavern players) --------------------------

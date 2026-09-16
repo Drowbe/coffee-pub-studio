@@ -88,6 +88,7 @@ function selectTab(name) {
   $('tab-session').hidden = name !== 'session';
   $('tab-tavern').hidden = name !== 'tavern';
   for (const [id, card] of cards) card.hidden = name !== `view:${id}`;
+  refreshStatusBar();
 }
 
 function renderTabs() {
@@ -324,21 +325,6 @@ function renderStatus() {
     renderWindowSource(card, view, s, o, connected);
     renderRegions(card, view, s, o, connected);
   }
-  renderSourceChoices(o, connected);
-}
-
-// Existing OBS window captures nobody owns yet, offered while typing a name.
-function renderSourceChoices(o, connected) {
-  const list = $('obs-window-inputs');
-  list.textContent = '';
-  if (!connected) return;
-  const owned = new Set(config.views.flatMap((v) => [v.windowSource.name, ...v.regions.map((r) => r.obsSource)]));
-  for (const name of o.inputs) {
-    if (owned.has(name)) continue;
-    const option = document.createElement('option');
-    option.value = name;
-    list.appendChild(option);
-  }
 }
 
 function makeChip(name, { missing = false, dim = false, title = '' } = {}) {
@@ -363,13 +349,23 @@ function makeSmallButton(text, action, { danger = false, disabled = false, title
 }
 
 // The whole window as one OBS source: a switch, its name, and its state in
-// OBS (in OBS -> Remove from OBS; not there -> Add to OBS).
+// OBS (in OBS -> Delete from OBS; not there -> Add to OBS).
+// The name field only ever edits the part between "Window: " and
+// " (CP Studio)" -- Studio composes the rest, always, on save. A name that
+// doesn't match (a legacy name, or one adopted from a hand-made OBS
+// source) shows raw and unwrapped until the user next edits and saves it.
+const WINDOW_SOURCE_NAME_RE = /^Window: (.*) \(CP Studio\)$/;
+const windowSourceName = (label) => `Window: ${label} (CP Studio)`;
+
 function renderWindowSource(card, view, s, o, connected) {
   const el = card.querySelector('[data-role="window-source"]');
   const ws = view.windowSource;
   if (!isEditing(el)) {
     el.querySelector('[data-wfield="enabled"]').checked = ws.enabled;
-    el.querySelector('[data-wfield="name"]').value = ws.name;
+    const match = WINDOW_SOURCE_NAME_RE.exec(ws.name);
+    el.querySelector('[data-role="name-prefix"]').hidden = !match;
+    el.querySelector('[data-role="name-suffix"]').hidden = !match;
+    el.querySelector('[data-wfield="name"]').value = match ? match[1] : ws.name;
   }
   el.classList.toggle('disabled', !ws.enabled);
   const obsEl = el.querySelector('[data-role="window-obs"]');
@@ -378,7 +374,7 @@ function renderWindowSource(card, view, s, o, connected) {
     const exists = o.inputs.includes(ws.name);
     if (exists) {
       obsEl.appendChild(makeChip(ws.enabled ? 'in OBS' : 'in OBS, hidden', { title: ws.enabled ? 'Kept pointed at this window' : 'Hidden while the switch is off' }));
-      obsEl.appendChild(makeSmallButton('Remove from OBS', 'remove-window-source', { danger: true, title: 'Delete this source in OBS' }));
+      obsEl.appendChild(makeSmallButton('Delete from OBS', 'remove-window-source', { danger: true, title: 'Delete this source in OBS' }));
     } else if (ws.enabled) {
       obsEl.appendChild(makeChip('not in OBS', { missing: true, title: 'No OBS source has this name yet' }));
       obsEl.appendChild(
@@ -431,13 +427,18 @@ async function commitWindowSourceName(viewId) {
   const view = config.views.find((v) => v.id === viewId);
   if (!card || !view) return;
   const input = card.querySelector('[data-wfield="name"]');
-  const name = input.value.trim();
-  if (!name || name === view.windowSource.name) return;
+  const typed = input.value.trim();
+  if (!typed) return;
+  // Always compose the full name from what's typed -- the wrapper is never
+  // optional, whatever was there before (matching the pattern or not).
+  const name = windowSourceName(typed);
+  if (name === view.windowSource.name) return;
   try {
     view.windowSource = await api.setWindowSource(viewId, { name });
   } catch (err) {
     reportError(err);
-    input.value = view.windowSource.name;
+    const match = WINDOW_SOURCE_NAME_RE.exec(view.windowSource.name);
+    input.value = match ? match[1] : view.windowSource.name;
   }
 }
 
@@ -477,6 +478,9 @@ function renderRegions(card, view, s, o, connected) {
   for (const region of view.regions) {
     const el = regionCardFor(card, region);
     if (!isEditing(el)) fillRegionCard(el, region);
+    // The prefix is the window's own label, not something the region name
+    // field edits -- the composed result is what "Add to OBS" actually uses.
+    el.querySelector('[data-role="name-prefix"]').textContent = `Region: ${view.label}>`;
 
     const obsEl = el.querySelector('[data-role="region-obs"]');
     obsEl.textContent = '';
@@ -484,7 +488,7 @@ function renderRegions(card, view, s, o, connected) {
       const exists = region.obsSource && o.inputs.includes(region.obsSource);
       if (exists) {
         obsEl.appendChild(makeChip(region.obsSource, { title: 'OBS source' }));
-        obsEl.appendChild(makeSmallButton('Remove from OBS', 'remove-region-source', { danger: true, title: 'Delete this source in OBS' }));
+        obsEl.appendChild(makeSmallButton('Delete from OBS', 'remove-region-source', { danger: true, title: 'Delete this source in OBS' }));
       } else {
         obsEl.appendChild(
           makeSmallButton('Add to OBS', 'create-region-source', {
@@ -781,10 +785,14 @@ obsConnectEl.addEventListener('click', async () => {
 $('obs-save-password').addEventListener('click', async () => {
   status.obs = await api.obsSetPassword(obsPasswordEl.value);
   obsPasswordEl.value = '';
+  $('obs-save-password').hidden = true;
   renderObs();
 });
 obsPasswordEl.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') $('obs-save-password').click();
+});
+obsPasswordEl.addEventListener('input', () => {
+  $('obs-save-password').hidden = !obsPasswordEl.value;
 });
 $('obs-sync').addEventListener('click', async () => {
   try {
@@ -835,14 +843,29 @@ const tavernEls = {
   tag: $('tavern-tag'),
   dot: $('tavern-dot'),
   status: $('tavern-status'),
-  party: $('tavern-party'),
+  participants: $('tavern-participants'),
+  characters: $('tavern-characters'),
   empty: $('tavern-empty'),
   summary: $('tavern-summary'),
   title: $('tavern-title'),
-  syncNote: $('tavern-sync-note'),
 };
+
+// A Participant source and a Character source are independent OBS sources
+// with their own switch, so they get their own section and their own row
+// per user rather than one shared card. `field`/`sourceField` are the
+// config keys on a tavern.players[key] entry; `viewKind` is the ?kind=
+// param the Tavern server expects (still 'player' for back-compat).
+const TAVERN_KINDS = {
+  player: { field: 'player', sourceField: 'source', viewKind: 'player', thumbSlot: 'profile', label: 'Participant', otherLabel: 'Character', what: 'Their video, or their player image when the camera is off' },
+  character: { field: 'character', sourceField: 'characterSource', viewKind: 'character', thumbSlot: 'character', label: 'Character', otherLabel: 'Participant', what: 'Their character image with the talking and muted images on top' },
+};
+
 /** @type {Map<string, HTMLElement>} */
-const playerCards = new Map();
+const participantCards = new Map();
+/** @type {Map<string, HTMLElement>} */
+const characterCards = new Map();
+const cardsFor = (kind) => (kind === 'character' ? characterCards : participantCards);
+const containerFor = (kind) => (kind === 'character' ? tavernEls.characters : tavernEls.participants);
 
 function applyTavernConfig() {
   const t = config.tavern;
@@ -902,7 +925,11 @@ $('tavern-save-password').addEventListener('click', async () => {
   await saveTavernSettings();
   status.tavern = await api.tavernSetPassword(tavernEls.password.value);
   tavernEls.password.value = '';
+  $('tavern-save-password').hidden = true;
   renderTavern();
+});
+tavernEls.password.addEventListener('input', () => {
+  $('tavern-save-password').hidden = !tavernEls.password.value;
 });
 tavernEls.password.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') $('tavern-save-password').click();
@@ -918,9 +945,11 @@ tavernEls.connect.addEventListener('click', async () => {
   renderTavern();
 });
 $('tavern-manage').addEventListener('click', () => api.tavernOpenManage());
+$('tavern-show-all').addEventListener('click', () => api.tavernShowAll().catch(reportError));
+$('tavern-hide-all').addEventListener('click', () => api.tavernHideAll().catch(reportError));
 $('tavern-publish-all').addEventListener('click', () => api.tavernPublishAll().catch(reportError));
 $('tavern-unpublish-all').addEventListener('click', () => {
-  if (!window.confirm('Remove every Tavern source from OBS?')) return;
+  if (!window.confirm('Delete every Tavern source from OBS?')) return;
   api.tavernUnpublishAll(true).catch(reportError);
 });
 $('tavern-sync').addEventListener('click', () => api.tavernSync().catch(reportError));
@@ -946,15 +975,16 @@ $('tavern-follow-admin').addEventListener('change', async () => {
   renderTavern();
 });
 
-function playerCardFor(user) {
-  let card = playerCards.get(user.key);
+function tavernRowFor(user, kind) {
+  const cards = cardsFor(kind);
+  let card = cards.get(user.key);
   if (card) return card;
-  card = $('player-template').content.firstElementChild.cloneNode(true);
+  card = $('tavern-row-template').content.firstElementChild.cloneNode(true);
   card.dataset.key = user.key;
-  card.addEventListener('click', onPlayerClick);
-  card.addEventListener('change', onPlayerOption);
-  playerCards.set(user.key, card);
-  tavernEls.party.appendChild(card);
+  card.dataset.kind = kind;
+  card.addEventListener('click', onTavernRowClick);
+  cards.set(user.key, card);
+  containerFor(kind).appendChild(card);
   return card;
 }
 
@@ -981,19 +1011,20 @@ function renderTavern() {
   tavernEls.status.classList.toggle('hint-error', t.state === 'error');
 
   // The room chooser: the Lobby and the rooms curated on the Tavern; the
-  // users below are the chosen room's members. "Follow the admin" overrides
-  // the manual choice with whatever room the signed-in admin is in at the
-  // table (a pulled-aside room included), so Studio keeps up automatically.
+  // users below are the chosen room's members. This is the room this OBS
+  // session is showing, full stop -- a purely manual pick, never overridden
+  // by wherever an admin happens to be live (that used to snap the dropdown
+  // back to Lobby the moment no admin was online, which read as the room
+  // randomly changing on its own).
   const rooms = connected ? t.rooms || [] : [];
-  const followAdmin = Boolean(config && config.tavern.followAdmin);
-  const chosenId = followAdmin ? t.activeRoom || 'lobby' : (config && config.tavern.room) || 'lobby';
+  const chosenId = (config && config.tavern.room) || 'lobby';
   const room = rooms.find((r) => r.id === chosenId) || rooms.find((r) => r.isLobby) || rooms[0] || null;
-  $('tavern-follow-admin').checked = followAdmin;
+  $('tavern-follow-admin').checked = Boolean(config && config.tavern.followAdmin);
   // Rebuild the list only when it changed, so a room added on the Tavern
-  // shows up even while the chooser has focus. A "pull aside" room is not
-  // hand-pickable; it only ever shows up here via Follow the admin.
+  // shows up even while the chooser has focus. A "pull aside" room is never
+  // hand-pickable -- it's transient and gone once everyone's left it.
   const select = $('tavern-room');
-  const pickable = rooms.filter((r) => !r.ephemeral || r.id === chosenId);
+  const pickable = rooms.filter((r) => !r.ephemeral);
   const wanted = pickable.map((r) => `${r.id} ${r.isLobby ? `${r.name} (everyone)` : r.name}`);
   const have = [...select.options].map((o) => `${o.value} ${o.textContent}`);
   if (wanted.join('\n') !== have.join('\n')) {
@@ -1001,12 +1032,12 @@ function renderTavern() {
     for (const r of pickable) {
       const option = document.createElement('option');
       option.value = r.id;
-      option.textContent = r.isLobby ? `${r.name} (everyone)` : r.ephemeral ? 'Aside' : r.name;
+      option.textContent = r.isLobby ? `${r.name} (everyone)` : r.name;
       select.appendChild(option);
     }
   }
   if (room && select.value !== room.id) select.value = room.id;
-  select.disabled = !connected || followAdmin || pickable.length < 2;
+  select.disabled = !connected || pickable.length < 2;
   tavernEls.title.textContent = connected && room ? `${t.serverName}: ${room.name}` : 'Room';
   $('tavern-room-desc').textContent = room ? room.description : '';
   const roomImage = $('tavern-room-image');
@@ -1020,6 +1051,10 @@ function renderTavern() {
 
   // The users of that room
   const party = connected && room ? t.party.filter((u) => room.members.includes(u.key)) : connected ? t.party : [];
+  // OFF STREAM/ASIDE is relative to wherever the admin/GM actually is
+  // (t.activeRoom), not the room dropdown above -- with no admin online
+  // there's no "current conversation" to be off from, so don't tag anyone.
+  const adminOnline = connected && t.party.some((u) => u.role === 'admin' && u.online);
   const published = (config && config.tavern.players) || {};
   const inputs = new Set((t.sync && t.sync.inputs) || []);
   const obsConnected = status.obs && status.obs.state === 'connected';
@@ -1027,8 +1062,20 @@ function renderTavern() {
   $('tavern-room-count').textContent = room ? `${room.members.length} member${room.members.length === 1 ? '' : 's'}` : '';
   tavernEls.empty.hidden = connected;
   tavernEls.empty.textContent = t.state === 'error' ? t.message : 'Sign in to the Tavern on the Session tab to see who is at the table.';
-  // What each user gets: the ticks, defaulting to Player on and Character
-  // per the Session tab; the sources exist while they are published.
+  // A room's profile gates which sources it offers: 'participants' drops
+  // Character, 'characters' drops Participant, 'roleplaying' (or no
+  // profile, for an older server) offers both. Every user in `party` is a
+  // member of this same `room`, so the gate applies uniformly below. A kind
+  // the room doesn't offer isn't just unavailable per row -- the whole
+  // section is irrelevant here, so it doesn't render at all. A leftover
+  // source from before the room stopped offering that kind is still hidden
+  // (not deleted) by syncTavern; cleaning it up means switching to a room
+  // that does offer it, or Delete All from OBS.
+  const allowedFor = { player: !room || room.profile !== 'characters', character: !room || room.profile !== 'participants' };
+  $('tavern-participants-section').hidden = !connected || !allowedFor.player;
+  $('tavern-characters-section').hidden = !connected || !allowedFor.character;
+  // What each user gets: the ticks, defaulting to Participant on and
+  // Character per the Session tab; the sources exist while they are published.
   const entryFor = (key) => {
     const e = published[key] || {};
     return {
@@ -1043,14 +1090,21 @@ function renderTavern() {
   tavernEls.summary.textContent = connected ? `${online} of ${party.length} at the table, ${inObs} in OBS` : '';
   $('tavern-publish-all').disabled = !connected || party.every((u) => isPublished(entryFor(u.key)) || !(entryFor(u.key).player || entryFor(u.key).character));
   $('tavern-unpublish-all').disabled = !Object.keys(published).some((k) => isPublished(published[k]));
+  $('tavern-hide-all').disabled = !connected || party.every((u) => { const e = entryFor(u.key); return !e.player && !e.character; });
+  $('tavern-show-all').disabled = !connected || party.every((u) => { const e = entryFor(u.key); return (!e.source || e.player) && (!e.characterSource || e.character); });
   $('tavern-sync').disabled = !connected;
 
-  for (const user of party) {
-    const card = playerCardFor(user);
+  const renderRow = (user, kind) => {
+    const k = TAVERN_KINDS[kind];
+    const card = tavernRowFor(user, kind);
     const entry = entryFor(user.key);
-    card.querySelector('[data-role="name"]').textContent = user.displayName;
+    const ticked = entry[k.field];
+    const name = entry[k.sourceField];
+    const allowed = allowedFor[kind];
     const thumb = card.querySelector('[data-role="thumb"]');
-    const thumbUrl = `${t.url}/img/${encodeURIComponent(user.key)}/profile?s=${encodeURIComponent(t.streamKey)}`;
+    thumb.alt = user.displayName;
+    thumb.title = user.displayName;
+    const thumbUrl = `${t.url}/img/${encodeURIComponent(user.key)}/${k.thumbSlot}?s=${encodeURIComponent(t.streamKey)}`;
     if (thumb.dataset.src !== thumbUrl) {
       thumb.dataset.src = thumbUrl;
       thumb.src = thumbUrl;
@@ -1059,96 +1113,141 @@ function renderTavern() {
     dot.classList.toggle('on', Boolean(user.online));
     dot.title = user.online ? 'at the table' : 'offline';
     const inRoom = user.online && user.online.room ? rooms.find((r) => r.id === user.online.room) : null;
-    card.querySelector('[data-role="live"]').textContent = user.online
-      ? `${inRoom ? `in ${inRoom.name} · ` : ''}${user.online.micOn ? 'mic on' : 'mic off'} · ${user.online.cameraOn ? 'camera on' : 'camera off'}`
-      : 'offline';
-    // Off stream: online, but not in the room the admin is in right now (the
-    // room this tab is currently showing when Follow the admin is on) -- a
-    // pull-aside room is no different: whoever the admin is aside with is
-    // on stream same as any other room, and whoever they stepped out of is
-    // off stream same as any other room.
-    const offStream = Boolean(user.online) && user.online.room !== t.activeRoom;
+
+    const micIcon = card.querySelector('[data-role="mic"]');
+    micIcon.hidden = !user.online;
+    micIcon.classList.toggle('on', Boolean(user.online && user.online.micOn));
+    micIcon.title = user.online ? (user.online.micOn ? 'Mic on' : 'Mic off') : '';
+
+    const videoIcon = card.querySelector('[data-role="video"]');
+    videoIcon.hidden = !user.online;
+    videoIcon.classList.toggle('on', Boolean(user.online && user.online.cameraOn));
+    videoIcon.title = user.online ? (user.online.cameraOn ? 'Camera on' : 'Camera off') : '';
+
+    // The room they're live in right now, not the room this list happens to
+    // be showing -- the two can differ (a pull-aside, or just a different
+    // room membership), and that gap is exactly what room-profile gating
+    // needs to be visible, not implicit.
+    const roomTag = card.querySelector('[data-role="room"]');
+    roomTag.hidden = !inRoom;
+    roomTag.textContent = inRoom ? inRoom.name : '';
+    roomTag.classList.toggle('on', Boolean(inRoom && room && inRoom.id === room.id));
+
+    card.querySelector('[data-role="offline"]').hidden = Boolean(user.online);
+
+    // Off stream: online, but not in the room the admin/GM is actually in
+    // right now -- not the dropdown's manual pick above, which is only for
+    // Participant/Character gating. A pull-aside room is no different:
+    // whoever's aside together is off stream same as any other room they
+    // could have wandered into.
+    const offStream = adminOnline && Boolean(user.online) && user.online.room !== t.activeRoom;
     const offStreamTag = card.querySelector('[data-role="off-stream"]');
     offStreamTag.hidden = !offStream;
     offStreamTag.textContent = inRoom && inRoom.ephemeral ? 'ASIDE' : 'OFF STREAM';
-    const isOn = isPublished(entry);
-    card.querySelector('[data-role="published"]').hidden = !isOn;
+    const exists = obsConnected && Boolean(name) && inputs.has(name);
+    // Gating never touches the tick, only OBS-side visibility (syncTavern
+    // hides it, not unpublishes it) -- so something ticked on from before,
+    // in a room that used to allow it, must NOT read as "live" once the
+    // room no longer does. Otherwise the button keeps saying "Hide in OBS"
+    // for a source the room already forced hidden, as if it were still a
+    // normal working toggle.
+    const live = Boolean(name) && ticked && allowed; // showing in OBS right now
+    const blockedByGate = !allowed;
+
     const chips = card.querySelector('[data-role="chips"]');
     chips.textContent = '';
-    for (const [name, what] of [[entry.source, 'The Player source: video, or their player image when the camera is off'], [entry.characterSource, 'The Character source: character image with the talking and muted images on top']]) {
-      if (!name) continue;
-      const missing = obsConnected && !inputs.has(name);
-      chips.appendChild(makeChip(name, { missing, title: missing ? 'Not in OBS yet; Sync OBS creates it' : what }));
+    if (name) {
+      let title = k.what;
+      if (!allowed) title = `Hidden: this room offers ${k.otherLabel} sources only`;
+      else if (!ticked) title = 'Hidden; still assigned this name for next time';
+      else if (!exists) title = obsConnected ? 'Not in OBS yet; Sync OBS creates it' : 'OBS is not connected';
+      const chip = makeChip(name, { missing: obsConnected && !exists, dim: !allowed || !ticked, title });
+      chip.classList.add(user.online ? 'chip-user-online' : 'chip-user-offline');
+      chips.appendChild(chip);
     }
-    if (!isOn) {
-      const hint = document.createElement('span');
-      hint.className = 'hint';
-      hint.textContent = 'Not in OBS';
-      chips.appendChild(hint);
-    }
-    const publish = card.querySelector('[data-action="publish"]');
-    publish.textContent = isOn ? 'Unpublish' : 'Publish';
-    publish.classList.toggle('btn-primary', !isOn);
-    publish.disabled = !isOn && !entry.player && !entry.character;
-    publish.title = isOn ? 'Remove this user\'s sources from OBS' : publish.disabled ? 'Tick Player or Character first' : 'Add the ticked sources to the current OBS scene';
-    if (!isEditing(card)) {
-      card.querySelector('[data-choice="player"]').checked = entry.player;
-      card.querySelector('[data-choice="character"]').checked = entry.character;
-    }
+
+    const toggleBtn = card.querySelector('[data-action="toggle"]');
+    toggleBtn.hidden = blockedByGate;
+    toggleBtn.textContent = live ? 'Hide in OBS' : exists ? 'Show in OBS' : 'Add to OBS';
+    toggleBtn.classList.toggle('btn-primary', !live);
+    toggleBtn.title = live
+      ? 'Hide this source (kept in OBS, ready to show again)'
+      : exists
+        ? 'Show this source again in OBS'
+        : 'Create this source in OBS';
+
+    const removeBtn = card.querySelector('[data-action="remove-source"]');
+    removeBtn.hidden = !exists;
+  };
+
+  for (const user of party) {
+    renderRow(user, 'player');
+    renderRow(user, 'character');
   }
-  for (const [key, card] of playerCards) {
-    if (!party.some((u) => u.key === key)) {
-      card.remove();
-      playerCards.delete(key);
+  for (const cards of [participantCards, characterCards]) {
+    for (const [key, card] of cards) {
+      if (!party.some((u) => u.key === key)) {
+        card.remove();
+        cards.delete(key);
+      }
     }
   }
 
-  const sync = t.sync;
-  if (connected && sync && sync.at) {
-    const bits = [];
-    if (sync.created.length) bits.push(`created ${sync.created.join(', ')}`);
-    if (sync.updated.length) bits.push(`updated ${sync.updated.join(', ')}`);
-    if (sync.renamed.length) bits.push(`renamed ${sync.renamed.join(', ')}`);
-    if (sync.missing.length) bits.push(`waiting for OBS: ${sync.missing.join(', ')}`);
-    tavernEls.syncNote.textContent = sync.note || (bits.length ? `Last sync ${bits.join('; ')}.` : 'Last sync: everything already in place.');
-  } else {
-    tavernEls.syncNote.textContent = '';
-  }
+  refreshStatusBar();
 }
 
-async function onPlayerClick(event) {
-  const button = event.target.closest('[data-action]');
-  if (!button) return;
-  const card = event.currentTarget;
-  const key = card.dataset.key;
-  const published = config.tavern.players[key];
-  try {
-    if (button.dataset.action === 'publish') {
-      if (isPublished(published)) await api.tavernUnpublish(key, true);
-      else await api.tavernPublish(key);
-    } else if (button.dataset.action === 'copy-link') {
-      const url = await api.tavernViewUrl(key, 'player');
-      await navigator.clipboard.writeText(url);
-      setSaveState('View link copied');
-    }
-  } catch (err) {
-    reportError(err);
-  }
+// The last Tavern sync result, in the same words the old per-tab note used.
+function tavernSyncMessage(t) {
+  const sync = t && t.sync;
+  if (!(t && t.state === 'connected' && sync && sync.at)) return '';
+  const bits = [];
+  if (sync.created.length) bits.push(`created ${sync.created.join(', ')}`);
+  if (sync.updated.length) bits.push(`updated ${sync.updated.join(', ')}`);
+  if (sync.renamed.length) bits.push(`renamed ${sync.renamed.join(', ')}`);
+  if (sync.hidden && sync.hidden.length) bits.push(`hid ${sync.hidden.join('; ')}`);
+  if (sync.missing.length) bits.push(`waiting for OBS: ${sync.missing.join(', ')}`);
+  return sync.note || (bits.length ? `Last sync: ${bits.join('; ')}.` : 'Last sync: everything already in place.');
+}
+
+// One status line for the whole app: the save state normally, or -- while
+// looking at the Tavern tab and nothing is being saved right now -- the
+// last sync result instead, so there is a single place to check rather
+// than a second note living inside the Tavern card.
+function refreshStatusBar() {
+  if (isDirty()) return;
+  const msg = activeTab === 'tavern' ? tavernSyncMessage(status.tavern) : '';
+  setSaveState(msg || 'All changes saved');
 }
 
 function isPublished(entry) {
   return Boolean(entry && (entry.source || entry.characterSource));
 }
 
-// A Player or Character tick: remembered, and applied at once while published.
-async function onPlayerOption(event) {
-  const input = event.target;
-  if (!input.matches('[data-choice]')) return;
-  const key = event.currentTarget.dataset.key;
+// Show/Add creates the source the first time and shows it every time after;
+// Hide turns it off without deleting it -- Delete from OBS is the only
+// thing that does.
+async function onTavernRowClick(event) {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const card = event.currentTarget;
+  const key = card.dataset.key;
+  const k = TAVERN_KINDS[card.dataset.kind];
   try {
-    const entry = await api.tavernSetChoice(key, input.dataset.choice, input.checked);
-    config.tavern.players[key] = entry;
-    renderTavern();
+    if (button.dataset.action === 'toggle') {
+      const entry = config.tavern.players[key];
+      const ticked = Boolean(entry && entry[k.field]);
+      const next = await api.tavernSetChoice(key, k.field, !ticked);
+      config.tavern.players[key] = next;
+      renderTavern();
+    } else if (button.dataset.action === 'remove-source') {
+      const entry = config.tavern.players[key];
+      const name = entry && entry[k.sourceField];
+      if (name && window.confirm(`Delete "${name}" from OBS?`)) await api.obsRemoveSource(name);
+    } else if (button.dataset.action === 'copy-link') {
+      const url = await api.tavernViewUrl(key, k.viewKind);
+      await navigator.clipboard.writeText(url);
+      setSaveState('View link copied');
+    }
   } catch (err) {
     reportError(err);
   }
