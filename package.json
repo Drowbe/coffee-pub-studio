@@ -1,8 +1,8 @@
 {
   "name": "coffee-pub-studio",
   "productName": "Coffee Pub Studio",
-  "version": "0.1.10",
-  "description": "Wraps the FoundryVTT Game and Stream views in two fixed-size Chromium windows that OBS can capture as sources.",
+  "version": "0.1.11",
+  "description": "Wraps any web page in a fixed-size Chromium window that OBS can capture as a source, optimized for FoundryVTT sessions but not exclusive to Foundry.",
   "main": "src/main.js",
   "private": true,
   "license": "MIT",
