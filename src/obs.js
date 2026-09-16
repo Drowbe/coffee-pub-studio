@@ -463,6 +463,38 @@ class ObsBridge extends EventEmitter {
     this.emit('status', this.status());
     return report;
   }
+
+  // ---------------------------------------------------------------------
+  // Automations: scene switching and recording/streaming control, for the
+  // Automations tab's own manual buttons and for rules triggered by an
+  // incoming event. Reuses setSourceVisible above for show/hide-a-source.
+  // ---------------------------------------------------------------------
+
+  // [{ name, current }], the scene OBS is currently showing marked.
+  async listScenes() {
+    const { scenes, currentProgramSceneName } = await this.obs.call('GetSceneList');
+    return scenes.map((s) => ({ name: s.sceneName, current: s.sceneName === currentProgramSceneName })).reverse();
+  }
+
+  async setCurrentScene(sceneName) {
+    await this.obs.call('SetCurrentProgramScene', { sceneName });
+  }
+
+  async startRecording() {
+    await this.obs.call('StartRecord');
+  }
+
+  async stopRecording() {
+    await this.obs.call('StopRecord');
+  }
+
+  async startStreaming() {
+    await this.obs.call('StartStream');
+  }
+
+  async stopStreaming() {
+    await this.obs.call('StopStream');
+  }
 }
 
 function describeError(err) {

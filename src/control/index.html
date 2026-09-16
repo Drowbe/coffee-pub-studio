@@ -27,6 +27,7 @@
   <nav class="tabs" id="tabs">
     <button class="tab" data-tab="session" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Session</button>
     <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
+    <button class="tab" data-tab="automations" id="automations-tab" type="button" hidden><span class="dot" id="automations-dot" title="Automations server"></span>Automations</button>
     <span id="view-tabs" class="view-tabs"></span>
     <button class="tab tab-add" data-tab="add" type="button" title="Add a window">+</button>
   </nav>
@@ -219,6 +220,73 @@
         <p class="hint" id="tavern-status">Not signed in.</p>
         </div>
       </div>
+
+      <div class="card automations">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Automations</h2>
+            <span class="tag" id="automations-tag" hidden>LISTENING</span>
+          </div>
+        </div>
+        <p class="hint">
+          Lets a Foundry module (Herald, for instance) tell Studio when something happens in the game — combat
+          starting, a scene changing — so a rule on the <strong>Automations</strong> tab can switch an OBS scene,
+          show or hide a source, or start/stop recording. Foundry usually runs on a different machine, so this
+          listens on your network, not just this Mac — the token is what keeps that port private.
+        </p>
+        <div class="row">
+          <label class="check">
+            <input id="automations-enabled" type="checkbox">
+            <span>Enable Automations</span>
+          </label>
+        </div>
+        <div id="automations-settings" hidden>
+          <div class="row">
+            <label class="field field-inline">
+              <span>Port</span>
+              <input id="automations-port" type="number" min="1024" max="65535" step="1" size="6">
+            </label>
+            <label class="field field-inline">
+              <span>Token</span>
+              <input id="automations-token" type="password" size="24" autocomplete="off" placeholder="not set">
+            </label>
+            <button id="automations-copy-token" class="btn btn-small btn-icon" type="button" title="Copy token" aria-label="Copy token"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg></button>
+            <button id="automations-generate-token" class="btn" type="button">Generate token</button>
+          </div>
+          <p class="hint">
+            Give a Foundry module the address and token below. It sends a <code>POST</code> to
+            <code>&lt;address&gt;/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code>
+            header and a JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS, needed so it works from
+            a Foundry page that's itself served over HTTPS — the certificate has to be trusted on the Foundry
+            machine first, or every call from a module will silently fail (nothing shows up in <strong>Recent
+            Events</strong> below either — that's the tell).
+          </p>
+          <details class="cert-trust-help">
+            <summary>Quick way: click through a warning once (per browser, breaks if this Mac's address changes)</summary>
+            <p class="hint">Open the <strong>Address</strong> below directly in Chrome on the Foundry machine, once, and click through the "not private" warning.</p>
+          </details>
+          <details class="cert-trust-help">
+            <summary>Better way: install the CA certificate once (every browser, every future address, permanently)</summary>
+            <p class="hint">Open the <strong>CA cert</strong> link below in Chrome on the Foundry machine, once — downloads <code>coffee-pub-studio-ca.crt</code>. Then:</p>
+            <p class="hint"><b>On Windows:</b></p>
+            <ol class="hint">
+              <li>Double-click the downloaded file, then click <strong>Install Certificate...</strong></li>
+              <li>Choose <strong>Local Machine</strong> (needs admin, trusts it for everyone) or <strong>Current User</strong> → <strong>Next</strong>.</li>
+              <li>Choose <strong>Place all certificates in the following store</strong> → <strong>Browse...</strong> → <strong>Trusted Root Certification Authorities</strong> → <strong>OK</strong> → <strong>Next</strong> → <strong>Finish</strong>.</li>
+              <li>Click <strong>Yes</strong> on the security warning that shows the certificate's thumbprint.</li>
+            </ol>
+            <p class="hint"><b>On a Mac:</b></p>
+            <ol class="hint">
+              <li>Double-click the downloaded file to open <strong>Keychain Access</strong>'s "Add Certificates" prompt.</li>
+              <li>Set the <strong>Keychain</strong> dropdown to <strong>System</strong> (not iCloud) → <strong>Add</strong> → enter the Mac's password.</li>
+              <li>In Keychain Access, find <strong>Coffee Pub Studio Local CA</strong> and double-click it.</li>
+              <li>Expand <strong>Trust</strong>, set <strong>When using this certificate</strong> to <strong>Always Trust</strong>, close the window and authenticate again — it stays untrusted until this step, even after being added.</li>
+            </ol>
+          </details>
+          <div class="details" id="automations-addresses"></div>
+          <p class="hint" id="automations-status">Not enabled.</p>
+        </div>
+      </div>
     </section>
 
     <section class="tab-panel" id="tab-tavern" hidden>
@@ -266,6 +334,70 @@
       <div class="card" id="tavern-characters-section">
         <h2>Characters</h2>
         <div id="tavern-characters" class="party"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-automations" hidden>
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>OBS Control</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene list from OBS">Refresh scenes</button>
+          </div>
+        </div>
+        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS.</p>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Scene</span>
+            <select id="automations-scene"></select>
+          </label>
+          <button id="automations-switch-scene" class="btn btn-primary" type="button">Switch</button>
+        </div>
+        <div class="row">
+          <button id="automations-start-recording" class="btn" type="button">Start Recording</button>
+          <button id="automations-stop-recording" class="btn" type="button">Stop Recording</button>
+          <span class="tag" id="automations-recording-tag" hidden>RECORDING</span>
+        </div>
+        <div class="row">
+          <button id="automations-start-streaming" class="btn" type="button">Start Streaming</button>
+          <button id="automations-stop-streaming" class="btn" type="button">Stop Streaming</button>
+          <span class="tag" id="automations-streaming-tag" hidden>STREAMING</span>
+        </div>
+        <p class="hint" id="automations-obs-status">OBS is not connected.</p>
+      </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Rules</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-add-rule" class="btn btn-primary" type="button">Add rule</button>
+          </div>
+        </div>
+        <p class="hint">When an incoming event's name matches exactly, its action runs. More than one rule can share an event name; they all run.</p>
+        <div id="automations-rules"></div>
+        <p class="hint" id="automations-rules-empty">No rules yet — add one, or send a test event below to see events arrive first.</p>
+      </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Test &amp; Recent Events</h2>
+          </div>
+        </div>
+        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule.</p>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Event</span>
+            <input id="automations-test-event" type="text" size="20" placeholder="combat:start" spellcheck="false">
+          </label>
+          <button id="automations-send-test" class="btn" type="button">Send test event</button>
+        </div>
+        <div id="automations-events" class="automations-events"></div>
+        <p class="hint" id="automations-events-empty">No events received yet.</p>
       </div>
     </section>
 

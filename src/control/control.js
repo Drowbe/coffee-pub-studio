@@ -29,7 +29,13 @@ const dockSideEl = $('dock-side');
 const dockOverlapEl = $('dock-overlap');
 
 let config = null;
-let status = { views: [], displays: [], obs: { state: 'disconnected', inputs: [] }, collapsed: false };
+let status = {
+  views: [],
+  displays: [],
+  obs: { state: 'disconnected', inputs: [] },
+  automations: { state: 'stopped', message: '', port: 0, addresses: [], events: [] },
+  collapsed: false,
+};
 let limits = { minViews: 1, maxViews: 5 };
 /** @type {Map<string, HTMLElement>} */
 const cards = new Map();
@@ -80,6 +86,7 @@ function selectTab(name) {
   if (name === 'general' || name === 'obs') name = 'session';
   if (name.startsWith('view:') && !config.views.some((v) => `view:${v.id}` === name)) name = 'session';
   if (name === 'tavern' && !config.tavern.enabled) name = 'session';
+  if (name === 'automations' && !config.automations.enabled) name = 'session';
   activeTab = name;
   rememberTab(name);
   for (const tab of document.querySelectorAll('.tab')) {
@@ -87,6 +94,8 @@ function selectTab(name) {
   }
   $('tab-session').hidden = name !== 'session';
   $('tab-tavern').hidden = name !== 'tavern';
+  $('tab-automations').hidden = name !== 'automations';
+  if (name === 'automations') refreshAutomationsScenes();
   for (const [id, card] of cards) card.hidden = name !== `view:${id}`;
   refreshStatusBar();
 }
@@ -186,6 +195,7 @@ function applyConfig(next) {
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
   applyTavernConfig();
+  applyAutomationsConfig();
   if (!sameViews) {
     renderViewCards();
     return;
@@ -819,6 +829,8 @@ api.onStatus((next) => {
   renderObs();
   renderStatus();
   renderTavern();
+  renderAutomationsStatus();
+  renderAutomationsObs();
 });
 
 // ---------------------------------------------------------------------------
@@ -1252,6 +1264,364 @@ async function onTavernRowClick(event) {
     reportError(err);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Automations (Foundry modules, e.g. Herald, -> Studio -> OBS)
+// ---------------------------------------------------------------------------
+
+const automationsEls = {
+  enabled: $('automations-enabled'),
+  tag: $('automations-tag'),
+  dot: $('automations-dot'),
+  tab: $('automations-tab'),
+  settings: $('automations-settings'),
+  port: $('automations-port'),
+  token: $('automations-token'),
+  generateToken: $('automations-generate-token'),
+  copyToken: $('automations-copy-token'),
+  addresses: $('automations-addresses'),
+  status: $('automations-status'),
+  scene: $('automations-scene'),
+  switchScene: $('automations-switch-scene'),
+  refreshScenes: $('automations-refresh-scenes'),
+  startRecording: $('automations-start-recording'),
+  stopRecording: $('automations-stop-recording'),
+  recordingTag: $('automations-recording-tag'),
+  startStreaming: $('automations-start-streaming'),
+  stopStreaming: $('automations-stop-streaming'),
+  streamingTag: $('automations-streaming-tag'),
+  obsStatus: $('automations-obs-status'),
+  rules: $('automations-rules'),
+  rulesEmpty: $('automations-rules-empty'),
+  addRule: $('automations-add-rule'),
+  testEvent: $('automations-test-event'),
+  sendTest: $('automations-send-test'),
+  events: $('automations-events'),
+  eventsEmpty: $('automations-events-empty'),
+};
+
+// What each action means and what its `param` field is for -- kept in sync
+// by hand with AUTOMATIONS_ACTIONS in src/config.js, the same way
+// TAVERN_KINDS above is a renderer-side copy of server-side knowledge.
+const AUTOMATION_ACTIONS = [
+  { value: 'sceneSwitch', label: 'Switch scene to', param: 'scene name' },
+  { value: 'sourceShow', label: 'Show source', param: 'source name' },
+  { value: 'sourceHide', label: 'Hide source', param: 'source name' },
+  { value: 'startRecording', label: 'Start recording', param: null },
+  { value: 'stopRecording', label: 'Stop recording', param: null },
+  { value: 'startStreaming', label: 'Start streaming', param: null },
+  { value: 'stopStreaming', label: 'Stop streaming', param: null },
+];
+
+function applyAutomationsConfig() {
+  const a = config.automations;
+  automationsEls.enabled.checked = a.enabled;
+  automationsEls.settings.hidden = !a.enabled;
+  automationsEls.tab.hidden = !a.enabled;
+  if (!a.enabled && activeTab === 'automations') selectTab('session');
+  if (document.activeElement !== automationsEls.port) automationsEls.port.value = String(a.port);
+  if (document.activeElement !== automationsEls.token) automationsEls.token.value = a.token;
+  renderAutomationsRules();
+}
+
+async function saveAutomationsSettings(patch) {
+  await flushSave();
+  const next = patch || {
+    enabled: automationsEls.enabled.checked,
+    port: Number(automationsEls.port.value) || 9500,
+    token: automationsEls.token.value,
+  };
+  config.automations = { ...config.automations, ...next };
+  try {
+    status.automations = await api.automationsSetSettings(next);
+  } catch (err) {
+    reportError(err);
+  }
+  applyAutomationsConfig();
+  renderAutomationsStatus();
+}
+for (const el of [automationsEls.enabled, automationsEls.port, automationsEls.token]) {
+  el.addEventListener('change', () => saveAutomationsSettings());
+}
+automationsEls.generateToken.addEventListener('click', () => {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  automationsEls.token.value = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  saveAutomationsSettings();
+});
+automationsEls.copyToken.addEventListener('click', async () => {
+  if (!automationsEls.token.value) return;
+  await navigator.clipboard.writeText(automationsEls.token.value);
+  setSaveState('Token copied');
+});
+
+// A small "copy" icon button, matching the one used for a Tavern view link.
+function copyButton(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-small btn-icon';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg>';
+  btn.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(value);
+    setSaveState('Address copied');
+  });
+  return btn;
+}
+
+// The server's own live state (listening/port/addresses/events) -- distinct
+// from config.automations above (the settings that drive it).
+function renderAutomationsStatus() {
+  const a = status.automations || { state: 'stopped', message: '', port: 0, addresses: [], events: [] };
+  const listening = a.state === 'listening';
+  automationsEls.tag.hidden = !listening;
+  automationsEls.dot.classList.toggle('on', listening);
+  automationsEls.addresses.textContent = '';
+  // One row per network interface this Mac has right now -- which one is
+  // actually reachable from the Foundry machine depends on the network, so
+  // rather than guess, every candidate gets shown with its own copy button.
+  const candidates = listening ? a.addresses : [];
+  if (!candidates.length) {
+    const row = document.createElement('div');
+    row.className = 'details-row';
+    const key = document.createElement('span');
+    key.className = 'details-key';
+    key.textContent = 'Address';
+    const value = document.createElement('span');
+    value.className = 'details-value';
+    value.textContent = '—';
+    row.append(key, value);
+    automationsEls.addresses.appendChild(row);
+  } else {
+    for (const ip of candidates) {
+      const url = `https://${ip}:${a.port}`;
+      const row = document.createElement('div');
+      row.className = 'details-row';
+      const key = document.createElement('span');
+      key.className = 'details-key';
+      key.textContent = 'Address';
+      const value = document.createElement('span');
+      value.className = 'details-value';
+      value.textContent = url;
+      row.append(key, value, copyButton(url, `Copy ${url}`));
+      automationsEls.addresses.appendChild(row);
+
+      // The CA cert install link, one per address for the same reason the
+      // address itself gets one per interface -- whichever address is
+      // actually reachable from the Foundry machine is also the one whose
+      // /ca.crt link will resolve there.
+      const caUrl = `${url}/ca.crt`;
+      const caRow = document.createElement('div');
+      caRow.className = 'details-row';
+      const caKey = document.createElement('span');
+      caKey.className = 'details-key';
+      caKey.textContent = 'CA cert';
+      const caValue = document.createElement('span');
+      caValue.className = 'details-value hint';
+      caValue.textContent = caUrl;
+      caRow.append(caKey, caValue, copyButton(caUrl, `Copy ${caUrl}`));
+      automationsEls.addresses.appendChild(caRow);
+    }
+  }
+  const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
+  automationsEls.status.textContent = labels[a.state] || '';
+  automationsEls.status.classList.toggle('hint-error', a.state === 'error');
+  renderAutomationsEvents(a.events || []);
+}
+
+function renderAutomationsEvents(events) {
+  automationsEls.events.textContent = '';
+  automationsEls.eventsEmpty.hidden = events.length > 0;
+  for (const e of events.slice(0, 20)) {
+    const row = document.createElement('div');
+    row.className = 'automations-event-row';
+    const time = document.createElement('span');
+    time.className = 'automations-event-time';
+    time.textContent = new Date(e.at).toLocaleTimeString();
+    const name = document.createElement('span');
+    name.className = 'automations-event-name';
+    name.textContent = e.event;
+    const data = document.createElement('span');
+    data.className = 'automations-event-data hint';
+    data.textContent = e.data && Object.keys(e.data).length ? JSON.stringify(e.data) : '';
+    row.append(time, name, data);
+    automationsEls.events.appendChild(row);
+  }
+}
+
+// Recording/streaming state and the scene <select>'s current pick, from the
+// regular OBS status push -- refreshAutomationsScenes() below is the only
+// thing that re-reads the scene *list* itself, since that needs an actual
+// round trip to OBS rather than something already on the status broadcast.
+function renderAutomationsObs() {
+  const o = status.obs || { state: 'disconnected' };
+  const outputs = o.outputs || { recording: false, streaming: false, scene: '' };
+  const connected = o.state === 'connected';
+  automationsEls.recordingTag.hidden = !outputs.recording;
+  automationsEls.streamingTag.hidden = !outputs.streaming;
+  automationsEls.obsStatus.textContent = connected ? '' : 'OBS is not connected.';
+  automationsEls.switchScene.disabled = !connected;
+  automationsEls.startRecording.disabled = !connected;
+  automationsEls.stopRecording.disabled = !connected;
+  automationsEls.startStreaming.disabled = !connected;
+  automationsEls.stopStreaming.disabled = !connected;
+  if (outputs.scene && document.activeElement !== automationsEls.scene) {
+    for (const opt of automationsEls.scene.options) opt.selected = opt.value === outputs.scene;
+  }
+}
+
+// Rules live in config.automations.rules; edited directly in the DOM and
+// saved as a whole array on every change (blur/select), same shape as a
+// real rule sent to automations:setSettings.
+function ruleFromRow(row) {
+  return (config.automations.rules || []).find((r) => r.id === row.dataset.ruleId);
+}
+
+function buildRuleRow(rule) {
+  const row = document.createElement('div');
+  row.className = 'row automations-rule-row';
+  row.dataset.ruleId = rule.id;
+
+  const eventField = document.createElement('label');
+  eventField.className = 'field field-inline';
+  const eventLabel = document.createElement('span');
+  eventLabel.textContent = 'Event';
+  const eventInput = document.createElement('input');
+  eventInput.type = 'text';
+  eventInput.size = 16;
+  eventInput.spellcheck = false;
+  eventInput.placeholder = 'combat:start';
+  eventInput.value = rule.event;
+  eventInput.dataset.rfield = 'event';
+  eventField.append(eventLabel, eventInput);
+
+  const actionField = document.createElement('label');
+  actionField.className = 'field field-inline';
+  const actionLabel = document.createElement('span');
+  actionLabel.textContent = 'Action';
+  const actionSelect = document.createElement('select');
+  actionSelect.dataset.rfield = 'action';
+  for (const a of AUTOMATION_ACTIONS) {
+    const opt = document.createElement('option');
+    opt.value = a.value;
+    opt.textContent = a.label;
+    if (a.value === rule.action) opt.selected = true;
+    actionSelect.appendChild(opt);
+  }
+  actionField.append(actionLabel, actionSelect);
+
+  const meta = AUTOMATION_ACTIONS.find((a) => a.value === rule.action);
+  const paramField = document.createElement('label');
+  paramField.className = 'field field-inline';
+  const paramLabel = document.createElement('span');
+  paramLabel.textContent = meta && meta.param ? meta.param.replace(/^./, (c) => c.toUpperCase()) : 'Param';
+  const paramInput = document.createElement('input');
+  paramInput.type = 'text';
+  paramInput.size = 20;
+  paramInput.spellcheck = false;
+  paramInput.value = rule.param;
+  paramInput.dataset.rfield = 'param';
+  paramInput.disabled = !meta || !meta.param;
+  paramInput.placeholder = meta && meta.param ? `e.g. ${meta.param}` : 'not used by this action';
+  paramField.append(paramLabel, paramInput);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn btn-danger';
+  removeBtn.textContent = 'Remove';
+  removeBtn.dataset.raction = 'remove';
+
+  row.append(eventField, actionField, paramField, removeBtn);
+  return row;
+}
+
+function renderAutomationsRules() {
+  const rules = config.automations.rules || [];
+  automationsEls.rules.textContent = '';
+  automationsEls.rulesEmpty.hidden = rules.length > 0;
+  for (const rule of rules) automationsEls.rules.appendChild(buildRuleRow(rule));
+}
+
+async function saveAutomationsRules() {
+  try {
+    await api.automationsSetSettings({ rules: config.automations.rules });
+  } catch (err) {
+    reportError(err);
+  }
+  renderAutomationsRules();
+}
+
+automationsEls.rules.addEventListener('change', (event) => {
+  const row = event.target.closest('.automations-rule-row');
+  const field = event.target.dataset.rfield;
+  if (!row || !field) return;
+  const rule = ruleFromRow(row);
+  if (!rule) return;
+  rule[field] = event.target.value;
+  saveAutomationsRules();
+});
+automationsEls.rules.addEventListener('click', (event) => {
+  if (event.target.dataset.raction !== 'remove') return;
+  const row = event.target.closest('.automations-rule-row');
+  if (!row) return;
+  config.automations.rules = config.automations.rules.filter((r) => r.id !== row.dataset.ruleId);
+  saveAutomationsRules();
+});
+automationsEls.addRule.addEventListener('click', () => {
+  const id = `rule${Date.now().toString(36)}`;
+  config.automations.rules = [...(config.automations.rules || []), { id, event: '', action: AUTOMATION_ACTIONS[0].value, param: '' }];
+  renderAutomationsRules();
+});
+
+automationsEls.sendTest.addEventListener('click', async () => {
+  const name = automationsEls.testEvent.value.trim();
+  if (!name) return;
+  try {
+    status.automations = await api.automationsTestEvent(name, {});
+    renderAutomationsStatus();
+  } catch (err) {
+    reportError(err);
+  }
+});
+
+// Re-reads the scene list from OBS -- unlike everything else in this
+// section, this needs an actual round trip, so it only happens when the
+// tab is opened or the user asks, not on every status push.
+async function refreshAutomationsScenes() {
+  if (!status.obs || status.obs.state !== 'connected') {
+    automationsEls.scene.textContent = '';
+    return;
+  }
+  try {
+    const scenes = await api.obsListScenes();
+    automationsEls.scene.textContent = '';
+    for (const s of scenes) {
+      const opt = document.createElement('option');
+      opt.value = s.name;
+      opt.textContent = s.name;
+      if (s.current) opt.selected = true;
+      automationsEls.scene.appendChild(opt);
+    }
+  } catch (err) {
+    reportError(err);
+  }
+}
+automationsEls.refreshScenes.addEventListener('click', () => refreshAutomationsScenes());
+automationsEls.switchScene.addEventListener('click', async () => {
+  const name = automationsEls.scene.value;
+  if (!name) return;
+  try {
+    await api.obsSetScene(name);
+  } catch (err) {
+    reportError(err);
+  }
+});
+automationsEls.startRecording.addEventListener('click', () => api.obsStartRecording().catch(reportError));
+automationsEls.stopRecording.addEventListener('click', () => api.obsStopRecording().catch(reportError));
+automationsEls.startStreaming.addEventListener('click', () => api.obsStartStreaming().catch(reportError));
+automationsEls.stopStreaming.addEventListener('click', () => api.obsStopStreaming().catch(reportError));
 
 // ---------------------------------------------------------------------------
 // Region picker
