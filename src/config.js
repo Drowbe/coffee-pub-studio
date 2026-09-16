@@ -30,9 +30,14 @@ const SEED_VIEWS = [
   { id: 'stream', label: 'Stream', url: 'https://game.coffeepub.live/stream', width: 1920, height: 1080, muted: true, wholeWindow: false },
 ];
 
-// The OBS source name a window gets unless the user picks another.
+// The OBS source name a window gets unless the user picks another. Every
+// source this app creates -- windows, regions, Tavern sources -- follows
+// the same "Type: Name (CP Studio)" shape, so OBS's own source pickers
+// (which sort by kind, not by who added something) group everything this
+// app made under its own type, and the "(CP Studio)" tail still answers
+// "what put this here" once you're looking at one.
 function defaultSourceName(label) {
-  return `Coffee Pub - ${label}`;
+  return `Window: ${label} (CP Studio)`;
 }
 
 function defaultView(index) {
@@ -114,16 +119,16 @@ function defaultObs() {
 }
 
 // Coffee Pub Tavern: the voice and video server for the people at the table.
-// Each published user gets a Player source (video, or their player image when
-// the camera is off) and optionally a Character source (their character image
-// with talking and muted images on top).
+// Each published user gets a Participant source (video, or their player
+// image when the camera is off) and optionally a Character source (their
+// character image with talking and muted images on top).
 function defaultTavern() {
   return {
     enabled: false, url: '', login: '', autoConnect: true,
     playerWidth: 640, playerHeight: 360, lockRatio: true,
     characterWidth: 256, characterHeight: 256, characterWithPlayer: false,
-    room: 'lobby', // the Tavern room whose members the Tavern tab shows
-    followAdmin: true, // keep the Tavern tab on whatever room the admin is in
+    room: 'lobby', // the Tavern room whose members the Tavern tab shows and OBS sources gate on
+    followAdmin: true, // "Enable Asides": mute anyone live in a different room than `room` above
     players: {},
   };
 }
@@ -138,7 +143,7 @@ function sanitizeTavern(input) {
       const entry = {
         source: typeof value.source === 'string' ? value.source.trim().slice(0, 200) : '',
         characterSource: typeof value.characterSource === 'string' ? value.characterSource.trim().slice(0, 200) : '',
-        // The Player and Character ticks
+        // The Participant and Character ticks
         player: value.player === undefined ? true : Boolean(value.player),
         character: value.character === undefined ? Boolean(value.characterSource) : Boolean(value.character),
       };

@@ -171,7 +171,7 @@ class TavernBridge extends EventEmitter {
     // Servers before rooms existed report none: everyone is in the Lobby.
     const rooms = Array.isArray(status.rooms) && status.rooms.length
       ? status.rooms
-      : [{ id: 'lobby', name: 'Lobby', description: 'Everyone at the table.', members: next.map((u) => u.key), isLobby: true, hasImage: false }];
+      : [{ id: 'lobby', name: 'Lobby', description: 'Everyone at the table.', members: next.map((u) => u.key), isLobby: true, hasImage: false, profile: 'roleplaying' }];
     const activeRoom = typeof status.activeRoom === 'string' ? status.activeRoom : 'lobby';
     const changed = JSON.stringify(next) !== JSON.stringify(this.party) || JSON.stringify(rooms) !== JSON.stringify(this.rooms) || activeRoom !== this.activeRoom;
     this.party = next;
@@ -184,8 +184,11 @@ class TavernBridge extends EventEmitter {
     return this.party;
   }
 
-  // OBS view link for a user: kind is 'player' or 'character'. The name
-  // plate, border and overlays are the user's Player options on the Tavern.
+  // OBS view link for a user: kind is 'player' or 'character' -- still
+  // 'player' on the wire for back-compat with already-published OBS scenes,
+  // even though the Tavern's own UI (and Studio's) now call it Participant.
+  // The name plate, border and overlays are the user's Participant options
+  // on the Tavern.
   viewUrl(user, { kind = 'player' } = {}) {
     const base = `${this.getSettings().url}/view/${encodeURIComponent(user.key)}`;
     const q = new URLSearchParams({ s: this.streamKey, kind });

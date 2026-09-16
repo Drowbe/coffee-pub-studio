@@ -12,7 +12,27 @@
     <span class="label" id="label">Window</span>
     <span class="hint">drag to move · arrow keys resize (shift = 10px)</span>
     <!-- Per-window controls go here. Give each one class="control" so it is clickable. -->
-    <span class="controls" id="controls"></span>
+    <span class="controls" id="controls">
+      <button class="control" data-action="reload" type="button" title="Reload (⌘R)" aria-label="Reload window">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 11A8 8 0 1 0 18.5 16.5"/>
+          <path d="M20 5v6h-6" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button class="control" data-action="wakeAudio" type="button" title="Wake audio" aria-label="Wake audio">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M4 9v6h4l5 5V4L8 9H4z"/>
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 0 1 0 7"/>
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M19 6a9 9 0 0 1 0 12"/>
+        </svg>
+      </button>
+      <button class="control" data-action="devTools" type="button" title="Developer tools (⌥⌘I)" aria-label="Toggle developer tools">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 6 3 12l5 6"/>
+          <path d="M16 6l5 6-5 6"/>
+        </svg>
+      </button>
+    </span>
     <span class="readout" id="readout"></span>
   </div>
   <script src="bar.js"></script>

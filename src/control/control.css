@@ -28,7 +28,8 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -69,7 +70,9 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 20px;
+  /* Extra left padding clears the traffic-light buttons, which the hidden
+     title bar now overlays directly on top of this row's own content. */
+  padding: 14px 20px 14px 84px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #2b211a, var(--bg));
   -webkit-app-region: drag;
@@ -174,6 +177,20 @@ main {
   border: 1px solid var(--border);
 }
 
+/* The room tag reads more like a quiet label than a status badge: lighter
+   weight and smaller than a normal tag, with a green tint only when the
+   person is actually live in the room this list is showing right now. */
+.tag[data-role="room"] {
+  font-weight: 500;
+  font-size: 10px;
+}
+
+.tag[data-role="room"].on {
+  background: color-mix(in srgb, var(--ok) 18%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  color: var(--ok);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -250,14 +267,6 @@ select:focus {
   gap: 6px;
 }
 
-.session-row {
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
-.session-row .hint {
-  margin-right: auto;
-}
 
 .stepper {
   display: inline-flex;
@@ -350,8 +359,6 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
 
 .details-row {
@@ -396,11 +403,25 @@ select:focus {
   border-radius: 3px;
   background: var(--bg-input);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .chip.chip-missing {
   border-color: var(--danger);
   color: #f0a597;
+}
+
+/* A Tavern source chip tinted by whether the person it belongs to is
+   currently at the table -- separate from chip-missing/chip-dim, which are
+   about the OBS source's own state, not the person's. */
+.chip.chip-user-online {
+  background: color-mix(in srgb, var(--ok) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.chip.chip-user-offline {
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
 }
 
 .chip button {
@@ -662,6 +683,17 @@ select:focus {
   display: inline-block;
 }
 
+.av-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.av-icon.on {
+  color: var(--ok);
+}
+
 .dot.on {
   background: var(--ok);
 }
@@ -686,8 +718,6 @@ select:focus {
 
 .card-footer {
   justify-content: space-between;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
 
 .region.disabled .region-name,
@@ -703,13 +733,25 @@ select:focus {
   color: var(--text-dim);
 }
 
-/* Region cards */
-.regions-section {
+/* The one shared divider treatment for "a row set off from what's above
+   it": a sub-section heading partway down a card (.card-subsection), a
+   card's trailing action row (.card-footer), a details block (.details).
+   One rule so the spacing can't drift between them again. */
+.card-subsection,
+.card-footer,
+.details {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* A titled sub-section within a card -- e.g. Participant Source /
+   Character Source within the CP Tavern card. The one reusable pattern for
+   "a heading partway down a card", so every such heading looks the same
+   everywhere it appears. */
+.card-subsection {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
 }
 
 .section-title {
@@ -753,7 +795,7 @@ select:focus {
   white-space: nowrap;
 }
 
-.region-card.disabled .region-name-input {
+.region-card.disabled .name-compose {
   opacity: 0.55;
 }
 
@@ -764,21 +806,35 @@ select:focus {
   flex-wrap: wrap;
 }
 
-.region-name-input {
+/* The editable OBS name for a window or region: a chip whose "Type: " /
+   " (CP Studio)" ends are fixed, plain-text decoration and only the middle
+   is an actual input -- the user edits the part that's theirs, and always
+   sees the exact name Studio will use in OBS, live, not just after saving.
+   Shares the .chip box (border/radius/height/padding/background); this
+   only styles what's inside it. */
+.name-compose {
+  display: inline-flex;
+  align-items: center;
   flex: 1;
   min-width: 140px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 6px 9px;
-  font: inherit;
-  font-weight: 600;
 }
 
-.region-name-input:focus {
+.name-compose-prefix,
+.name-compose-suffix {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.name-compose-input {
+  flex: 1;
+  min-width: 40px;
+  background: transparent;
+  border: none;
   outline: none;
-  border-color: var(--accent);
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
 }
 
 .region-obs {

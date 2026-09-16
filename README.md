@@ -91,7 +91,7 @@ xattr -dr com.apple.quarantine "/Applications/Coffee Pub Studio.app"
 
 1. Launch **Coffee Pub Studio**. The control panel opens and so does every window whose
    **Start on launch** box is ticked. The panel has a **Session** tab (layout, the edge dock,
-   OBS and login), a **Tavern** tab when Coffee Pub Tavern is enabled, one tab per window with
+   OBS and login), a **CP Tavern** tab when Coffee Pub Tavern is enabled, one tab per window with
    its whole-window source and its regions, and a **+** tab that adds a window (up to five).
    Each window tab has a **Delete window** button.
 2. In the Game window, log into Foundry as the user you want the recording to follow (a
@@ -164,11 +164,11 @@ re-pick the window. The app fixes this by talking to OBS over its built-in WebSo
 ### The whole window as an OBS source
 
 Under each window's card sits a **Whole window** card: a switch, the OBS source name, and
-the source's state in OBS. Type any name you like (it starts as `Coffee Pub - Game` and so
-on) and click **Add to OBS** to create a window-capture source with that name in the current
+the source's state in OBS. Type any name you like (it starts as `Window: Game (CP Studio)`
+and so on) and click **Add to OBS** to create a window-capture source with that name in the current
 scene. A source that already exists in OBS under that name, or one you made by hand that
 already captures the window, is simply taken over; typing a new name renames it in OBS too.
-**Remove from OBS** deletes the source but keeps the name, so you can add it again later.
+**Delete from OBS** deletes the source but keeps the name, so you can add it again later.
 
 Switch the card off for a window you only use through regions, such as the Stream window: the
 source is hidden in OBS and no longer maintained until you switch it back on. On a fresh
@@ -191,12 +191,13 @@ and a status panel pinned inside the Stream view, define a **region** for each.
    reads the element's position from the page, and re-measures it on every OBS sync so the
    crop follows the element.
 4. Click **Add to OBS**. The app adds a window-capture source named
-   after the window and region, such as `Stream - Scoreboard`, with a **Crop/Pad** filter
-   called `Coffee Pub Crop` that isolates the region. Drop that source into any scene.
+   after the window and region, such as `Region: Stream>Scoreboard (CP Studio)`, with a
+   **Crop/Pad** filter called `Coffee Pub Crop` that isolates the region. Drop that source
+   into any scene.
 
 While connected, the app knows whether each source still exists in OBS. A region whose source
 you deleted in OBS offers **Add to OBS** again, which re-creates it under the same name;
-**Remove from OBS** deletes the source from OBS. The checkbox in front of a region disables
+**Delete from OBS** deletes the source from OBS. The checkbox in front of a region disables
 it: the app stops maintaining it and hides it in every OBS scene until you enable it again.
 **Delete** removes the region itself.
 
@@ -211,40 +212,40 @@ scrolls away cannot be followed by a crop.
 [Coffee Pub Tavern](https://github.com/Drowbe/coffee-pub-tavern) is the party's voice and video
 server. The app signs in to it as an admin and gives every player their own OBS Browser Source.
 
-1. On the Session tab, in **Tavern**, tick **Enable Coffee Pub Tavern** (the Tavern tab only
-   shows while it is on), then enter the server address (for example
+1. On the Session tab, in **CP Tavern**, tick **Enable Coffee Pub Tavern** (the CP Tavern tab
+   only shows while it is on), then enter the server address (for example
    `https://tavern.coffeepub.live`), your admin login and password, click **Save password**, then
    **Sign in**. Tick **Sign in automatically** to reconnect at every launch.
-2. Set the source sizes. The **Player source** is the player's video, or their player image
-   when the camera is off, with the talking border, overlays and name plate set on the
-   Tavern in each user's Player section. Width and height, with **Constrain proportions**
-   keeping them at 16:9. Audio is always included; the source's own **Control audio via OBS** in OBS decides whether
-   it reaches the mixer. The **Character source** is the character image with the talking and
-   muted images on top, transparent until they talk or mute when there is no character image,
-   made for overlaying a character bar. Set its size; **Ticked by default for each user**
-   decides whether the Character box starts ticked on the cards.
-3. Open the **Tavern** tab. Every account on the server is listed with a green dot while they are
-   at the table and their microphone and camera state. Each card has a **Publish** button and
-   two ticks, **Player** and **Character**, for the sources that user gets. Click **Publish**
-   and the ticked sources appear in the current OBS scene: `Tavern - <name>` for the Player
-   and `Tavern - <name> (character)` for the Character. Changing a tick while they are
-   published adds or removes that source at once. **Publish all** publishes everyone who is
-   not in OBS yet, with their ticks. What the sources show, the images, the border colour
-   and the name plate, is all set on the Tavern's manage page; **Manage users** opens it.
-4. The app keeps the sources in sync: renaming a user on the Tavern renames both OBS sources,
-   changing a size updates every source, and sources missing from OBS are created again on
-   **Sync OBS** or whenever OBS connects. Users are tracked by the Tavern's stable key, so
-   renames never break the link.
+2. Set the source sizes. The **Participant source** is their video, or a still image when the
+   camera is off, with the talking border, overlays and name plate set on the Tavern. Width and
+   height, with **Constrain proportions** keeping them at 16:9. Audio is always included; the
+   source's own **Control audio via OBS** in OBS decides whether it reaches the mixer. The
+   **Character source** is the character image with the talking and muted images on top,
+   transparent until they talk or mute when there is no character image, made for overlaying a
+   character bar. Set its size; **New users get Character on by default** decides the starting
+   tick for anyone you haven't set by hand.
+3. Open the **CP Tavern** tab. Every account on the server is listed with a green dot while they
+   are at the table, their microphone and camera state, and which room they're actually in right
+   now. **Participants** and **Characters** are two separate sections, each listing whoever the
+   current room offers that kind to -- a room whose profile excludes one of them (Participants
+   only, say) simply doesn't show that section. Each row has its own **Show in OBS** / **Hide in
+   OBS** toggle -- hiding never deletes the source, so any position, scale or filter you set on
+   it in OBS survives -- and, once it exists, a **Delete from OBS** button that actually removes
+   it. OBS names follow one pattern everywhere: `Participant: <name> (CP Studio)` and
+   `Character: <name> (CP Studio)`.
+4. The bulk buttons above the list act on the whole room at once: **Show All in OBS** / **Hide
+   All in OBS** only touch visibility, never creating or deleting anything; **Add All in OBS**
+   creates a source for everyone ticked but not there yet; **Delete All from OBS** removes every
+   Tavern source outright.
 
-**Unpublish** removes a user's sources from OBS and keeps their ticks. **Sync OBS** makes OBS
-match the published users again: it creates any source that is missing, re-points every
-source at its link and size, and follows renames; the app also does this whenever OBS
-connects or the Tavern reports a change. The link button on a card puts the Player view link
-on the clipboard for a source you manage yourself. Muting and kicking players is done on the
-Tavern's manage page, which **Manage users** opens in your browser, along with passwords,
-links, images and rooms.
+**Sync OBS** re-points every source at its current link and size and follows renames; the app
+also does this whenever OBS connects or the Tavern reports a change. The link button on a row
+puts its OBS view link on the clipboard for a source you manage yourself. Users are tracked by
+the Tavern's stable key, so renaming someone on the Tavern renames both OBS sources without
+breaking anything. Muting and kicking players is done on the Tavern's manage page, which
+**Manage users** opens in your browser, along with passwords, links, images and rooms.
 
-The **Room** card at the top of the Tavern tab picks which room's users are listed: the
+The **Room** card at the top of the CP Tavern tab picks which room's users are listed: the
 **Lobby** holds everyone, and the rooms an admin curates on the Tavern's Rooms tab hold the
 users they picked. **Publish all** publishes the chosen room's users. **Follow the admin**,
 on by default, keeps this on whatever room the signed-in admin is actually in at the table —
@@ -301,7 +302,7 @@ Settings are stored as JSON at
       "muted": false,
       "enabled": true,
       "session": "Main",
-      "windowSource": { "enabled": true, "name": "Coffee Pub - Game" },
+      "windowSource": { "enabled": true, "name": "Window: Game (CP Studio)" },
       "regions": []
     },
     {
@@ -315,7 +316,7 @@ Settings are stored as JSON at
       "muted": true,
       "enabled": true,
       "session": "Main",
-      "windowSource": { "enabled": false, "name": "Coffee Pub - Stream" },
+      "windowSource": { "enabled": false, "name": "Window: Stream (CP Studio)" },
       "regions": [
         {
           "id": "region1",
@@ -326,7 +327,7 @@ Settings are stored as JSON at
           "y": 0,
           "width": 600,
           "height": 200,
-          "obsSource": "Stream - Scoreboard"
+          "obsSource": "Region: Stream>Scoreboard (CP Studio)"
         }
       ]
     }
@@ -344,7 +345,7 @@ Settings are stored as JSON at
 | `wakeAudioDelay` | Seconds after a page loads before its audio is woken (**Wake audio after** on the Session tab, 10 to 300, default 30). Foundry ignores clicks until it has fully loaded, which can take longer than the page says. |
 | `dock` | The edge dock: `enabled`, `side` (`right` or `left`) and `overlap`, the points of a docked window left on screen (0 slides it fully off). It lives on the display chosen for auto-arrange. |
 | `obs` | OBS WebSocket connection: `autoConnect`, `host`, `port`. The password lives in `obs-secret.bin` next to the config, encrypted. |
-| `tavern` | Coffee Pub Tavern: `enabled`, `url`, `login`, `autoConnect`, the Player source's `playerWidth`, `playerHeight`, `lockRatio`; the Character source's `characterWidth`, `characterHeight`, `characterWithPlayer`; `room`, the Tavern room whose users the Tavern tab lists by hand (`lobby` by default); `followAdmin` (default `true`), which overrides `room` with whatever room the signed-in admin is actually in at the table and hides a published user's OBS sources while they are off it; and `players`, a map from the user's Tavern key to `{ player, character, source, characterSource }` (the two ticks, and the OBS source names while published). The password lives in `tavern-secret.bin`. |
+| `tavern` | Coffee Pub Tavern: `enabled`, `url`, `login`, `autoConnect`, the Participant source's `playerWidth`, `playerHeight`, `lockRatio` (still `player`-prefixed in the field names and in `players` below, kept for back-compat with existing config files and the Tavern's own `kind=player` view-link parameter); the Character source's `characterWidth`, `characterHeight`, `characterWithPlayer`; `room`, the Tavern room whose users the CP Tavern tab lists by hand (`lobby` by default); `followAdmin` (default `true`), which overrides `room` with whatever room the signed-in admin is actually in at the table and hides a published user's OBS sources while they are off it; and `players`, a map from the user's Tavern key to `{ player, character, source, characterSource }` (the two ticks, and the OBS source names while published). The password lives in `tavern-secret.bin`. |
 | `label` | Shown in the window title, so it is also the name OBS lists. |
 | `url` | Page to load. Must be `http` or `https`; empty shows a placeholder. |
 | `width`, `height` | Content size in points (100 to 7680). |

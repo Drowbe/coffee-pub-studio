@@ -8,4 +8,7 @@ contextBridge.exposeInMainWorld('bar', {
   },
   resize: (dw, dh) => ipcRenderer.send('bar:resize', dw, dh),
   focusPage: () => ipcRenderer.send('bar:focusPage'),
+  reload: () => ipcRenderer.send('bar:reload'),
+  wakeAudio: () => ipcRenderer.send('bar:wakeAudio'),
+  devTools: () => ipcRenderer.send('bar:devTools'),
 });
