@@ -308,25 +308,40 @@ in one of two shapes, below.
 3. **If the module's calls come from a browser Studio doesn't control** — the GM's own browser on
    the Windows machine, say — pick one of two ways to make the certificate trusted there, or every
    call a module makes will fail silently (rejected before it reaches Studio at all, so nothing
-   shows up in **Recent Events** either — that's the tell that this step was missed):
-   - **Quick, per-browser:** open the **Address** directly in it once and click through the
-     "not private" warning. Only trusts that one browser, and stops working the moment this Mac's
-     address changes and the certificate is regenerated to match — everyone would need to
-     re-click-through once that happens.
-   - **Once, for every browser and every future address:** open the **CA cert** link once — it
-     downloads `coffee-pub-studio-ca.crt` — and import it into Windows' **Trusted Root
-     Certification Authorities** store (double-click the file, "Install Certificate", Local
-     Machine or Current User, place it in that store directly rather than letting Windows pick
-     automatically). A CA's certificate isn't a secret (only its private key is, which never
-     leaves this Mac), so this needs no token. Every certificate this CA ever issues is trusted
-     from then on, including one regenerated later because this Mac's address changed — nothing
-     to redo.
+   shows up in **Recent Events** either — that's the tell that this step was missed). **Neither is
+   needed at all if the calling code runs inside one of Studio's own windows** (Herald's
+   "cameraman" client, if it's the Stream window rather than a separate browser, is exactly this
+   case) — Studio recognizes its own certificate and trusts it automatically for its own
+   webContents, verified against the actual certificate bytes, not just a hostname or port match.
 
-   **Neither step is needed at all if the calling code runs inside one of Studio's own windows**
-   (Herald's "cameraman" client, if it's the Stream window rather than a separate browser, is
-   exactly this case) — Studio recognizes its own certificate and trusts it automatically for its
-   own webContents, verified against the actual certificate bytes, not just a hostname or port
-   match.
+   **Quick, per-browser:** open the **Address** directly in it once and click through the
+   "not private" warning. Only trusts that one browser, and stops working the moment this Mac's
+   address changes and the certificate is regenerated to match — everyone would need to
+   re-click-through once that happens.
+
+   **Once, for every browser and every future address:** open the **CA cert** link once — it
+   downloads `coffee-pub-studio-ca.crt` — and import that file into the machine's trust store. A
+   CA's certificate isn't a secret (only its private key is, which never leaves this Mac), so this
+   needs no token, and nothing here ever has to be redone even after this Mac's address changes
+   and the server certificate gets regenerated to match — the CA itself never changes.
+
+   - **On Windows:** double-click the downloaded `coffee-pub-studio-ca.crt` → **Install
+     Certificate...** → this opens the Certificate Import Wizard → choose **Local Machine** (asks
+     for admin approval, trusts it for every Windows user) or **Current User** (no admin needed,
+     trusts it just for the account doing this) → **Next** → **Place all certificates in the
+     following store** (not "Automatically select...") → **Browse...** → **Trusted Root
+     Certification Authorities** → **OK** → **Next** → **Finish** → a security warning shows the
+     certificate's thumbprint and asks to confirm installing it → **Yes**. Chrome and Edge both
+     read this same Windows store, so one import covers them; **Firefox keeps its own separate
+     certificate store** and needs its own import — Settings → Privacy & Security → Certificates →
+     **View Certificates** → **Authorities** tab → **Import** → pick the same file → check "Trust
+     this CA to identify websites" → **OK**.
+   - **On macOS** (if Foundry, or just a browser that needs to reach Studio, ever runs on a Mac
+     instead): double-click the file to open it in **Keychain Access**, find **Coffee Pub Studio
+     Local CA** under Certificates, double-click it, expand **Trust**, set **When using this
+     certificate** to **Always Trust**, close the window and approve with the Mac's password or
+     Touch ID when prompted. Or, from Terminal, one command does the same thing system-wide:
+     `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain coffee-pub-studio-ca.crt`.
 4. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
    **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
    else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show
