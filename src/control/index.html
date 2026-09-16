@@ -257,15 +257,24 @@
             Give a Foundry module the address and token below. It sends a <code>POST</code> to
             <code>&lt;address&gt;/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code>
             header and a JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS, needed so it works from
-            a Foundry page that's itself served over HTTPS — pick <strong>one</strong> of two ways to make the
-            certificate trusted on the Foundry machine first, or every call from a module will silently fail:
-            open the <strong>Address</strong> directly in a browser there once and click through the "not private"
-            warning (quick, but only trusts that one browser, and stops working if this Mac's address ever changes);
-            or download the <strong>CA cert</strong> link and import it into Windows' Trusted Root Certification
-            Authorities store once (a couple more clicks, but trusts every address this Mac ever uses, and every
-            browser, permanently — except Firefox, which keeps its own separate certificate store and needs its own
-            import). Exact click-by-click steps for both are in the README.
+            a Foundry page that's itself served over HTTPS — the certificate has to be trusted on the Foundry
+            machine first, or every call from a module will silently fail (nothing shows up in <strong>Recent
+            Events</strong> below either — that's the tell).
           </p>
+          <details class="cert-trust-help">
+            <summary>Quick way: click through a warning once (per browser, breaks if this Mac's address changes)</summary>
+            <p class="hint">Open the <strong>Address</strong> below directly in Chrome on the Foundry machine, once, and click through the "not private" warning.</p>
+          </details>
+          <details class="cert-trust-help">
+            <summary>Better way: install the CA certificate once (every browser, every future address, permanently)</summary>
+            <ol class="hint">
+              <li>Open the <strong>CA cert</strong> link below in Chrome on the Foundry machine — downloads <code>coffee-pub-studio-ca.crt</code>.</li>
+              <li>Double-click the downloaded file, then click <strong>Install Certificate...</strong></li>
+              <li>Choose <strong>Local Machine</strong> (needs admin, trusts it for everyone) or <strong>Current User</strong> → <strong>Next</strong>.</li>
+              <li>Choose <strong>Place all certificates in the following store</strong> → <strong>Browse...</strong> → <strong>Trusted Root Certification Authorities</strong> → <strong>OK</strong> → <strong>Next</strong> → <strong>Finish</strong>.</li>
+              <li>Click <strong>Yes</strong> on the security warning that shows the certificate's thumbprint.</li>
+            </ol>
+          </details>
           <div class="details" id="automations-addresses"></div>
           <p class="hint" id="automations-status">Not enabled.</p>
         </div>

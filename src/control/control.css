@@ -1030,3 +1030,32 @@ select:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.cert-trust-help {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.cert-trust-help + .cert-trust-help {
+  margin-top: 6px;
+}
+
+.cert-trust-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cert-trust-help[open] summary {
+  margin-bottom: 6px;
+}
+
+.cert-trust-help ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.cert-trust-help li + li {
+  margin-top: 4px;
+}
