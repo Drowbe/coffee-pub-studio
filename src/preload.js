@@ -21,8 +21,11 @@ contextBridge.exposeInMainWorld('coffeePub', {
   obsDisconnect: () => ipcRenderer.invoke('obs:disconnect'),
   obsSync: () => ipcRenderer.invoke('obs:sync'),
   obsListScenes: () => ipcRenderer.invoke('obs:listScenes'),
+  obsListSources: () => ipcRenderer.invoke('obs:listSources'),
   obsSetScene: (sceneName) => ipcRenderer.invoke('obs:setScene', sceneName),
   obsStartRecording: () => ipcRenderer.invoke('obs:startRecording'),
+  obsPauseRecording: () => ipcRenderer.invoke('obs:pauseRecording'),
+  obsResumeRecording: () => ipcRenderer.invoke('obs:resumeRecording'),
   obsStopRecording: () => ipcRenderer.invoke('obs:stopRecording'),
   obsStartStreaming: () => ipcRenderer.invoke('obs:startStreaming'),
   obsStopStreaming: () => ipcRenderer.invoke('obs:stopStreaming'),
@@ -62,6 +65,7 @@ contextBridge.exposeInMainWorld('coffeePub', {
   tavernOpenManage: () => ipcRenderer.invoke('tavern:openManage'),
   automationsSetSettings: (settings) => ipcRenderer.invoke('automations:setSettings', settings),
   automationsTestEvent: (eventName, data) => ipcRenderer.invoke('automations:testEvent', eventName, data),
+  automationsRunSteps: (steps) => ipcRenderer.invoke('automations:runSteps', steps),
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('status', listener);

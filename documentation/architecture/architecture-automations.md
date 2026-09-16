@@ -35,10 +35,10 @@ once; every leaf that CA ever signs is trusted after that, including one regener
 If the calling code runs inside one of Studio's own windows -- Coffee Pub Herald's "cameraman"
 client, if that is the Stream window rather than a separate browser -- there is no page navigation
 for a certificate warning to attach to; a `fetch()` call failing on a certificate error has no
-"proceed anyway" link at all. `app.on('certificate-error')` (`src/main.js:2108`) handles this:
+"proceed anyway" link at all. `app.on('certificate-error')` (`src/main.js:2202`) handles this:
 Electron fires that event for every webContents request, navigation or not, so Studio can
 recognize and vouch for its own certificate there. `trustsOwnAutomationsCert`
-(`src/main.js:546`) compares actual certificate bytes (`X509Certificate.raw`), not the
+(`src/main.js:629`) compares actual certificate bytes (`X509Certificate.raw`), not the
 certificate's fingerprint string (whose exact format Electron does not document precisely enough
 to trust a string match), and only while the Automations server that certificate belongs to is
 actually the one running. Every other certificate error -- Tavern, a real Foundry HTTPS
@@ -52,15 +52,47 @@ module's call. `handle` (`src/automations.js:136`) answers `OPTIONS` with the ne
 `Access-Control-Allow-*` headers before the auth check, since a preflight carries no credentials
 of its own to check.
 
-## Rule dispatch
+## Rule sets and dispatch
 
 `recordEvent` (`src/automations.js:236`) is shared by a real incoming `POST` and the control
 panel's own "send test event" button, so a manual test exercises the same path a real call would.
-It emits an `event`; `syncAutomationsServer` (`src/main.js:525`) wires that to
-`runAutomationRules` (`src/main.js:510`), which matches every rule whose `event` field equals the
-incoming one and runs each through `runAutomationAction` (`src/main.js:482`) -- one rule failing
-does not stop the others. All seven actions reuse the OBS WebSocket connection Studio already
-maintains; there is no separate connection for Automations.
+It emits an `event`; `syncAutomationsServer` (`src/main.js:607`) wires that to
+`runAutomationRuleSets` (`src/main.js:595`), which matches every *enabled* rule set whose `event`
+field equals the incoming one and starts each one's sequence (`runRuleSet`, `src/main.js:574`)
+independently -- one rule set's sequence does not wait for another's, and nothing tracks or
+cancels a rule set that is still mid-sequence when it matches again.
+
+A rule set's steps are grouped into stages before running (`stagesFor`, `src/main.js:549`): a
+plain step, or any delay step, starts a new stage; a step marked `and` joins the stage before it
+instead of starting its own, but only if that stage is itself an action stage -- a delay step
+always starts a fresh stage, since there is nothing for a following `and` step to run alongside.
+`runRuleSet` then walks the stages in order: a delay stage is a plain `setTimeout`-based wait
+(`sleep`, next to `stagesFor`) and nothing more -- OBS's WebSocket API has no "this scene change
+is done" event to wait on instead, so every delay is Studio's own clock, not a confirmation from
+OBS; an action stage runs every step in it at once (`Promise.all`), each going through
+`runAutomationAction` (`src/main.js:488`). One step failing does not stop the rest of its stage or
+the stages after it. `src/control/control.js`'s `stageNumbers` reimplements the same grouping
+logic (deliberately kept in lockstep with `stagesFor`, verified to agree via a standalone script
+during development) purely to compute the numbers shown next to each step -- it does not affect
+execution.
+
+`runAutomationAction`'s switch covers two families: OBS actions (`sceneSwitch`, `sourceShow`,
+`sourceHide`, `sourceToggle`, and the recording/streaming controls) all require `obs.connected`
+and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio actions
+(`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`) reach into Studio's own
+window management instead and need no OBS connection at all, except `syncObs` itself. Which Studio
+actions are even reachable is gated by `automations.studioActions` (config.js) -- off by default,
+since they reach further than an OBS action does -- and `syncAutomationsServer` folds only the
+currently-enabled ones into the `actions` list `GET /api/automations/capabilities` returns.
+
+## Migrating an older config
+
+A config saved before rule sets existed has the old flat shape: `automations.rules`, an array of
+`{id, event, action, param}` with exactly one action per event and no concept of a sequence.
+`sanitizeAutomations` (`src/config.js`) migrates each old rule into an equivalent one-step rule set
+the first time it runs against such a config, rather than silently discarding real configured
+automations -- `ruleSets` wins if a config somehow has both keys. This only ever reads the old
+shape; nothing writes it again once migrated.
 
 ## Token and event log
 
@@ -68,4 +100,4 @@ The token is read fresh on every request (`getToken`, passed into `start`) rathe
 once, so rotating it in settings takes effect without restarting the server. Comparison is
 timing-safe (`timingSafeEqualStr`). The last 50 received events are kept in memory
 (`EVENT_LOG_LIMIT`) for the control panel's own log; nothing is persisted to disk beyond the
-certificate files and the configured rules.
+certificate files and the configured rule sets.

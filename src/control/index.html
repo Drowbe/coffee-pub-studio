@@ -26,14 +26,35 @@
 
   <nav class="tabs" id="tabs">
     <button class="tab" data-tab="session" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Session</button>
-    <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
     <button class="tab" data-tab="automations" id="automations-tab" type="button" hidden><span class="dot" id="automations-dot" title="Automations server"></span>Automations</button>
+    <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
     <span id="view-tabs" class="view-tabs"></span>
     <button class="tab tab-add" data-tab="add" type="button" title="Add a window">+</button>
   </nav>
 
   <main>
     <section class="tab-panel" id="tab-session">
+      <div class="card">
+        <h2>Connections</h2>
+        <div class="connections-board" id="connections-board">
+          <div class="connection-chip" data-connection="obs">
+            <span class="dot"></span>
+            <span class="connection-name">OBS</span>
+            <span class="connection-state hint"></span>
+          </div>
+          <div class="connection-chip" data-connection="tavern">
+            <span class="dot"></span>
+            <span class="connection-name">CP Tavern</span>
+            <span class="connection-state hint"></span>
+          </div>
+          <div class="connection-chip" data-connection="automations">
+            <span class="dot"></span>
+            <span class="connection-name">Automations</span>
+            <span class="connection-state hint"></span>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Layout &amp; Startup</h2>
         <div class="row">
@@ -344,43 +365,52 @@
             <h2>OBS Control</h2>
           </div>
           <div class="view-actions">
-            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene list from OBS">Refresh scenes</button>
+            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene and source list from OBS">Refresh</button>
           </div>
         </div>
-        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS.</p>
-        <div class="row">
-          <label class="field field-inline">
-            <span>Scene</span>
-            <select id="automations-scene"></select>
-          </label>
-          <button id="automations-switch-scene" class="btn btn-primary" type="button">Switch</button>
-        </div>
+        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS. The same actions are what a rule set below, or a capabilities caller, can trigger.</p>
+        <div class="card-subsection"><span class="field-label">Controls</span></div>
         <div class="row">
           <button id="automations-start-recording" class="btn" type="button">Start Recording</button>
+          <button id="automations-pause-recording" class="btn" type="button">Pause Recording</button>
+          <button id="automations-resume-recording" class="btn" type="button" hidden>Resume Recording</button>
           <button id="automations-stop-recording" class="btn" type="button">Stop Recording</button>
           <span class="tag" id="automations-recording-tag" hidden>RECORDING</span>
+          <span class="tag tag-dim" id="automations-paused-tag" hidden>PAUSED</span>
         </div>
         <div class="row">
           <button id="automations-start-streaming" class="btn" type="button">Start Streaming</button>
           <button id="automations-stop-streaming" class="btn" type="button">Stop Streaming</button>
           <span class="tag" id="automations-streaming-tag" hidden>STREAMING</span>
         </div>
+        <div class="card-subsection"><span class="field-label">Scenes</span></div>
+        <div class="row automations-scene-buttons" id="automations-scenes"></div>
         <p class="hint" id="automations-obs-status">OBS is not connected.</p>
       </div>
 
       <div class="card">
         <div class="view-head">
           <div class="view-head-left">
-            <h2>Rules</h2>
-          </div>
-          <div class="view-actions">
-            <button id="automations-add-rule" class="btn btn-primary" type="button">Add rule</button>
+            <h2>Studio Control</h2>
           </div>
         </div>
-        <p class="hint">When an incoming event's name matches exactly, its action runs. More than one rule can share an event name; they all run.</p>
-        <div id="automations-rules"></div>
-        <p class="hint" id="automations-rules-empty">No rules yet — add one, or send a test event below to see events arrive first.</p>
+        <p class="hint">Off by default. Tick a command to let it be triggered by a rule set's steps below or discovered by a capabilities caller. These reach into Studio itself, not OBS.</p>
+        <div id="automations-studio-actions" class="automations-studio-actions"></div>
       </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Rule sets</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-add-ruleset" class="btn btn-primary btn-icon" type="button" title="Add rule set" aria-label="Add rule set"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <p class="hint">Each rule set runs its own numbered sequence when its event arrives. A step marked AND fires together with the step before it instead of waiting for it.</p>
+      </div>
+      <div class="region-cards" id="automations-rulesets"></div>
+      <p class="hint" id="automations-rulesets-empty">No rule sets yet — add one, or send a test event below to see events arrive first.</p>
 
       <div class="card">
         <div class="view-head">
@@ -388,7 +418,7 @@
             <h2>Test &amp; Recent Events</h2>
           </div>
         </div>
-        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule.</p>
+        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule set.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Event</span>
@@ -567,6 +597,37 @@
         <div class="row">
           <button class="btn btn-small" data-action="pick-region" type="button">Draw the region</button>
           <span class="hint" data-role="region-note"></span>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <template id="ruleset-template">
+    <article class="card region-card ruleset-card">
+      <header class="region-head">
+        <label class="check" title="Disabled rule sets are ignored even while their event keeps arriving">
+          <input type="checkbox" data-rsfield="enabled">
+        </label>
+        <input class="ruleset-name" data-rsfield="name" type="text" maxlength="60" placeholder="Rule set name">
+        <span class="ruleset-group-label">Group</span>
+        <input class="ruleset-group" data-rsfield="group" type="text" maxlength="40" placeholder="optional">
+      </header>
+      <div class="region-body">
+        <div class="row">
+          <label class="field field-inline">
+            <span>When this event arrives</span>
+            <input data-rsfield="event" type="text" spellcheck="false" placeholder="combat:start">
+          </label>
+        </div>
+        <div class="automation-steps" data-role="steps"></div>
+        <div class="row">
+          <button class="btn btn-small btn-icon" data-action="add-step" type="button" title="Add step" aria-label="Add step"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-small btn-icon" data-action="add-delay" type="button" title="Add delay" aria-label="Add delay"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></button>
+        </div>
+        <div class="row ruleset-footer">
+          <button class="btn btn-small" data-action="test-ruleset" type="button" title="Send a test event for this rule set's own event"><i class="fa-solid fa-vial" aria-hidden="true"></i> Test</button>
+          <button class="btn btn-small btn-primary" data-action="save-ruleset" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
+          <button class="btn btn-small btn-danger" data-action="delete-ruleset" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Delete</button>
         </div>
       </div>
     </article>

@@ -179,6 +179,7 @@ function applyConfig(next) {
     config &&
     config.views.length === next.views.length &&
     config.views.every((v, i) => v.id === next.views[i].id && v.label === next.views[i].label);
+  const firstLoad = !config;
   config = next;
   menuBarIconEl.checked = config.menuBarIcon;
   if (document.activeElement !== wakeDelayEl) wakeDelayEl.value = String(config.wakeAudioDelay);
@@ -195,7 +196,7 @@ function applyConfig(next) {
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
   applyTavernConfig();
-  applyAutomationsConfig();
+  applyAutomationsConfig(firstLoad);
   if (!sameViews) {
     renderViewCards();
     return;
@@ -287,6 +288,40 @@ function renderObs() {
   obsStatusEl.classList.toggle('hint-error', o.state === 'error');
   obsPasswordEl.placeholder = o.hasPassword ? 'saved' : 'not set';
   $('obs-sync').disabled = !connected;
+}
+
+// A chip's state/colour/label, from a service's own {state} shape and
+// whether the feature is even turned on (OBS has no such toggle, so
+// `enabled` is always true for it) -- one mapping shared by all three
+// connections-board entries, so OBS/Tavern/Automations read consistently
+// at a glance instead of each having its own bespoke wording.
+function connectionChipState(state, enabled, listeningWord) {
+  if (!enabled) return { cls: '', label: 'Off' };
+  if (state === 'connected' || state === 'listening') return { cls: 'on', label: listeningWord || 'Connected' };
+  if (state === 'connecting') return { cls: 'connecting', label: 'Connecting...' };
+  if (state === 'error') return { cls: 'error', label: 'Error' };
+  return { cls: '', label: 'Not connected' };
+}
+
+function renderConnectionsBoard() {
+  const board = $('connections-board');
+  const entries = {
+    obs: connectionChipState((status.obs || {}).state, true),
+    tavern: connectionChipState((status.tavern || {}).state, Boolean(config && config.tavern.enabled)),
+    automations: connectionChipState(
+      (status.automations || {}).state,
+      Boolean(config && config.automations.enabled),
+      'Listening'
+    ),
+  };
+  for (const [key, { cls, label }] of Object.entries(entries)) {
+    const chip = board.querySelector(`[data-connection="${key}"]`);
+    if (!chip) continue;
+    const dot = chip.querySelector('.dot');
+    dot.classList.remove('on', 'connecting', 'error');
+    if (cls) dot.classList.add(cls);
+    chip.querySelector('.connection-state').textContent = label;
+  }
 }
 
 function renderStatus() {
@@ -791,6 +826,7 @@ obsConnectEl.addEventListener('click', async () => {
     // The status line carries the reason.
   }
   renderObs();
+  renderConnectionsBoard();
 });
 $('obs-save-password').addEventListener('click', async () => {
   status.obs = await api.obsSetPassword(obsPasswordEl.value);
@@ -831,6 +867,10 @@ api.onStatus((next) => {
   renderTavern();
   renderAutomationsStatus();
   renderAutomationsObs();
+  renderConnectionsBoard();
+  const obsConnected = Boolean(next.obs && next.obs.state === 'connected');
+  if (obsConnected && !automationsObsWasConnected) refreshAutomationsScenes();
+  automationsObsWasConnected = obsConnected;
 });
 
 // ---------------------------------------------------------------------------
@@ -929,6 +969,7 @@ async function saveTavernSettings() {
     reportError(err);
   }
   renderTavern();
+  renderConnectionsBoard();
 }
 for (const el of [tavernEls.enabled, tavernEls.url, tavernEls.login, tavernEls.auto, tavernEls.width, tavernEls.height, tavernEls.lock, tavernEls.indicator, tavernEls.statusWidth, tavernEls.statusHeight]) {
   el.addEventListener('change', saveTavernSettings);
@@ -955,6 +996,7 @@ tavernEls.connect.addEventListener('click', async () => {
     // the status line carries the reason
   }
   renderTavern();
+  renderConnectionsBoard();
 });
 $('tavern-manage').addEventListener('click', () => api.tavernOpenManage());
 $('tavern-show-all').addEventListener('click', () => api.tavernShowAll().catch(reportError));
@@ -1281,39 +1323,76 @@ const automationsEls = {
   copyToken: $('automations-copy-token'),
   addresses: $('automations-addresses'),
   status: $('automations-status'),
-  scene: $('automations-scene'),
-  switchScene: $('automations-switch-scene'),
+  scenes: $('automations-scenes'),
   refreshScenes: $('automations-refresh-scenes'),
   startRecording: $('automations-start-recording'),
+  pauseRecording: $('automations-pause-recording'),
+  resumeRecording: $('automations-resume-recording'),
   stopRecording: $('automations-stop-recording'),
   recordingTag: $('automations-recording-tag'),
+  pausedTag: $('automations-paused-tag'),
   startStreaming: $('automations-start-streaming'),
   stopStreaming: $('automations-stop-streaming'),
   streamingTag: $('automations-streaming-tag'),
   obsStatus: $('automations-obs-status'),
-  rules: $('automations-rules'),
-  rulesEmpty: $('automations-rules-empty'),
-  addRule: $('automations-add-rule'),
+  studioActions: $('automations-studio-actions'),
+  rulesets: $('automations-rulesets'),
+  rulesetsEmpty: $('automations-rulesets-empty'),
+  addRuleset: $('automations-add-ruleset'),
   testEvent: $('automations-test-event'),
   sendTest: $('automations-send-test'),
   events: $('automations-events'),
   eventsEmpty: $('automations-events-empty'),
 };
 
-// What each action means and what its `param` field is for -- kept in sync
-// by hand with AUTOMATIONS_ACTIONS in src/config.js, the same way
-// TAVERN_KINDS above is a renderer-side copy of server-side knowledge.
+// What each OBS action means, what kind of thing its `param` holds
+// ('scene'/'source' get a live picker, 'none' hides the field), and which
+// menu group it belongs in -- kept in sync by hand with
+// AUTOMATIONS_ACTION_SCHEMA in src/config.js, the same way TAVERN_KINDS
+// above is a renderer-side copy of server-side knowledge.
 const AUTOMATION_ACTIONS = [
-  { value: 'sceneSwitch', label: 'Switch scene to', param: 'scene name' },
-  { value: 'sourceShow', label: 'Show source', param: 'source name' },
-  { value: 'sourceHide', label: 'Hide source', param: 'source name' },
-  { value: 'startRecording', label: 'Start recording', param: null },
-  { value: 'stopRecording', label: 'Stop recording', param: null },
-  { value: 'startStreaming', label: 'Start streaming', param: null },
-  { value: 'stopStreaming', label: 'Stop streaming', param: null },
+  { value: 'sceneSwitch', label: 'Switch scene to', paramType: 'scene', group: 'Scenes' },
+  { value: 'sourceShow', label: 'Show source', paramType: 'source', group: 'Sources' },
+  { value: 'sourceHide', label: 'Hide source', paramType: 'source', group: 'Sources' },
+  { value: 'sourceToggle', label: 'Toggle source', paramType: 'source', group: 'Sources' },
+  { value: 'startRecording', label: 'Start recording', paramType: 'none', group: 'Controls' },
+  { value: 'pauseRecording', label: 'Pause recording', paramType: 'none', group: 'Controls' },
+  { value: 'resumeRecording', label: 'Resume recording', paramType: 'none', group: 'Controls' },
+  { value: 'stopRecording', label: 'Stop recording', paramType: 'none', group: 'Controls' },
+  { value: 'startStreaming', label: 'Start streaming', paramType: 'none', group: 'Controls' },
+  { value: 'stopStreaming', label: 'Stop streaming', paramType: 'none', group: 'Controls' },
+];
+// Studio actions: same shape, kept in sync by hand with STUDIO_ACTION_SCHEMA
+// in src/config.js. Whether one shows up as a choice anywhere is decided by
+// config.automations.studioActions (the checkboxes below), not this list.
+const STUDIO_ACTIONS = [
+  { value: 'wakeAudio', label: 'Wake audio (every open window)', paramType: 'none', group: 'Studio Control' },
+  { value: 'startAll', label: 'Start all windows', paramType: 'none', group: 'Studio Control' },
+  { value: 'stopAll', label: 'Stop all windows', paramType: 'none', group: 'Studio Control' },
+  { value: 'dockAll', label: 'Dock all windows', paramType: 'none', group: 'Studio Control' },
+  { value: 'undockAll', label: 'Undock all windows', paramType: 'none', group: 'Studio Control' },
+  { value: 'syncObs', label: 'Sync OBS', paramType: 'none', group: 'Studio Control' },
 ];
 
-function applyAutomationsConfig() {
+// Live OBS scene/source names, refreshed by refreshAutomationsScenes() below
+// -- used by the OBS Control card's scene buttons and by every rule set
+// step's scene/source picker.
+let automationsScenes = [];
+let automationsSources = [];
+// Tracks the OBS state as of the last status push, so refreshAutomationsScenes()
+// can be triggered automatically the moment OBS actually connects (api.onStatus,
+// below) rather than only on tab-open or a manual Refresh click -- otherwise a
+// step's scene/source picker stays empty until the user notices and refreshes
+// it themselves.
+let automationsObsWasConnected = false;
+
+// OBS actions, plus whichever Studio actions are currently ticked on.
+function availableActions() {
+  const enabled = new Set(config.automations.studioActions || []);
+  return [...AUTOMATION_ACTIONS, ...STUDIO_ACTIONS.filter((a) => enabled.has(a.value))];
+}
+
+function applyAutomationsConfig(firstLoad) {
   const a = config.automations;
   automationsEls.enabled.checked = a.enabled;
   automationsEls.settings.hidden = !a.enabled;
@@ -1321,7 +1400,21 @@ function applyAutomationsConfig() {
   if (!a.enabled && activeTab === 'automations') selectTab('session');
   if (document.activeElement !== automationsEls.port) automationsEls.port.value = String(a.port);
   if (document.activeElement !== automationsEls.token) automationsEls.token.value = a.token;
-  renderAutomationsRules();
+  // Every status push -- including the one an OBS action like "Time it"
+  // triggers almost immediately by changing the scene -- calls this via
+  // applyConfig. A rebuild here from that stale snapshot would wipe
+  // anything local and not yet saved: a step added but not yet touched
+  // (add-step/add-delay only render locally, matching the rest of the
+  // app's add-then-save-on-first-edit pattern), a "Time it" run in
+  // progress, mid-typing in a name/event field. isEditing() alone isn't
+  // enough to guard that -- a clicked button doesn't reliably keep focus
+  // on every platform -- so past the very first load, this list is only
+  // ever driven by the user's own local actions (add/remove/move/save all
+  // already re-render themselves); a passive push no longer touches it.
+  if (firstLoad) {
+    renderAutomationsStudioActions();
+    renderAutomationsRuleSets();
+  }
 }
 
 async function saveAutomationsSettings(patch) {
@@ -1339,6 +1432,7 @@ async function saveAutomationsSettings(patch) {
   }
   applyAutomationsConfig();
   renderAutomationsStatus();
+  renderConnectionsBoard();
 }
 for (const el of [automationsEls.enabled, automationsEls.port, automationsEls.token]) {
   el.addEventListener('change', () => saveAutomationsSettings());
@@ -1451,128 +1545,482 @@ function renderAutomationsEvents(events) {
   }
 }
 
-// Recording/streaming state and the scene <select>'s current pick, from the
-// regular OBS status push -- refreshAutomationsScenes() below is the only
-// thing that re-reads the scene *list* itself, since that needs an actual
-// round trip to OBS rather than something already on the status broadcast.
+// Recording/streaming/paused state and which scene button is current, from
+// the regular OBS status push -- refreshAutomationsScenes() below is the
+// only thing that re-reads the scene/source *lists* themselves, since that
+// needs an actual round trip to OBS rather than something already on the
+// status broadcast.
 function renderAutomationsObs() {
   const o = status.obs || { state: 'disconnected' };
-  const outputs = o.outputs || { recording: false, streaming: false, scene: '' };
+  const outputs = o.outputs || { recording: false, recordingPaused: false, streaming: false, scene: '' };
   const connected = o.state === 'connected';
   automationsEls.recordingTag.hidden = !outputs.recording;
+  automationsEls.pausedTag.hidden = !outputs.recordingPaused;
   automationsEls.streamingTag.hidden = !outputs.streaming;
   automationsEls.obsStatus.textContent = connected ? '' : 'OBS is not connected.';
-  automationsEls.switchScene.disabled = !connected;
-  automationsEls.startRecording.disabled = !connected;
-  automationsEls.stopRecording.disabled = !connected;
+  automationsEls.startRecording.disabled = !connected || outputs.recording;
+  automationsEls.pauseRecording.hidden = outputs.recordingPaused;
+  automationsEls.resumeRecording.hidden = !outputs.recordingPaused;
+  automationsEls.pauseRecording.disabled = !connected || !outputs.recording;
+  automationsEls.resumeRecording.disabled = !connected;
+  automationsEls.stopRecording.disabled = !connected || !outputs.recording;
   automationsEls.startStreaming.disabled = !connected;
   automationsEls.stopStreaming.disabled = !connected;
-  if (outputs.scene && document.activeElement !== automationsEls.scene) {
-    for (const opt of automationsEls.scene.options) opt.selected = opt.value === outputs.scene;
+  for (const btn of automationsEls.scenes.querySelectorAll('button')) {
+    btn.classList.toggle('active', btn.dataset.scene === outputs.scene);
   }
 }
 
-// Rules live in config.automations.rules; edited directly in the DOM and
-// saved as a whole array on every change (blur/select), same shape as a
-// real rule sent to automations:setSettings.
-function ruleFromRow(row) {
-  return (config.automations.rules || []).find((r) => r.id === row.dataset.ruleId);
-}
-
-function buildRuleRow(rule) {
-  const row = document.createElement('div');
-  row.className = 'row automations-rule-row';
-  row.dataset.ruleId = rule.id;
-
-  const eventField = document.createElement('label');
-  eventField.className = 'field field-inline';
-  const eventLabel = document.createElement('span');
-  eventLabel.textContent = 'Event';
-  const eventInput = document.createElement('input');
-  eventInput.type = 'text';
-  eventInput.size = 16;
-  eventInput.spellcheck = false;
-  eventInput.placeholder = 'combat:start';
-  eventInput.value = rule.event;
-  eventInput.dataset.rfield = 'event';
-  eventField.append(eventLabel, eventInput);
-
-  const actionField = document.createElement('label');
-  actionField.className = 'field field-inline';
-  const actionLabel = document.createElement('span');
-  actionLabel.textContent = 'Action';
-  const actionSelect = document.createElement('select');
-  actionSelect.dataset.rfield = 'action';
-  for (const a of AUTOMATION_ACTIONS) {
-    const opt = document.createElement('option');
-    opt.value = a.value;
-    opt.textContent = a.label;
-    if (a.value === rule.action) opt.selected = true;
-    actionSelect.appendChild(opt);
+// Re-reads the scene and source lists from OBS -- unlike everything else in
+// this section, this needs an actual round trip, so it only happens when
+// the tab is opened or the user asks, not on every status push.
+async function refreshAutomationsScenes() {
+  if (!status.obs || status.obs.state !== 'connected') {
+    automationsScenes = [];
+    automationsSources = [];
+  } else {
+    try {
+      const [scenes, sources] = await Promise.all([api.obsListScenes(), api.obsListSources()]);
+      automationsScenes = scenes;
+      automationsSources = sources;
+    } catch (err) {
+      reportError(err);
+    }
   }
-  actionField.append(actionLabel, actionSelect);
-
-  const meta = AUTOMATION_ACTIONS.find((a) => a.value === rule.action);
-  const paramField = document.createElement('label');
-  paramField.className = 'field field-inline';
-  const paramLabel = document.createElement('span');
-  paramLabel.textContent = meta && meta.param ? meta.param.replace(/^./, (c) => c.toUpperCase()) : 'Param';
-  const paramInput = document.createElement('input');
-  paramInput.type = 'text';
-  paramInput.size = 20;
-  paramInput.spellcheck = false;
-  paramInput.value = rule.param;
-  paramInput.dataset.rfield = 'param';
-  paramInput.disabled = !meta || !meta.param;
-  paramInput.placeholder = meta && meta.param ? `e.g. ${meta.param}` : 'not used by this action';
-  paramField.append(paramLabel, paramInput);
-
-  const removeBtn = document.createElement('button');
-  removeBtn.type = 'button';
-  removeBtn.className = 'btn btn-danger';
-  removeBtn.textContent = 'Remove';
-  removeBtn.dataset.raction = 'remove';
-
-  row.append(eventField, actionField, paramField, removeBtn);
-  return row;
+  renderAutomationsSceneButtons();
+  renderAutomationsRuleSets();
 }
 
-function renderAutomationsRules() {
-  const rules = config.automations.rules || [];
-  automationsEls.rules.textContent = '';
-  automationsEls.rulesEmpty.hidden = rules.length > 0;
-  for (const rule of rules) automationsEls.rules.appendChild(buildRuleRow(rule));
+function renderAutomationsSceneButtons() {
+  automationsEls.scenes.textContent = '';
+  const outputs = (status.obs && status.obs.outputs) || {};
+  for (const s of automationsScenes) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-small';
+    btn.textContent = s.name;
+    btn.dataset.scene = s.name;
+    if (s.name === outputs.scene) btn.classList.add('active');
+    btn.addEventListener('click', () => api.obsSetScene(s.name).catch(reportError));
+    automationsEls.scenes.appendChild(btn);
+  }
+}
+automationsEls.refreshScenes.addEventListener('click', () => refreshAutomationsScenes());
+automationsEls.startRecording.addEventListener('click', () => api.obsStartRecording().catch(reportError));
+automationsEls.pauseRecording.addEventListener('click', () => api.obsPauseRecording().catch(reportError));
+automationsEls.resumeRecording.addEventListener('click', () => api.obsResumeRecording().catch(reportError));
+automationsEls.stopRecording.addEventListener('click', () => api.obsStopRecording().catch(reportError));
+automationsEls.startStreaming.addEventListener('click', () => api.obsStartStreaming().catch(reportError));
+automationsEls.stopStreaming.addEventListener('click', () => api.obsStopStreaming().catch(reportError));
+
+// --- Studio Control: which Studio actions (beyond OBS's own) are exposed,
+// off by default -- see the note by STUDIO_ACTIONS above. ---
+function renderAutomationsStudioActions() {
+  automationsEls.studioActions.textContent = '';
+  const enabled = new Set(config.automations.studioActions || []);
+  for (const a of STUDIO_ACTIONS) {
+    const label = document.createElement('label');
+    label.className = 'check';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = enabled.has(a.value);
+    input.dataset.studioAction = a.value;
+    const span = document.createElement('span');
+    span.textContent = a.label;
+    label.append(input, span);
+    automationsEls.studioActions.appendChild(label);
+  }
 }
 
-async function saveAutomationsRules() {
+async function saveAutomationsStudioActions() {
   try {
-    await api.automationsSetSettings({ rules: config.automations.rules });
+    status.automations = await api.automationsSetSettings({ studioActions: config.automations.studioActions });
   } catch (err) {
     reportError(err);
   }
-  renderAutomationsRules();
+  renderAutomationsStudioActions();
+  renderAutomationsRuleSets(); // a step's available actions may have changed
 }
 
-automationsEls.rules.addEventListener('change', (event) => {
-  const row = event.target.closest('.automations-rule-row');
-  const field = event.target.dataset.rfield;
-  if (!row || !field) return;
-  const rule = ruleFromRow(row);
-  if (!rule) return;
-  rule[field] = event.target.value;
-  saveAutomationsRules();
+automationsEls.studioActions.addEventListener('change', (event) => {
+  const value = event.target.dataset.studioAction;
+  if (!value) return;
+  const current = new Set(config.automations.studioActions || []);
+  if (event.target.checked) current.add(value);
+  else current.delete(value);
+  config.automations.studioActions = STUDIO_ACTIONS.map((a) => a.value).filter((v) => current.has(v));
+  saveAutomationsStudioActions();
 });
-automationsEls.rules.addEventListener('click', (event) => {
-  if (event.target.dataset.raction !== 'remove') return;
-  const row = event.target.closest('.automations-rule-row');
-  if (!row) return;
-  config.automations.rules = config.automations.rules.filter((r) => r.id !== row.dataset.ruleId);
-  saveAutomationsRules();
+
+// --- Rule sets: each one its own card (mirrors the Regions pattern), a
+// name/group/trigger-event header and a numbered sequence of steps. Live in
+// config.automations.ruleSets; edited directly in the DOM and saved as a
+// whole array on every change, same shape sent to automations:setSettings.
+// ---
+const rulesetTemplate = $('ruleset-template');
+
+function ruleSetFromCard(card) {
+  return (config.automations.ruleSets || []).find((r) => r.id === card.dataset.rulesetId);
+}
+
+// One display number per step: increments at the start of each stage (a
+// plain step, or any delay), so `and`-joined action steps share their
+// stage's number. Mirrors stagesFor() in src/main.js exactly, so what's
+// numbered here is what actually runs together.
+function stageNumbers(steps) {
+  const numbers = [];
+  let n = 0;
+  let prevWasAction = false;
+  steps.forEach((step, i) => {
+    const newStage = i === 0 || step.type === 'delay' || !step.and || !prevWasAction;
+    if (newStage) n += 1;
+    numbers.push(n);
+    prevWasAction = step.type === 'action';
+  });
+  return numbers;
+}
+
+function optionsForParamType(paramType) {
+  if (paramType === 'scene') return automationsScenes.map((s) => s.name);
+  if (paramType === 'source') return automationsSources;
+  return [];
+}
+
+// Which tint a step's box gets: one per action group (Scenes its own,
+// Sources+Controls share "obs" since both are plain OBS remote actions,
+// Studio Control its own), plus "timer" for a delay -- lets a whole rule
+// set's sequence be scanned by colour rather than read word by word.
+function tintClassFor(step, actions) {
+  if (step.type === 'delay') return 'automation-step-tint-timer';
+  const meta = actions.find((a) => a.value === step.action);
+  if (meta && meta.group === 'Scenes') return 'automation-step-tint-scenes';
+  if (meta && meta.group === 'Studio Control') return 'automation-step-tint-studio';
+  return 'automation-step-tint-obs';
+}
+
+function buildStepRow(step, index, number, isFirst, timeableActions) {
+  const row = document.createElement('div');
+  row.className = `automation-step ${tintClassFor(step, availableActions())}`;
+  row.dataset.stepId = step.id;
+
+  const numberEl = document.createElement('span');
+  numberEl.className = 'automation-step-number';
+  numberEl.textContent = String(number);
+  row.appendChild(numberEl);
+
+  if (step.type === 'delay') {
+    row.classList.add('automation-step-delay');
+    const before = document.createElement('span');
+    before.className = 'automation-step-label';
+    before.textContent = 'Wait';
+    const seconds = document.createElement('input');
+    seconds.type = 'number';
+    seconds.min = '1';
+    seconds.max = '3600';
+    seconds.step = '1';
+    seconds.className = 'automation-step-seconds';
+    seconds.value = step.seconds;
+    seconds.dataset.sfield = 'seconds';
+    const after = document.createElement('span');
+    after.className = 'automation-step-label';
+    after.textContent = 'seconds';
+    row.append(before, seconds, after);
+
+    // "Time it": run the step(s) right before this delay, start a stopwatch,
+    // and let the delay measure itself instead of being guessed at -- only
+    // offered when there is actually something valid to run (not the first
+    // step, and not right after another delay). `timing` lives in this
+    // click handler's own closure, so it needs no cross-row bookkeeping;
+    // if the row is torn down by an unrelated re-render mid-timing, the
+    // interval just keeps ticking harmlessly against a detached button.
+    if (timeableActions && timeableActions.length) {
+      const timeBtn = document.createElement('button');
+      timeBtn.type = 'button';
+      timeBtn.className = 'btn btn-small automation-step-time-btn';
+      timeBtn.innerHTML = '<i class="fa-solid fa-stopwatch" aria-hidden="true"></i> Time it';
+      let timing = null;
+      timeBtn.addEventListener('click', async () => {
+        if (timing) {
+          clearInterval(timing.intervalId);
+          const elapsed = Math.max(1, Math.round((Date.now() - timing.startedAt) / 1000));
+          seconds.value = elapsed;
+          seconds.disabled = false;
+          step.seconds = elapsed;
+          timing = null;
+          timeBtn.classList.remove('btn-primary');
+          timeBtn.innerHTML = '<i class="fa-solid fa-stopwatch" aria-hidden="true"></i> Time it';
+          saveAutomationsRuleSets();
+          return;
+        }
+        try {
+          await api.automationsRunSteps(timeableActions.map((s) => ({ action: s.action, param: s.param })));
+        } catch (err) {
+          reportError(err);
+          return;
+        }
+        timing = { startedAt: Date.now() };
+        seconds.disabled = true;
+        timeBtn.classList.add('btn-primary');
+        // Marked dirty for the whole run: a status push landing mid-timing
+        // (the scene switch just above triggers one almost immediately)
+        // must not swap out the local config out from under this -- see the
+        // note on applyAutomationsConfig.
+        setSaveState('Timing a step...', 'dirty');
+        const tick = () => {
+          const elapsed = Math.round((Date.now() - timing.startedAt) / 1000);
+          timeBtn.innerHTML = `<i class="fa-solid fa-stop" aria-hidden="true"></i> Stop timer (${elapsed}s)`;
+        };
+        tick();
+        timing.intervalId = setInterval(tick, 1000);
+      });
+      row.appendChild(timeBtn);
+    }
+  } else {
+    const andLabel = document.createElement('label');
+    andLabel.className = 'check automation-step-and';
+    andLabel.title = 'Run together with the step before this one, instead of waiting for it';
+    const andInput = document.createElement('input');
+    andInput.type = 'checkbox';
+    andInput.checked = Boolean(step.and);
+    andInput.dataset.sfield = 'and';
+    andInput.disabled = isFirst;
+    const andSpan = document.createElement('span');
+    andSpan.textContent = 'AND';
+    andLabel.append(andInput, andSpan);
+    row.appendChild(andLabel);
+
+    const actions = availableActions();
+    const actionSelect = document.createElement('select');
+    actionSelect.dataset.sfield = 'action';
+    const groups = new Map();
+    for (const a of actions) {
+      if (!groups.has(a.group)) {
+        const group = document.createElement('optgroup');
+        group.label = a.group;
+        groups.set(a.group, group);
+      }
+      const opt = document.createElement('option');
+      opt.value = a.value;
+      opt.textContent = a.label;
+      if (a.value === step.action) opt.selected = true;
+      groups.get(a.group).appendChild(opt);
+    }
+    for (const group of groups.values()) actionSelect.appendChild(group);
+    row.appendChild(actionSelect);
+
+    const meta = actions.find((a) => a.value === step.action) || actions[0];
+    if (meta && meta.paramType !== 'none') {
+      const options = optionsForParamType(meta.paramType);
+      const paramSelect = document.createElement('select');
+      paramSelect.dataset.sfield = 'param';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = options.length ? `Choose a ${meta.paramType}…` : `No ${meta.paramType}s loaded — click Refresh above`;
+      paramSelect.appendChild(blank);
+      for (const name of options) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === step.param) opt.selected = true;
+        paramSelect.appendChild(opt);
+      }
+      // The saved value might not be in the live list (OBS not connected,
+      // or the scene/source was since renamed or removed) -- keep it
+      // selectable rather than silently discarding it on the next save.
+      if (step.param && !options.includes(step.param)) {
+        const opt = document.createElement('option');
+        opt.value = step.param;
+        opt.textContent = `${step.param} (not currently in OBS)`;
+        opt.selected = true;
+        paramSelect.appendChild(opt);
+      }
+      row.appendChild(paramSelect);
+    }
+  }
+
+  const moveUp = document.createElement('button');
+  moveUp.type = 'button';
+  moveUp.className = 'btn btn-small btn-icon';
+  moveUp.title = 'Move up';
+  moveUp.setAttribute('aria-label', 'Move up');
+  moveUp.innerHTML = '<i class="fa-solid fa-arrow-up" aria-hidden="true"></i>';
+  moveUp.dataset.saction = 'move-up';
+  moveUp.disabled = index === 0;
+
+  const moveDown = document.createElement('button');
+  moveDown.type = 'button';
+  moveDown.className = 'btn btn-small btn-icon';
+  moveDown.title = 'Move down';
+  moveDown.setAttribute('aria-label', 'Move down');
+  moveDown.innerHTML = '<i class="fa-solid fa-arrow-down" aria-hidden="true"></i>';
+  moveDown.dataset.saction = 'move-down';
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn btn-small btn-icon btn-danger';
+  remove.title = 'Remove step';
+  remove.setAttribute('aria-label', 'Remove step');
+  remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+  remove.dataset.saction = 'remove';
+
+  // Right-aligned cluster for move/remove, so they always sit at the
+  // trailing edge, not just wherever they land after variable-width
+  // content earlier in the row. Time it stays with the seconds field
+  // instead of here -- it's part of setting the delay, not a row action.
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'automation-step-actions';
+  actionsEl.append(moveUp, moveDown, remove);
+  row.appendChild(actionsEl);
+  return row;
+}
+
+function renderRulesetSteps(card, ruleSet) {
+  const container = card.querySelector('[data-role="steps"]');
+  container.textContent = '';
+  const numbers = stageNumbers(ruleSet.steps);
+  ruleSet.steps.forEach((step, i) => {
+    // "Time it" only makes sense on a delay with a real action stage right
+    // before it -- not the first step, and not right after another delay
+    // (that stage's steps are all type 'delay', so this comes back empty).
+    let timeableActions = null;
+    if (step.type === 'delay') {
+      const prevStage = numbers[i] - 1;
+      const actions = ruleSet.steps.filter((s, j) => numbers[j] === prevStage && s.type === 'action');
+      if (actions.length) timeableActions = actions;
+    }
+    const row = buildStepRow(step, i, numbers[i], i === 0, timeableActions);
+    if (i === ruleSet.steps.length - 1) row.querySelector('[data-saction="move-down"]').disabled = true;
+    container.appendChild(row);
+  });
+}
+
+function buildRulesetCard(ruleSet) {
+  const node = rulesetTemplate.content.firstElementChild.cloneNode(true);
+  node.dataset.rulesetId = ruleSet.id;
+  node.classList.toggle('disabled', !ruleSet.enabled);
+  node.querySelector('[data-rsfield="enabled"]').checked = ruleSet.enabled;
+  node.querySelector('[data-rsfield="name"]').value = ruleSet.name;
+  node.querySelector('[data-rsfield="group"]').value = ruleSet.group;
+  node.querySelector('[data-rsfield="event"]').value = ruleSet.event;
+  renderRulesetSteps(node, ruleSet);
+  return node;
+}
+
+function renderAutomationsRuleSets() {
+  const ruleSets = config.automations.ruleSets || [];
+  automationsEls.rulesets.textContent = '';
+  automationsEls.rulesetsEmpty.hidden = ruleSets.length > 0;
+  for (const ruleSet of ruleSets) automationsEls.rulesets.appendChild(buildRulesetCard(ruleSet));
+}
+
+async function saveAutomationsRuleSets() {
+  try {
+    status.automations = await api.automationsSetSettings({ ruleSets: config.automations.ruleSets });
+    setSaveState('All changes saved');
+  } catch (err) {
+    reportError(err);
+  }
+  renderAutomationsRuleSets();
+}
+
+automationsEls.rulesets.addEventListener('change', (event) => {
+  const card = event.target.closest('.ruleset-card');
+  if (!card) return;
+  const ruleSet = ruleSetFromCard(card);
+  if (!ruleSet) return;
+
+  const rsfield = event.target.dataset.rsfield;
+  if (rsfield) {
+    ruleSet[rsfield] = rsfield === 'enabled' ? event.target.checked : event.target.value;
+    saveAutomationsRuleSets();
+    return;
+  }
+
+  const stepRow = event.target.closest('.automation-step');
+  const sfield = event.target.dataset.sfield;
+  if (!stepRow || !sfield) return;
+  const step = ruleSet.steps.find((s) => s.id === stepRow.dataset.stepId);
+  if (!step) return;
+  if (sfield === 'and') step.and = event.target.checked;
+  else if (sfield === 'seconds') step.seconds = Number(event.target.value) || 1;
+  else step[sfield] = event.target.value;
+  if (sfield === 'action') step.param = ''; // the param field's kind depends on the action
+  saveAutomationsRuleSets();
 });
-automationsEls.addRule.addEventListener('click', () => {
-  const id = `rule${Date.now().toString(36)}`;
-  config.automations.rules = [...(config.automations.rules || []), { id, event: '', action: AUTOMATION_ACTIONS[0].value, param: '' }];
-  renderAutomationsRules();
+
+automationsEls.rulesets.addEventListener('click', async (event) => {
+  const card = event.target.closest('.ruleset-card');
+  if (!card) return;
+  const ruleSet = ruleSetFromCard(card);
+  if (!ruleSet) return;
+  // .closest(), not event.target.dataset directly -- these buttons hold an
+  // <i> icon, so a click can land on the icon rather than the button itself.
+  const actionBtn = event.target.closest('[data-action]');
+  const action = actionBtn && actionBtn.dataset.action;
+
+  if (action === 'delete-ruleset') {
+    config.automations.ruleSets = config.automations.ruleSets.filter((r) => r.id !== ruleSet.id);
+    saveAutomationsRuleSets();
+    return;
+  }
+  if (action === 'save-ruleset') {
+    saveAutomationsRuleSets();
+    return;
+  }
+  if (action === 'test-ruleset') {
+    if (!ruleSet.event) {
+      reportError(new Error('Set this rule set\'s event before testing it.'));
+      return;
+    }
+    try {
+      status.automations = await api.automationsTestEvent(ruleSet.event, {});
+      renderAutomationsStatus();
+      setSaveState(`Test event "${ruleSet.event}" sent`);
+    } catch (err) {
+      reportError(err);
+    }
+    return;
+  }
+  if (action === 'add-step') {
+    ruleSet.steps.push({ id: `step${Date.now().toString(36)}`, type: 'action', action: availableActions()[0].value, param: '', and: false });
+    renderRulesetSteps(card, ruleSet);
+    setSaveState('Unsaved changes...', 'dirty'); // not yet sent -- see saveAutomationsRuleSets
+    return;
+  }
+  if (action === 'add-delay') {
+    ruleSet.steps.push({ id: `step${Date.now().toString(36)}`, type: 'delay', seconds: 5, and: false });
+    renderRulesetSteps(card, ruleSet);
+    setSaveState('Unsaved changes...', 'dirty');
+    return;
+  }
+
+  const stepRow = event.target.closest('.automation-step');
+  const sactionBtn = event.target.closest('[data-saction]');
+  const saction = sactionBtn && sactionBtn.dataset.saction;
+  if (!stepRow || !saction) return;
+  const index = ruleSet.steps.findIndex((s) => s.id === stepRow.dataset.stepId);
+  if (index === -1) return;
+  if (saction === 'move-up' && index > 0) {
+    [ruleSet.steps[index - 1], ruleSet.steps[index]] = [ruleSet.steps[index], ruleSet.steps[index - 1]];
+  } else if (saction === 'move-down' && index < ruleSet.steps.length - 1) {
+    [ruleSet.steps[index], ruleSet.steps[index + 1]] = [ruleSet.steps[index + 1], ruleSet.steps[index]];
+  } else if (saction === 'remove') {
+    ruleSet.steps.splice(index, 1);
+  } else {
+    return;
+  }
+  if (ruleSet.steps[0]) ruleSet.steps[0].and = false;
+  saveAutomationsRuleSets();
+});
+
+automationsEls.addRuleset.addEventListener('click', () => {
+  const id = `ruleset${Date.now().toString(36)}`;
+  config.automations.ruleSets = [
+    ...(config.automations.ruleSets || []),
+    { id, name: '', group: '', enabled: true, event: '', steps: [] },
+  ];
+  renderAutomationsRuleSets();
+  setSaveState('Unsaved changes...', 'dirty');
 });
 
 automationsEls.sendTest.addEventListener('click', async () => {
@@ -1585,43 +2033,6 @@ automationsEls.sendTest.addEventListener('click', async () => {
     reportError(err);
   }
 });
-
-// Re-reads the scene list from OBS -- unlike everything else in this
-// section, this needs an actual round trip, so it only happens when the
-// tab is opened or the user asks, not on every status push.
-async function refreshAutomationsScenes() {
-  if (!status.obs || status.obs.state !== 'connected') {
-    automationsEls.scene.textContent = '';
-    return;
-  }
-  try {
-    const scenes = await api.obsListScenes();
-    automationsEls.scene.textContent = '';
-    for (const s of scenes) {
-      const opt = document.createElement('option');
-      opt.value = s.name;
-      opt.textContent = s.name;
-      if (s.current) opt.selected = true;
-      automationsEls.scene.appendChild(opt);
-    }
-  } catch (err) {
-    reportError(err);
-  }
-}
-automationsEls.refreshScenes.addEventListener('click', () => refreshAutomationsScenes());
-automationsEls.switchScene.addEventListener('click', async () => {
-  const name = automationsEls.scene.value;
-  if (!name) return;
-  try {
-    await api.obsSetScene(name);
-  } catch (err) {
-    reportError(err);
-  }
-});
-automationsEls.startRecording.addEventListener('click', () => api.obsStartRecording().catch(reportError));
-automationsEls.stopRecording.addEventListener('click', () => api.obsStopRecording().catch(reportError));
-automationsEls.startStreaming.addEventListener('click', () => api.obsStartStreaming().catch(reportError));
-automationsEls.stopStreaming.addEventListener('click', () => api.obsStopStreaming().catch(reportError));
 
 // ---------------------------------------------------------------------------
 // Region picker
@@ -1781,6 +2192,7 @@ $('picker-save').addEventListener('click', async () => {
   renderDisplays();
   renderObs();
   renderStatus();
+  renderConnectionsBoard();
   $('app-info').textContent =
     `${info.revision}${info.build && info.build.branch ? ` on ${info.build.branch}` : ''} - Electron ${info.electron} - Chromium ${info.chrome}`;
   document.title = `Coffee Pub Studio - Control Panel - ${info.revision}`;

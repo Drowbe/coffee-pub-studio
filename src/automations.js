@@ -52,8 +52,12 @@ class AutomationsServer extends EventEmitter {
     this.message = '';
     this.port = 0;
     this.getToken = null;
-    this.getRules = null; // () => the currently configured rules -- see GET /api/automations/capabilities
+    this.getRuleSets = null; // () => the currently configured rule sets -- see GET /api/automations/capabilities
     this.actions = []; // the static action vocabulary Studio supports, same endpoint
+    this.runAction = null; // (action, param) => Promise -- see POST /api/automations/action
+    this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
+    this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
+    this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
@@ -86,7 +90,7 @@ class AutomationsServer extends EventEmitter {
   // one-time "trust this" exception is tied to the actual certificate, and
   // a fresh one on every launch would mean re-clicking through the warning
   // every time.
-  async start({ port, getToken, certDir, getRules, actions }) {
+  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getObsStatus }) {
     await this.stop();
     if (!getToken()) {
       this.setState('error', 'Set a token before enabling Automations.');
@@ -102,8 +106,12 @@ class AutomationsServer extends EventEmitter {
     this.certPem = cert.cert.toString();
     this.caCertPem = cert.caCert.toString();
     this.getToken = getToken;
-    this.getRules = getRules || null;
+    this.getRuleSets = getRuleSets || null;
     this.actions = actions || [];
+    this.runAction = runAction || null;
+    this.getScenes = getScenes || null;
+    this.getSources = getSources || null;
+    this.getObsStatus = getObsStatus || null;
     await new Promise((resolve) => {
       const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
       server.on('error', (err) => {
@@ -122,7 +130,11 @@ class AutomationsServer extends EventEmitter {
 
   async stop() {
     this.getToken = null;
-    this.getRules = null;
+    this.getRuleSets = null;
+    this.runAction = null;
+    this.getScenes = null;
+    this.getSources = null;
+    this.getObsStatus = null;
     if (!this.server) {
       if (this.state !== 'stopped') this.setState('stopped', '');
       return;
@@ -171,6 +183,17 @@ class AutomationsServer extends EventEmitter {
       return send(200, { ok: true });
     }
 
+    // OBS's actual current state, not whatever a caller last told itself --
+    // reflects a manual start/stop inside OBS or a failed automation
+    // action just as correctly as one that succeeded. Answered from
+    // Studio's own already-polled cache (obs.js polls every 2s while
+    // connected), so this never makes a fresh OBS round trip of its own.
+    if (req.method === 'GET' && url === '/api/automations/status') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      const status = this.getObsStatus ? this.getObsStatus() : { obsConnected: false, recording: false, recordingPaused: false, streaming: false, scene: '' };
+      return send(200, status);
+    }
+
     // Lets a caller discover Studio's action vocabulary and the rules
     // actually configured right now, instead of hardcoding or guessing
     // either -- authenticated, like everything else that isn't the CA cert
@@ -178,8 +201,24 @@ class AutomationsServer extends EventEmitter {
     // this Studio's own setup.
     if (req.method === 'GET' && url === '/api/automations/capabilities') {
       if (!authed()) return send(401, { error: 'Unauthorized' });
-      const rules = (this.getRules ? this.getRules() : []).map((r) => ({ event: r.event, action: r.action, param: r.param }));
-      return send(200, { actions: this.actions, rules });
+      // Only name/group/event -- a caller building a menu needs to know a
+      // rule set exists and what event fires it (so a menu click can just
+      // POST that same event to /api/automations/event), not its internal
+      // step sequence.
+      const ruleSets = (this.getRuleSets ? this.getRuleSets() : [])
+        .filter((r) => r.enabled)
+        .map((r) => ({ name: r.name, group: r.group, event: r.event }));
+      // Live OBS round trips: an action's paramType ("scene"/"source") only
+      // says what KIND of value it takes, not which ones actually exist --
+      // without this a caller knows sceneSwitch wants a scene name but not
+      // a single real one to offer. Empty when OBS isn't connected, same as
+      // Studio's own OBS Control card in that state.
+      (async () => {
+        const scenes = this.getScenes ? await this.getScenes().catch(() => []) : [];
+        const sources = this.getSources ? await this.getSources().catch(() => []) : [];
+        send(200, { actions: this.actions, ruleSets, scenes, sources });
+      })();
+      return;
     }
 
     // No auth: a CA's public certificate isn't a secret (only its private
@@ -223,6 +262,55 @@ class AutomationsServer extends EventEmitter {
         const data = body.data && typeof body.data === 'object' ? body.data : {};
         this.recordEvent(event, data);
         send(200, { ok: true });
+      });
+      return;
+    }
+
+    // Runs one action directly, right now -- the bare-action counterpart to
+    // /event's rule-set matching. `actions` (GET /capabilities) is only a
+    // vocabulary otherwise: without this, a caller has no way to invoke
+    // something like startRecording or a Studio action unless a rule set
+    // happens to be configured for it, which defeats the point of exposing
+    // Controls/Scenes/Sources/Studio Control as their own menu groups.
+    if (req.method === 'POST' && url === '/api/automations/action') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      let size = 0;
+      const chunks = [];
+      let tooBig = false;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > MAX_BODY_BYTES) {
+          tooBig = true;
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', async () => {
+        if (tooBig) return;
+        let body;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        } catch (err) {
+          return send(400, { error: 'Invalid JSON' });
+        }
+        const action = typeof body.action === 'string' ? body.action.trim() : '';
+        if (!action) return send(400, { error: '"action" is required' });
+        // Only an action currently in this.actions -- the same list
+        // GET /capabilities returns -- can run: a Studio action the user
+        // hasn't ticked on in Studio Control is exactly as unreachable here
+        // as it is missing from that list.
+        if (!this.actions.some((a) => a.action === action)) {
+          return send(400, { error: `Unknown or currently disabled action: ${action}` });
+        }
+        const param = typeof body.param === 'string' ? body.param.trim().slice(0, 200) : '';
+        if (!this.runAction) return send(500, { error: 'Studio is not ready to run actions.' });
+        try {
+          await this.runAction(action, param);
+          send(200, { ok: true });
+        } catch (err) {
+          send(500, { error: describeError(err) });
+        }
       });
       return;
     }

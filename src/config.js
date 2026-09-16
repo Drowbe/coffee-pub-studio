@@ -115,62 +115,169 @@ function defaultObs() {
 }
 
 // Automations: a small HTTP server Foundry modules (starting with Herald)
-// call to report events (e.g. "combat has started"), which can then trigger
-// an OBS action here (switch scene, show/hide a source, start/stop
-// recording or streaming) via a user-configured rule. Foundry typically runs
-// on a different machine than Studio, so this listens on the LAN, not just
-// localhost -- the token is the only thing standing between that port and
-// anyone else on the network, so the server refuses to start without one.
-const AUTOMATIONS_LIMITS = { maxRules: 40, maxEventLen: 60, maxParamLen: 200 };
-const AUTOMATIONS_ACTIONS = ['sceneSwitch', 'sourceShow', 'sourceHide', 'startRecording', 'stopRecording', 'startStreaming', 'stopStreaming'];
-// What each action means and what its `param` is for -- the authoritative
-// copy. GET /api/automations/capabilities (main.js) reads this directly so
+// call to report events (e.g. "combat has started"), which can then run a
+// rule set here -- a named, numbered sequence of OBS/Studio actions and
+// delays. Foundry typically runs on a different machine than Studio, so
+// this listens on the LAN, not just localhost -- the token is the only
+// thing standing between that port and anyone else on the network, so the
+// server refuses to start without one.
+//
+// Two kinds of action:
+// - OBS actions (AUTOMATIONS_ACTIONS) are always available -- Studio
+//   already owns the OBS connection for everything else, so there's no
+//   reason to gate them.
+// - Studio actions (STUDIO_ACTIONS) reach into Studio itself (wake a
+//   window's audio, start/stop/dock every window, re-sync OBS). These are
+//   opt-in per action (`automations.studioActions`), off by default, since
+//   they're a bigger blast radius than "switch a scene" and shouldn't be
+//   reachable just because Automations happens to be turned on.
+//
+// Both are grouped (`group`) so a caller like Herald can build a menu --
+// "Controls > Start Recording", "Scenes > Combat" -- instead of one flat
+// list; GET /api/automations/capabilities returns both together.
+const AUTOMATIONS_LIMITS = {
+  maxRuleSets: 40,
+  maxStepsPerRuleSet: 20,
+  maxNameLen: 60,
+  maxGroupLen: 40,
+  maxEventLen: 60,
+  maxParamLen: 200,
+  maxDelaySeconds: 3600,
+};
+const AUTOMATIONS_ACTIONS = [
+  'sceneSwitch', 'sourceShow', 'sourceHide', 'sourceToggle',
+  'startRecording', 'pauseRecording', 'resumeRecording', 'stopRecording',
+  'startStreaming', 'stopStreaming',
+];
+// What each action means, what its `param` is for (and what kind of thing
+// the param is -- 'scene'/'source' so a picker can be shown instead of a
+// free-text field), and which menu group it belongs in. The authoritative
+// copy: GET /api/automations/capabilities (main.js) reads this directly so
 // a caller can discover Studio's action vocabulary instead of hardcoding
 // it; src/control/control.js keeps its own renderer-side copy for the
-// Rules UI (kept in sync by hand, same reasoning as TAVERN_KINDS there),
-// since it can't require this file directly across the preload boundary.
+// Automations UI (kept in sync by hand, same reasoning as TAVERN_KINDS
+// there), since it can't require this file directly across the preload
+// boundary.
 const AUTOMATIONS_ACTION_SCHEMA = [
-  { action: 'sceneSwitch', param: 'scene name' },
-  { action: 'sourceShow', param: 'source name' },
-  { action: 'sourceHide', param: 'source name' },
-  { action: 'startRecording', param: null },
-  { action: 'stopRecording', param: null },
-  { action: 'startStreaming', param: null },
-  { action: 'stopStreaming', param: null },
+  { action: 'sceneSwitch', param: 'scene name', paramType: 'scene', group: 'Scenes' },
+  { action: 'sourceShow', param: 'source name', paramType: 'source', group: 'Sources' },
+  { action: 'sourceHide', param: 'source name', paramType: 'source', group: 'Sources' },
+  { action: 'sourceToggle', param: 'source name', paramType: 'source', group: 'Sources' },
+  { action: 'startRecording', param: null, paramType: 'none', group: 'Controls' },
+  { action: 'pauseRecording', param: null, paramType: 'none', group: 'Controls' },
+  { action: 'resumeRecording', param: null, paramType: 'none', group: 'Controls' },
+  { action: 'stopRecording', param: null, paramType: 'none', group: 'Controls' },
+  { action: 'startStreaming', param: null, paramType: 'none', group: 'Controls' },
+  { action: 'stopStreaming', param: null, paramType: 'none', group: 'Controls' },
+];
+// Studio actions: same shape, plus a `label` (there's no single-word verb
+// for most of these the way there is for the OBS actions). Every one is off
+// by default and only reaches capabilities / the rule-set step list once
+// ticked on in automations.studioActions -- see the note above.
+const STUDIO_ACTIONS = ['wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs'];
+const STUDIO_ACTION_SCHEMA = [
+  { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'startAll', label: 'Start all windows', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'stopAll', label: 'Stop all windows', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'dockAll', label: 'Dock all windows', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'undockAll', label: 'Undock all windows', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'syncObs', label: 'Sync OBS', param: null, paramType: 'none', group: 'Studio Control' },
 ];
 
 function defaultAutomations() {
-  return { enabled: false, port: 9500, token: '', rules: [] };
+  return { enabled: false, port: 9500, token: '', studioActions: [], ruleSets: [] };
 }
 
-function sanitizeAutomationRule(input, index, taken) {
+// One step in a rule set's numbered sequence: either an action (an OBS
+// action, or a Studio action currently enabled in studioActions) or a
+// delay. `and: true` on an action step means "run together with the step
+// before it" instead of waiting for it -- consecutive `and` action steps
+// form one numbered stage that fires at once; a plain (non-`and`) step, or
+// a delay, starts a new stage. Delay steps can't be `and` -- there's
+// nothing to run alongside a wait, and the first step in a rule set can't
+// be `and` either, since there is no step before it to join.
+function sanitizeAutomationStep(input, index, allowedActions, taken) {
   const src = input && typeof input === 'object' ? input : {};
-  let id = sanitizeId(src.id, `rule${index + 1}`);
+  let id = sanitizeId(src.id, `step${index + 1}`);
   let n = 2;
-  while (taken.has(id)) id = `rule${index + 1}-${n++}`;
+  while (taken.has(id)) id = `step${index + 1}-${n++}`;
   taken.add(id);
-  const action = AUTOMATIONS_ACTIONS.includes(src.action) ? src.action : AUTOMATIONS_ACTIONS[0];
+  if (src.type === 'delay') {
+    return {
+      id,
+      type: 'delay',
+      seconds: clamp(toInt(src.seconds, 1), 1, AUTOMATIONS_LIMITS.maxDelaySeconds),
+      and: false,
+    };
+  }
+  const action = allowedActions.includes(src.action) ? src.action : allowedActions[0];
   return {
     id,
-    event: typeof src.event === 'string' ? src.event.trim().slice(0, AUTOMATIONS_LIMITS.maxEventLen) : '',
+    type: 'action',
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
+    and: Boolean(src.and),
+  };
+}
+
+function sanitizeRuleSet(input, index, taken, allowedActions) {
+  const src = input && typeof input === 'object' ? input : {};
+  let id = sanitizeId(src.id, `ruleset${index + 1}`);
+  let n = 2;
+  while (taken.has(id)) id = `ruleset${index + 1}-${n++}`;
+  taken.add(id);
+  const stepTaken = new Set();
+  const steps = (Array.isArray(src.steps) ? src.steps : [])
+    .slice(0, AUTOMATIONS_LIMITS.maxStepsPerRuleSet)
+    .map((s, i) => sanitizeAutomationStep(s, i, allowedActions, stepTaken));
+  if (steps[0]) steps[0].and = false;
+  return {
+    id,
+    name: typeof src.name === 'string' ? src.name.trim().slice(0, AUTOMATIONS_LIMITS.maxNameLen) : '',
+    group: typeof src.group === 'string' ? src.group.trim().slice(0, AUTOMATIONS_LIMITS.maxGroupLen) : '',
+    enabled: src.enabled === undefined ? true : Boolean(src.enabled),
+    event: typeof src.event === 'string' ? src.event.trim().slice(0, AUTOMATIONS_LIMITS.maxEventLen) : '',
+    steps,
   };
 }
 
 function sanitizeAutomations(input) {
   const d = defaultAutomations();
   const src = input && typeof input === 'object' ? input : {};
+  const studioActions = (Array.isArray(src.studioActions) ? src.studioActions : []).filter((a) => STUDIO_ACTIONS.includes(a));
+  const allowedActions = [...AUTOMATIONS_ACTIONS, ...studioActions];
   const taken = new Set();
-  const rules = (Array.isArray(src.rules) ? src.rules : [])
-    .slice(0, AUTOMATIONS_LIMITS.maxRules)
-    .map((r, i) => sanitizeAutomationRule(r, i, taken))
-    .filter((r) => r.event);
+  // A config saved before rule sets existed only has the old flat `rules`
+  // shape ({id, event, action, param} each, one action per event). Migrate
+  // each into an equivalent one-step rule set rather than silently
+  // discarding real configured automations the first time this runs
+  // against an old config -- `ruleSets` wins if both are somehow present.
+  const rawRuleSets = Array.isArray(src.ruleSets)
+    ? src.ruleSets
+    : Array.isArray(src.rules)
+      ? src.rules.map((r) => ({
+          id: r && r.id,
+          name: (r && r.event) || '',
+          group: '',
+          enabled: true,
+          event: r && r.event,
+          steps: [{ type: 'action', action: r && r.action, param: r && r.param, and: false }],
+        }))
+      : [];
+  // No filter on event/steps here -- a rule set the user is still filling
+  // in (named but no event yet, or no steps yet) stays exactly like an
+  // incomplete region does: harmless (it never matches anything and never
+  // runs anything) rather than silently deleted the moment any one field
+  // is edited before every field is.
+  const ruleSets = rawRuleSets
+    .slice(0, AUTOMATIONS_LIMITS.maxRuleSets)
+    .map((r, i) => sanitizeRuleSet(r, i, taken, allowedActions));
   return {
     enabled: src.enabled === undefined ? d.enabled : Boolean(src.enabled),
     port: clamp(toInt(src.port, d.port), 1024, 65535),
     token: typeof src.token === 'string' ? src.token.trim().slice(0, 200) : d.token,
-    rules,
+    studioActions,
+    ruleSets,
   };
 }
 
@@ -470,6 +577,8 @@ module.exports = {
   AUTOMATIONS_LIMITS,
   AUTOMATIONS_ACTIONS,
   AUTOMATIONS_ACTION_SCHEMA,
+  STUDIO_ACTIONS,
+  STUDIO_ACTION_SCHEMA,
   CONFIG_VERSION,
   DEFAULT_GROUP,
 };
