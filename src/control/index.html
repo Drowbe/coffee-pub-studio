@@ -267,12 +267,20 @@
           </details>
           <details class="cert-trust-help">
             <summary>Better way: install the CA certificate once (every browser, every future address, permanently)</summary>
+            <p class="hint">Open the <strong>CA cert</strong> link below in Chrome on the Foundry machine, once — downloads <code>coffee-pub-studio-ca.crt</code>. Then:</p>
+            <p class="hint"><b>On Windows:</b></p>
             <ol class="hint">
-              <li>Open the <strong>CA cert</strong> link below in Chrome on the Foundry machine — downloads <code>coffee-pub-studio-ca.crt</code>.</li>
               <li>Double-click the downloaded file, then click <strong>Install Certificate...</strong></li>
               <li>Choose <strong>Local Machine</strong> (needs admin, trusts it for everyone) or <strong>Current User</strong> → <strong>Next</strong>.</li>
               <li>Choose <strong>Place all certificates in the following store</strong> → <strong>Browse...</strong> → <strong>Trusted Root Certification Authorities</strong> → <strong>OK</strong> → <strong>Next</strong> → <strong>Finish</strong>.</li>
               <li>Click <strong>Yes</strong> on the security warning that shows the certificate's thumbprint.</li>
+            </ol>
+            <p class="hint"><b>On a Mac:</b></p>
+            <ol class="hint">
+              <li>Double-click the downloaded file to open <strong>Keychain Access</strong>'s "Add Certificates" prompt.</li>
+              <li>Set the <strong>Keychain</strong> dropdown to <strong>System</strong> (not iCloud) → <strong>Add</strong> → enter the Mac's password.</li>
+              <li>In Keychain Access, find <strong>Coffee Pub Studio Local CA</strong> and double-click it.</li>
+              <li>Expand <strong>Trust</strong>, set <strong>When using this certificate</strong> to <strong>Always Trust</strong>, close the window and authenticate again — it stays untrusted until this step, even after being added.</li>
             </ol>
           </details>
           <div class="details" id="automations-addresses"></div>
