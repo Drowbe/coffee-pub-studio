@@ -2,6 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage } = require('electron');
 const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP } = require('./config');
 const { ObsBridge } = require('./obs');
@@ -527,6 +528,22 @@ async function syncAutomationsServer() {
     await automations.start({ port: a.port, getToken: () => configStore.get().automations.token, certDir: app.getPath('userData') });
   } else {
     await automations.stop();
+  }
+}
+
+// Compares actual DER bytes, not a fingerprint string -- Electron's
+// Certificate.fingerprint format isn't documented precisely enough (which
+// hash, what encoding) to trust a string match on, where getting it wrong
+// either trusts nothing (silent, hard to notice) or -- far worse -- trusts
+// something it shouldn't. Parsing both to X509Certificate and comparing
+// .raw sidesteps the question entirely.
+function trustsOwnAutomationsCert(certificate) {
+  try {
+    const theirs = new crypto.X509Certificate(certificate.data);
+    const ours = new crypto.X509Certificate(automations.certPem);
+    return Buffer.compare(theirs.raw, ours.raw) === 0;
+  } catch (err) {
+    return false;
   }
 }
 
@@ -2070,6 +2087,26 @@ if (!app.requestSingleInstanceLock()) {
     screen.on('display-metrics-changed', onDisplays);
   });
 
+  // The cameraman client Herald talks about is very likely the Stream
+  // window itself -- an Electron webContents running inside this app, on
+  // this Mac, not a separate browser someone can manually click through a
+  // cert warning in (there's no such warning UI for a fetch() call that
+  // isn't a top-level navigation; it just fails). Since Studio generated
+  // this exact certificate, it can vouch for it here -- checked by the
+  // actual DER bytes, not the fingerprint string (whose format isn't
+  // documented precisely enough to trust matching on), and only while the
+  // Automations server we generated it for is actually the one running.
+  // Every other certificate error (Tavern, Foundry itself, anything real)
+  // still gets Electron's normal validation; this never widens beyond the
+  // one certificate this app made for itself.
+  app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if (automations.listening && trustsOwnAutomationsCert(certificate)) {
+      event.preventDefault();
+      callback(true);
+      return;
+    }
+    callback(false);
+  });
   app.on('activate', () => createControlWindow());
   app.on('before-quit', () => {
     quitting = true;

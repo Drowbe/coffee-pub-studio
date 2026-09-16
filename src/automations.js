@@ -41,6 +41,7 @@ class AutomationsServer extends EventEmitter {
     this.message = '';
     this.port = 0;
     this.getToken = null;
+    this.certPem = ''; // this server's own cert, PEM -- see trustOwnCertificate() in main.js
     this.events = []; // recent received events, newest first -- the tab's own log
   }
 
@@ -84,6 +85,7 @@ class AutomationsServer extends EventEmitter {
       this.setState('error', `Could not create a TLS certificate: ${err.message}`);
       return;
     }
+    this.certPem = cert.cert.toString();
     this.getToken = getToken;
     await new Promise((resolve) => {
       const server = https.createServer(cert, (req, res) => this.handle(req, res));

@@ -302,13 +302,18 @@ the `openssl` CLI every Mac already has); the one real cost is a one-time step b
 2. The card shows the address once it's listening — one per network interface this Mac has, since
    a laptop often has more than one. Give the Foundry side the one actually reachable from the
    Windows machine (same Wi-Fi/LAN segment), together with the token.
-3. **On the Foundry machine**, open that address directly in a browser once and click through
-   the self-signed certificate's "not private" warning. A browser only trusts a self-signed cert
+3. **If the module's calls come from a browser Studio doesn't control** — the GM's own browser on
+   the Windows machine, say — **open that address directly in it once** and click through the
+   self-signed certificate's "not private" warning first. A browser only trusts a self-signed cert
    for a given host once someone's done this by hand; skip it and every call a module makes will
    fail silently (rejected before it reaches Studio at all, so nothing shows up in **Recent
    Events** either — that's the tell that this step was missed). It only has to happen once per
    browser, and survives Studio restarts (the certificate itself is reused, not regenerated,
-   unless this Mac's LAN address changes).
+   unless this Mac's LAN address changes). **This step is not needed at all if the calling code
+   runs inside one of Studio's own windows** (Herald's "cameraman" client, if it's the Stream
+   window rather than a separate browser, is exactly this case) — Studio recognizes its own
+   certificate and trusts it automatically for its own webContents, verified against the actual
+   certificate bytes, not just a hostname or port match.
 4. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
    **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
    else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show
