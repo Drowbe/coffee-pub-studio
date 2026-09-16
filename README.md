@@ -277,159 +277,19 @@ the sizes match 1:1 and the tick makes no difference.
 
 ### Automations: let a Foundry module drive OBS
 
-Regions only get Studio as far as "crop this part of the page into its own OBS source" — visual,
+Regions only get Studio as far as "crop this part of the page into its own OBS source" -- visual,
 not aware of what's actually happening in the game. Automations closes that gap: a Foundry
-module (Herald first) tells Studio when something happens — combat starting, a scene changing —
+module (Herald first) tells Studio when something happens -- combat starting, a scene changing --
 and a rule turns that into an OBS action: switch scene, show or hide a source, start or stop
-recording or streaming. The same tab also works as a plain manual remote for OBS with no
-Foundry module involved at all.
+recording or streaming. The same tab also works as a plain manual remote for OBS with no Foundry
+module involved at all. Enable it, and set a token, from the **Automations** section of the
+Session tab; the tab itself covers the manual remote, the rule editor, and the exact click-by-click
+steps for trusting Studio's certificate on the machine running Foundry.
 
-Foundry usually runs on a different machine than Studio — this app assumes a Mac, Foundry a
-Windows box on the same LAN, and nothing about the design assumes otherwise. So unlike OBS
-(loopback only, since OBS and Studio share a Mac) and Tavern (Studio is the client, calling out
-to a server), Automations is a small HTTPS server Studio itself runs, listening on every network
-interface, not just localhost, waiting for the Foundry side to call in. HTTPS, not HTTP: Foundry
-is commonly served over HTTPS itself (this README's own example URLs are), and a browser flatly
-blocks an HTTPS page from making a plain-HTTP request at all — "mixed content", no CORS header
-gets around it. Studio runs its own small local Certificate Authority for this (via the `openssl`
-CLI every Mac already has): a root generated once and reused, which signs the server's actual
-certificate (regenerated whenever this Mac's LAN addresses change). The server only ever presents
-that signed certificate, never the CA's private key. The one real cost is a one-time trust step,
-in one of two shapes, below.
-
-1. On the Session tab, in **Automations**, tick **Enable Automations**, set a **Port** (9500 by
-   default), then either type a **Token** or click **Generate token**. The server refuses to
-   start without one — it's the only thing standing between that open port and anyone else on
-   your network, so treat it like a password: don't reuse a real one, and regenerate it if you
-   think it leaked.
-2. The card shows an **Address** and a **CA cert** link for each network interface this Mac has,
-   since a laptop often has more than one. Give the Foundry side the **Address** actually
-   reachable from the Windows machine (same Wi-Fi/LAN segment), together with the token.
-3. **If the module's calls come from a browser Studio doesn't control** — the GM's own Chrome on
-   the Windows machine, say — the certificate needs to be trusted there first, or every call a
-   module makes will fail silently (rejected before it reaches Studio at all, so nothing shows up
-   in **Recent Events** either — that's the tell). **Not needed at all if the calling code runs
-   inside one of Studio's own windows** (Herald's "cameraman" client, if it's the Stream window
-   rather than a separate browser, is exactly this case) — Studio recognizes its own certificate
-   and trusts it automatically for its own webContents. Otherwise, the Automations settings card
-   itself has two collapsed how-to sections with the exact click-by-click steps: a quick per-browser
-   one (open the address, click through the warning), and installing the **CA cert** link once
-   (covers every address this Mac ever uses, permanently, no re-clicking after this Mac's address
-   changes) — open the app and expand whichever one fits.
-4. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
-   **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
-   else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show
-   source**, **Hide source** (both take the exact OBS source name), or the four
-   recording/streaming actions (no parameter). More than one rule can share an event name; they
-   all run. **Test & Recent Events** fires a synthetic event through the exact same path a real
-   Foundry call would, and lists the last 50 events actually received, so a rule can be tried out
-   and the connection itself checked without Foundry or OBS in the loop.
-
-#### The HTTP contract
-
-A Foundry module reports an event with a single request:
-
-```
-POST https://<studio-host>:<port>/api/automations/event
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{"event": "combat:start", "data": {"sceneId": "..."}}
-```
-
-Self-signed, so the browser making this request has to have visited that address directly once
-and clicked through the warning first (step 3 above) — a plain `fetch()` from a module's own code
-needs no special handling beyond that; it's a one-time thing done by hand, not something a
-module's code has to work around.
-
-- `event` (string, required) is matched against a rule's **Event** field exactly — case-sensitive,
-  no wildcards. Pick a small, stable vocabulary (`combat:start`, `combat:end`, `scene:change`, ...)
-  and document it on the module side; Studio does not interpret the string beyond comparing it.
-- `data` (object, optional) is only ever shown back in the **Recent Events** log for a human to
-  read; no Studio action currently consumes any field from it. A future rule type might, so it's
-  worth sending whatever's cheaply available (scene name, combat id) even though nothing reads it
-  yet.
-- The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
-  request), 401 (missing or wrong token) or 404 (wrong path/method) otherwise. The request
-  succeeding only means Studio accepted and logged the event — a matched rule's OBS action runs
-  afterward and independently; a rule failing (OBS not connected, a scene that doesn't exist) is
-  logged on Studio's side and does not change this response, so don't treat a 200 as confirmation
-  any particular action actually happened. `GET /api/automations/ping` (same auth) is a cheap way
-  to check the token and connection alone.
-- The body is capped at 16 KB and must be valid JSON with a string `event` field, or the request
-  is rejected before anything is recorded.
-- `GET /api/automations/capabilities` (same auth) returns what Studio can actually do right now,
-  instead of a module hardcoding or guessing either one:
-  ```json
-  {
-    "actions": [
-      { "action": "sceneSwitch", "param": "scene name" },
-      { "action": "sourceShow", "param": "source name" },
-      { "action": "startRecording", "param": null }
-    ],
-    "rules": [
-      { "event": "combat:start", "action": "sceneSwitch", "param": "Combat" }
-    ]
-  }
-  ```
-  `actions` is the fixed vocabulary of OBS actions a rule can trigger (see the table below);
-  `rules` is whatever's actually configured on the Automations tab right now, i.e. which event
-  names Studio will actually respond to. Useful for a module to validate an event name is wired to
-  something before sending it, or to build its own UI around Studio's real, current configuration
-  instead of a copy-pasted assumption.
-
-#### Example: Herald reporting combat start
-
-This is a suggested starting point, not a spec Studio enforces — the actual hook names and
-timing are [Coffee Pub Herald](https://github.com/Drowbe/coffee-pub-herald)'s call, and worth
-confirming against a live v14 client the way Herald's own wiki insists on for everything else
-(hook names silently not firing is exactly the kind of thing that fails quiet, not loud). Herald
-already depends on [Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) and its
-`HookManager` ([API docs](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/api-hookmanager)),
-so registering through that is the natural fit, alongside a couple of new settings for Studio's
-address and token:
-
-```javascript
-BlacksmithHookManager.registerHook({
-  name: 'combatStart',
-  description: 'Tell Coffee Pub Studio combat has started',
-  context: 'herald-automations',
-  callback: async (combat) => {
-    const url = game.settings.get('coffee-pub-herald', 'studioAutomationsUrl'); // e.g. https://10.0.0.5:9500
-    const token = game.settings.get('coffee-pub-herald', 'studioAutomationsToken');
-    if (!url || !token) return;
-    try {
-      await fetch(`${url}/api/automations/event`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ event: 'combat:start', data: { combatId: combat.id, sceneId: combat.scene?.id } }),
-      });
-    } catch (err) {
-      console.warn('Herald | Could not reach Coffee Pub Studio', err);
-    }
-  },
-});
-```
-
-Fire-and-forget on purpose: a GM's game should never stall or throw because Studio is
-unreachable, and every request already has a hard 16 KB/JSON-shape check on Studio's side, so a
-malformed or oversized body just gets a 400 rather than doing anything unexpected. `deleteCombat`
-is the natural pair for a `combat:end` event; `canvasReady` fires on every scene change (`data:
-{sceneId: canvas.scene?.id}`) for `scene:change`. None of the three are Herald-specific hooks —
-any module (or a small dedicated one) could report them the same way.
-
-#### Studio → OBS actions
-
-| Action | What it does | `param` |
-| --- | --- | --- |
-| Switch scene to | `SetCurrentProgramScene` | the exact scene name |
-| Show source | makes a source visible in every scene it's used in | the exact OBS source name |
-| Hide source | hides a source in every scene it's used in | the exact OBS source name |
-| Start/Stop Recording | `StartRecord` / `StopRecord` | — |
-| Start/Stop Streaming | `StartStream` / `StopStream` | — |
-
-All five reuse the same OBS WebSocket connection the rest of the app already shares — nothing
-about Automations needs its own OBS credentials or its own connection.
+The full HTTP contract and a worked integration example are on the wiki:
+[Automations API](https://github.com/Drowbe/coffee-pub-studio/wiki/api-automations). How the
+server itself is built is on the wiki too:
+[Automations architecture](https://github.com/Drowbe/coffee-pub-studio/wiki/architecture-automations).
 
 ### Keyboard shortcuts
 
@@ -606,3 +466,19 @@ build/icon.png         App icon: the Coffee Pub brandmark (src/assets/logo.png)
   WebSocket Server Settings in OBS: the server must be enabled and the password must match.
 - **Audio/video chat permissions.** The app allows microphone, camera and notification
   permission requests only from the configured Foundry origins.
+
+<!-- global:ai-assistance -->
+## AI Assistance and the Illusion of Good Code
+
+I started writing Foundry modules for use at my own table back in 2020. There were already a ton of amazing modules out there, but they either didn't quite do what I wanted or didn't deliver the kind of user experience I was looking for.
+
+I've been a design leader for more than 20 years, but I spent the first half of my career as a developer, so building my own modules seemed like a fun way to kill some time. I'm a pretty good designer. I'm a decent developer. But, over time, my hand-written code and hacks got a little messy (and memory-leaky, and a little buggy. Feels good to say it out loud.).
+
+Today, the Coffee Pub suite of modules is developed with AI assistance, primarily Claude and Cursor, for documentation, refactoring, debugging, and other development work. Every change is reviewed and committed by me, and nothing reaches a release that I haven't crawled and run at my own table. I can't seem to give up my IDE. The UX design, architecture, and ideas still come from my own fever dreams and chronic lack of sleep.
+
+Testing and verifying a change means running it in Foundry so I can watch the console, break things, fix them, and hone the experience. The repositories carry a set of tools for testing the things that are difficult to catch through review and manual testing alone. They help ensure styles don't conflict, shared coding and documentation standards stay consistent, and the suite of modules continues to work well as a system without silently breaking.
+
+Those checks are there because AI-assisted development can move very quickly, and without oversight, engagement, and planning, it can also go confidently off the rails and deliver the illusion of good code. The AI helps me build faster. It doesn't decide what gets built, its architecture, or how it should work. You can blame this human for that.
+
+If the idea of AI-assisted development keeps you up at night or just isn't your jam, no worries at all. I get it. You do you.
+<!-- /global:ai-assistance -->

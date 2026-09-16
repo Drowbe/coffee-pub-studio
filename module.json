@@ -1,0 +1,6 @@
+{
+  "id": "coffee-pub-studio",
+  "title": "Coffee Pub Studio",
+  "url": "https://github.com/Drowbe/coffee-pub-studio",
+  "note": "Studio is a standalone Electron app, not a Foundry VTT module -- it has no manifest of its own. This file exists only so the Coffee Pub suite's shared documentation-publishing tooling (tools/wiki-sync.mjs, copied unmodified from coffee-pub-blacksmith) can read the two fields it actually uses: id and url."
+}
