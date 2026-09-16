@@ -989,3 +989,44 @@ select:focus {
   flex-direction: column;
   gap: 14px;
 }
+
+.automations-rule-row {
+  align-items: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.automations-rule-row:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.automations-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.automations-event-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.automations-event-time {
+  color: var(--text-dim);
+  min-width: 72px;
+}
+
+.automations-event-name {
+  font-weight: 600;
+}
+
+.automations-event-data {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

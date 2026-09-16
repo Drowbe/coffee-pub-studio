@@ -118,6 +118,51 @@ function defaultObs() {
   return { autoConnect: false, host: '127.0.0.1', port: 4455 };
 }
 
+// Automations: a small HTTP server Foundry modules (starting with Herald)
+// call to report events (e.g. "combat has started"), which can then trigger
+// an OBS action here (switch scene, show/hide a source, start/stop
+// recording or streaming) via a user-configured rule. Foundry typically runs
+// on a different machine than Studio, so this listens on the LAN, not just
+// localhost -- the token is the only thing standing between that port and
+// anyone else on the network, so the server refuses to start without one.
+const AUTOMATIONS_LIMITS = { maxRules: 40, maxEventLen: 60, maxParamLen: 200 };
+const AUTOMATIONS_ACTIONS = ['sceneSwitch', 'sourceShow', 'sourceHide', 'startRecording', 'stopRecording', 'startStreaming', 'stopStreaming'];
+
+function defaultAutomations() {
+  return { enabled: false, port: 9500, token: '', rules: [] };
+}
+
+function sanitizeAutomationRule(input, index, taken) {
+  const src = input && typeof input === 'object' ? input : {};
+  let id = sanitizeId(src.id, `rule${index + 1}`);
+  let n = 2;
+  while (taken.has(id)) id = `rule${index + 1}-${n++}`;
+  taken.add(id);
+  const action = AUTOMATIONS_ACTIONS.includes(src.action) ? src.action : AUTOMATIONS_ACTIONS[0];
+  return {
+    id,
+    event: typeof src.event === 'string' ? src.event.trim().slice(0, AUTOMATIONS_LIMITS.maxEventLen) : '',
+    action,
+    param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
+  };
+}
+
+function sanitizeAutomations(input) {
+  const d = defaultAutomations();
+  const src = input && typeof input === 'object' ? input : {};
+  const taken = new Set();
+  const rules = (Array.isArray(src.rules) ? src.rules : [])
+    .slice(0, AUTOMATIONS_LIMITS.maxRules)
+    .map((r, i) => sanitizeAutomationRule(r, i, taken))
+    .filter((r) => r.event);
+  return {
+    enabled: src.enabled === undefined ? d.enabled : Boolean(src.enabled),
+    port: clamp(toInt(src.port, d.port), 1024, 65535),
+    token: typeof src.token === 'string' ? src.token.trim().slice(0, 200) : d.token,
+    rules,
+  };
+}
+
 // Coffee Pub Tavern: the voice and video server for the people at the table.
 // Each published user gets a Participant source (video, or their player
 // image when the camera is off) and optionally a Character source (their
@@ -193,6 +238,7 @@ function defaultConfig() {
     dock: defaultDock(),
     obs: defaultObs(),
     tavern: defaultTavern(),
+    automations: defaultAutomations(),
     views: [defaultView(0), defaultView(1)],
   };
 }
@@ -296,6 +342,7 @@ function sanitizeConfig(input) {
     dock: sanitizeDock(src.dock),
     obs: sanitizeObs(src.obs),
     tavern: sanitizeTavern(src.tavern),
+    automations: sanitizeAutomations(src.automations),
     panel: sanitizePanel(src.panel),
     views,
   };
@@ -400,4 +447,15 @@ class ConfigStore {
   }
 }
 
-module.exports = { ConfigStore, defaultConfig, sanitizeConfig, defaultSourceName, LIMITS, REGION_LIMITS, CONFIG_VERSION, DEFAULT_GROUP };
+module.exports = {
+  ConfigStore,
+  defaultConfig,
+  sanitizeConfig,
+  defaultSourceName,
+  LIMITS,
+  REGION_LIMITS,
+  AUTOMATIONS_LIMITS,
+  AUTOMATIONS_ACTIONS,
+  CONFIG_VERSION,
+  DEFAULT_GROUP,
+};

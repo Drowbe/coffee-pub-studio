@@ -247,12 +247,19 @@ breaking anything. Muting and kicking players is done on the Tavern's manage pag
 
 The **Room** card at the top of the CP Tavern tab picks which room's users are listed: the
 **Lobby** holds everyone, and the rooms an admin curates on the Tavern's Rooms tab hold the
-users they picked. **Publish all** publishes the chosen room's users. **Follow the admin**,
-on by default, keeps this on whatever room the signed-in admin is actually in at the table —
-including a room they were pulled into for a private word — instead of a fixed pick; untick it
-to choose a room by hand. This is a real change of who's on the stream, not just a label: only
-the room shown here gets published, so pulling someone aside genuinely takes them off it until
-they are back.
+users they picked. This is always a manual pick — "this room is for this OBS session" — and is
+never overridden by wherever the admin happens to be live; a room whose profile restricts which
+source kinds it offers (Participants only, say) gates what's published here too. **Publish all**
+publishes the chosen room's users.
+
+**Enable Asides**, on by default, mutes anyone whose OBS source is live in a different room than
+wherever the signed-in admin actually is right now (including a pull-aside room), so a private
+conversation elsewhere doesn't bleed into the stream's audio — the source itself stays visible
+either way, and this only ever mutes, it never changes which room is shown above. It only takes
+effect while an admin is actually online; with none online there's no "current conversation" to
+be aside from. Someone offline is never muted by this setting — there is no live audio to mute
+in the first place. None of this is visual: any dim or tint for someone offline or aside is
+rendered by the Tavern server's own page, not by Studio.
 
 The password is stored encrypted with the macOS keychain, like the OBS password. The stream key
 the sources use is fetched from the server at sign-in and never has to be copied.
@@ -267,6 +274,120 @@ sources it creates by half, so they land in the scene at the sizes set here. Tic
 the double pixels for a sharper 4K canvas. A scale you set by hand on a source in OBS is left
 alone. On a non-Retina display, or when the app windows sit on a non-Retina external monitor,
 the sizes match 1:1 and the tick makes no difference.
+
+### Automations: let a Foundry module drive OBS
+
+Regions only get Studio as far as "crop this part of the page into its own OBS source" — visual,
+not aware of what's actually happening in the game. Automations closes that gap: a Foundry
+module (Herald first) tells Studio when something happens — combat starting, a scene changing —
+and a rule turns that into an OBS action: switch scene, show or hide a source, start or stop
+recording or streaming. The same tab also works as a plain manual remote for OBS with no
+Foundry module involved at all.
+
+Foundry usually runs on a different machine than Studio — this app assumes a Mac, Foundry a
+Windows box on the same LAN, and nothing about the design assumes otherwise. So unlike OBS
+(loopback only, since OBS and Studio share a Mac) and Tavern (Studio is the client, calling out
+to a server), Automations is a small HTTP server Studio itself runs, listening on every network
+interface, not just localhost, waiting for the Foundry side to call in.
+
+1. On the Session tab, in **Automations**, tick **Enable Automations**, set a **Port** (9500 by
+   default), then either type a **Token** or click **Generate token**. The server refuses to
+   start without one — it's the only thing standing between that open port and anyone else on
+   your network, so treat it like a password: don't reuse a real one, and regenerate it if you
+   think it leaked.
+2. The card shows the address once it's listening — one per network interface this Mac has, since
+   a laptop often has more than one. Give the Foundry side the one actually reachable from the
+   Windows machine (same Wi-Fi/LAN segment), together with the token.
+3. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
+   **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
+   else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show
+   source**, **Hide source** (both take the exact OBS source name), or the four
+   recording/streaming actions (no parameter). More than one rule can share an event name; they
+   all run. **Test & Recent Events** fires a synthetic event through the exact same path a real
+   Foundry call would, and lists the last 50 events actually received, so a rule can be tried out
+   and the connection itself checked without Foundry or OBS in the loop.
+
+#### The HTTP contract
+
+A Foundry module reports an event with a single request:
+
+```
+POST http://<studio-host>:<port>/api/automations/event
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"event": "combat:start", "data": {"sceneId": "..."}}
+```
+
+- `event` (string, required) is matched against a rule's **Event** field exactly — case-sensitive,
+  no wildcards. Pick a small, stable vocabulary (`combat:start`, `combat:end`, `scene:change`, ...)
+  and document it on the module side; Studio does not interpret the string beyond comparing it.
+- `data` (object, optional) is only ever shown back in the **Recent Events** log for a human to
+  read; no Studio action currently consumes any field from it. A future rule type might, so it's
+  worth sending whatever's cheaply available (scene name, combat id) even though nothing reads it
+  yet.
+- The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
+  request), 401 (missing or wrong token) or 404 (wrong path/method) otherwise. The request
+  succeeding only means Studio accepted and logged the event — a matched rule's OBS action runs
+  afterward and independently; a rule failing (OBS not connected, a scene that doesn't exist) is
+  logged on Studio's side and does not change this response, so don't treat a 200 as confirmation
+  any particular action actually happened. `GET /api/automations/ping` (same auth) is a cheap way
+  to check the token and connection alone.
+- The body is capped at 16 KB and must be valid JSON with a string `event` field, or the request
+  is rejected before anything is recorded.
+
+#### Example: Herald reporting combat start
+
+This is a suggested starting point, not a spec Studio enforces — the actual hook names and
+timing are [Coffee Pub Herald](https://github.com/Drowbe/coffee-pub-herald)'s call, and worth
+confirming against a live v14 client the way Herald's own wiki insists on for everything else
+(hook names silently not firing is exactly the kind of thing that fails quiet, not loud). Herald
+already depends on [Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) and its
+`HookManager` ([API docs](https://github.com/Drowbe/coffee-pub-blacksmith/wiki/api-hookmanager)),
+so registering through that is the natural fit, alongside a couple of new settings for Studio's
+address and token:
+
+```javascript
+BlacksmithHookManager.registerHook({
+  name: 'combatStart',
+  description: 'Tell Coffee Pub Studio combat has started',
+  context: 'herald-automations',
+  callback: async (combat) => {
+    const url = game.settings.get('coffee-pub-herald', 'studioAutomationsUrl'); // e.g. http://10.0.0.5:9500
+    const token = game.settings.get('coffee-pub-herald', 'studioAutomationsToken');
+    if (!url || !token) return;
+    try {
+      await fetch(`${url}/api/automations/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ event: 'combat:start', data: { combatId: combat.id, sceneId: combat.scene?.id } }),
+      });
+    } catch (err) {
+      console.warn('Herald | Could not reach Coffee Pub Studio', err);
+    }
+  },
+});
+```
+
+Fire-and-forget on purpose: a GM's game should never stall or throw because Studio is
+unreachable, and every request already has a hard 16 KB/JSON-shape check on Studio's side, so a
+malformed or oversized body just gets a 400 rather than doing anything unexpected. `deleteCombat`
+is the natural pair for a `combat:end` event; `canvasReady` fires on every scene change (`data:
+{sceneId: canvas.scene?.id}`) for `scene:change`. None of the three are Herald-specific hooks —
+any module (or a small dedicated one) could report them the same way.
+
+#### Studio → OBS actions
+
+| Action | What it does | `param` |
+| --- | --- | --- |
+| Switch scene to | `SetCurrentProgramScene` | the exact scene name |
+| Show source | makes a source visible in every scene it's used in | the exact OBS source name |
+| Hide source | hides a source in every scene it's used in | the exact OBS source name |
+| Start/Stop Recording | `StartRecord` / `StopRecord` | — |
+| Start/Stop Streaming | `StartStream` / `StopStream` | — |
+
+All five reuse the same OBS WebSocket connection the rest of the app already shares — nothing
+about Automations needs its own OBS credentials or its own connection.
 
 ### Keyboard shortcuts
 
@@ -286,9 +407,12 @@ Settings are stored as JSON at
 `~/Library/Application Support/Coffee Pub Studio/config.json` (the control panel's
 **Show config file** button reveals it in Finder).
 
+This example is trimmed to the window/OBS shape for readability; `tavern` and `automations` are
+separate top-level sections, covered in their own sections above.
+
 ```json
 {
-  "version": 10,
+  "version": 12,
   "obs": { "autoConnect": false, "host": "127.0.0.1", "port": 4455 },
   "views": [
     {
@@ -417,6 +541,7 @@ src/main.js            Electron main process: windows, menu, IPC, permissions
 src/config.js          Config load/save/validation
 src/obs.js             OBS WebSocket bridge: keeps OBS sources pointed at the windows
 src/tavern.js          Coffee Pub Tavern bridge: admin sign-in, the party with live state, view links
+src/automations.js     Automations HTTP server: Foundry modules report events, rules trigger OBS
 src/preload.js         Bridge between the control panel page and the main process
 src/bar-preload.js     Bridge between a window's bar page and the main process
 src/control/           Control panel page (HTML, CSS, JS)

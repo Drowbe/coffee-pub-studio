@@ -6,6 +6,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray,
 const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP } = require('./config');
 const { ObsBridge } = require('./obs');
 const { TavernBridge } = require('./tavern');
+const { AutomationsServer } = require('./automations');
 const parkingGeometry = require('./parking');
 
 const APP_NAME = 'Coffee Pub Studio';
@@ -465,6 +466,71 @@ async function unpublishPlayer(key, removeFromObs = true) {
 }
 
 // ---------------------------------------------------------------------------
+// Automations (Foundry modules, e.g. Herald, -> Studio -> OBS)
+// ---------------------------------------------------------------------------
+
+const automations = new AutomationsServer();
+automations.on('status', () => broadcastStatus());
+automations.on('event', (entry) => {
+  runAutomationRules(entry).catch((err) => console.warn(`[automations] rule dispatch failed: ${err.message}`));
+});
+
+// One rule's action -> the OBS call it makes. `param` is the rule's own
+// free-text field: a scene name for sceneSwitch, a source name for
+// sourceShow/sourceHide, ignored for the recording/streaming actions.
+async function runAutomationAction(action, param) {
+  if (!obs.connected) throw new Error('OBS is not connected.');
+  switch (action) {
+    case 'sceneSwitch':
+      if (!param) throw new Error('sceneSwitch needs a scene name.');
+      return obs.setCurrentScene(param);
+    case 'sourceShow':
+      if (!param) throw new Error('sourceShow needs a source name.');
+      return obs.setSourceVisible(param, true);
+    case 'sourceHide':
+      if (!param) throw new Error('sourceHide needs a source name.');
+      return obs.setSourceVisible(param, false);
+    case 'startRecording':
+      return obs.startRecording();
+    case 'stopRecording':
+      return obs.stopRecording();
+    case 'startStreaming':
+      return obs.startStreaming();
+    case 'stopStreaming':
+      return obs.stopStreaming();
+    default:
+      throw new Error(`Unknown action: ${action}`);
+  }
+}
+
+// Every rule whose `event` matches the incoming one runs, in whatever order
+// they're saved in; one rule failing (OBS not connected, a scene that
+// doesn't exist) does not stop the others from running.
+async function runAutomationRules(entry) {
+  const { rules } = configStore.get().automations;
+  const matched = rules.filter((r) => r.event === entry.event);
+  for (const rule of matched) {
+    try {
+      await runAutomationAction(rule.action, rule.param);
+    } catch (err) {
+      console.warn(`[automations] rule "${rule.event}" -> ${rule.action} failed: ${err.message}`);
+    }
+  }
+}
+
+// Starts or stops the HTTP server to match current settings -- called at
+// launch and again whenever Automations settings are saved, so toggling
+// Enable or editing the port/token takes effect immediately.
+async function syncAutomationsServer() {
+  const a = configStore.get().automations;
+  if (a.enabled) {
+    await automations.start({ port: a.port, getToken: () => configStore.get().automations.token });
+  } else {
+    await automations.stop();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -588,6 +654,7 @@ function fullStatus() {
     config: configStore.get(),
     obs: { ...obs.status(), hasPassword: readObsPassword() !== '' },
     tavern: { ...tavern.status(), hasPassword: readSecret(TAVERN_SECRET_PATH) !== '', sync: tavernSync },
+    automations: automations.status(),
     collapsed,
     parkedIds: [...parked.keys()],
   };
@@ -1614,6 +1681,12 @@ function registerIpc() {
     return fullStatus().obs;
   });
   ipcMain.handle('obs:sync', () => syncObs());
+  ipcMain.handle('obs:listScenes', () => obs.listScenes());
+  ipcMain.handle('obs:setScene', (_event, sceneName) => obs.setCurrentScene(sceneName));
+  ipcMain.handle('obs:startRecording', () => obs.startRecording());
+  ipcMain.handle('obs:stopRecording', () => obs.stopRecording());
+  ipcMain.handle('obs:startStreaming', () => obs.startStreaming());
+  ipcMain.handle('obs:stopStreaming', () => obs.stopStreaming());
   // --- The whole window as an OBS source ---
   // Saves the switch and the name. Switching off hides the source in OBS
   // and stops maintaining it; renaming while the source exists in OBS renames
@@ -1735,6 +1808,25 @@ function registerIpc() {
   ipcMain.handle('tavern:openManage', () => {
     const { url } = configStore.get().tavern;
     if (url) shell.openExternal(`${url}/admin`);
+  });
+  // --- Automations ---
+  ipcMain.handle('automations:setSettings', async (_event, settings) => {
+    const current = configStore.get();
+    configStore.save({ ...current, automations: { ...current.automations, ...settings } });
+    await syncAutomationsServer();
+    broadcastStatus();
+    return fullStatus().automations;
+  });
+  // Feeds a synthetic event through the exact same recordEvent() a real
+  // Herald POST uses, so the automations.on('event', ...) listener runs the
+  // same rule-matching path -- lets the tab be exercised end to end without
+  // Foundry or Herald in the loop. Fire-and-forget, same as a real call:
+  // rule failures are logged, not thrown back at the caller.
+  ipcMain.handle('automations:testEvent', (_event, eventName, data) => {
+    const event = typeof eventName === 'string' ? eventName.trim().slice(0, 60) : '';
+    if (!event) throw new Error('Enter an event name.');
+    automations.recordEvent(event, data && typeof data === 'object' ? data : {});
+    return fullStatus().automations;
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {
@@ -1967,6 +2059,7 @@ if (!app.requestSingleInstanceLock()) {
     openLaunchViews();
     obs.start().catch(() => {});
     tavern.start().catch(() => {});
+    syncAutomationsServer().catch(() => {});
 
     const onDisplays = () => {
       layoutDock();
@@ -1982,6 +2075,7 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true;
     obs.stop().catch(() => {});
     tavern.stop().catch(() => {});
+    automations.stop().catch(() => {});
   });
   // Standard macOS behaviour: the app stays alive in the Dock with no windows.
   app.on('window-all-closed', () => {

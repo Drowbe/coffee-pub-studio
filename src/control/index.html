@@ -27,6 +27,7 @@
   <nav class="tabs" id="tabs">
     <button class="tab" data-tab="session" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Session</button>
     <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
+    <button class="tab" data-tab="automations" id="automations-tab" type="button" hidden><span class="dot" id="automations-dot" title="Automations server"></span>Automations</button>
     <span id="view-tabs" class="view-tabs"></span>
     <button class="tab tab-add" data-tab="add" type="button" title="Add a window">+</button>
   </nav>
@@ -219,6 +220,52 @@
         <p class="hint" id="tavern-status">Not signed in.</p>
         </div>
       </div>
+
+      <div class="card automations">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Automations</h2>
+            <span class="tag" id="automations-tag" hidden>LISTENING</span>
+          </div>
+        </div>
+        <p class="hint">
+          Lets a Foundry module (Herald, for instance) tell Studio when something happens in the game — combat
+          starting, a scene changing — so a rule on the <strong>Automations</strong> tab can switch an OBS scene,
+          show or hide a source, or start/stop recording. Foundry usually runs on a different machine, so this
+          listens on your network, not just this Mac — the token is what keeps that port private.
+        </p>
+        <div class="row">
+          <label class="check">
+            <input id="automations-enabled" type="checkbox">
+            <span>Enable Automations</span>
+          </label>
+        </div>
+        <div id="automations-settings" hidden>
+          <div class="row">
+            <label class="field field-inline">
+              <span>Port</span>
+              <input id="automations-port" type="number" min="1024" max="65535" step="1" size="6">
+            </label>
+            <label class="field field-inline">
+              <span>Token</span>
+              <input id="automations-token" type="password" size="24" autocomplete="off" placeholder="not set">
+            </label>
+            <button id="automations-generate-token" class="btn" type="button">Generate token</button>
+          </div>
+          <p class="hint">
+            Give a Foundry module this address and token. It sends a <code>POST</code> to
+            <code>/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code> header and a
+            JSON body like <code>{"event":"combat:start"}</code>.
+          </p>
+          <div class="details">
+            <div class="details-row">
+              <span class="details-key">Address</span>
+              <span class="details-value" id="automations-address">—</span>
+            </div>
+          </div>
+          <p class="hint" id="automations-status">Not enabled.</p>
+        </div>
+      </div>
     </section>
 
     <section class="tab-panel" id="tab-tavern" hidden>
@@ -266,6 +313,70 @@
       <div class="card" id="tavern-characters-section">
         <h2>Characters</h2>
         <div id="tavern-characters" class="party"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-automations" hidden>
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>OBS Control</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene list from OBS">Refresh scenes</button>
+          </div>
+        </div>
+        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS.</p>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Scene</span>
+            <select id="automations-scene"></select>
+          </label>
+          <button id="automations-switch-scene" class="btn btn-primary" type="button">Switch</button>
+        </div>
+        <div class="row">
+          <button id="automations-start-recording" class="btn" type="button">Start Recording</button>
+          <button id="automations-stop-recording" class="btn" type="button">Stop Recording</button>
+          <span class="tag" id="automations-recording-tag" hidden>RECORDING</span>
+        </div>
+        <div class="row">
+          <button id="automations-start-streaming" class="btn" type="button">Start Streaming</button>
+          <button id="automations-stop-streaming" class="btn" type="button">Stop Streaming</button>
+          <span class="tag" id="automations-streaming-tag" hidden>STREAMING</span>
+        </div>
+        <p class="hint" id="automations-obs-status">OBS is not connected.</p>
+      </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Rules</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-add-rule" class="btn btn-primary" type="button">Add rule</button>
+          </div>
+        </div>
+        <p class="hint">When an incoming event's name matches exactly, its action runs. More than one rule can share an event name; they all run.</p>
+        <div id="automations-rules"></div>
+        <p class="hint" id="automations-rules-empty">No rules yet — add one, or send a test event below to see events arrive first.</p>
+      </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>Test &amp; Recent Events</h2>
+          </div>
+        </div>
+        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule.</p>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Event</span>
+            <input id="automations-test-event" type="text" size="20" placeholder="combat:start" spellcheck="false">
+          </label>
+          <button id="automations-send-test" class="btn" type="button">Send test event</button>
+        </div>
+        <div id="automations-events" class="automations-events"></div>
+        <p class="hint" id="automations-events-empty">No events received yet.</p>
       </div>
     </section>
 
