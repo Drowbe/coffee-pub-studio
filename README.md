@@ -1,11 +1,11 @@
 # Coffee Pub Studio
 
-The production side of the Coffee Pub suite: a standalone macOS app that wraps any web page in a
-fixed-size Chromium window so OBS can capture it as its own source, and keeps that OBS source
-cropped, pointed and in sync. It's optimized for running FoundryVTT sessions -- most people using
-it will point one window at their game canvas and another at a stream-facing view -- but nothing
-about it is Foundry-specific: it'll work with any web-based experience. You start with no windows
-and add each one yourself, up to five.
+The production side of the Coffee Pub suite: a standalone macOS and Windows app that wraps any
+web page in a fixed-size Chromium window so OBS can capture it as its own source, and keeps that
+OBS source cropped, pointed and in sync. It's optimized for running FoundryVTT sessions -- most
+people using it will point one window at their game canvas and another at a stream-facing view --
+but nothing about it is Foundry-specific: it'll work with any web-based experience. You start with
+no windows and add each one yourself, up to five.
 
 The app was called **Coffee Pub Browser** before v0.1.8. The first launch of Coffee Pub Studio
 copies your settings over from the old app's folder; only the OBS password has to be entered
@@ -38,36 +38,43 @@ again, because it is encrypted with a keychain entry named after the app.
 
 ## Requirements
 
-- macOS 12 or newer (Apple Silicon or Intel).
+- macOS 12 or newer (Apple Silicon or Intel), or Windows 10 or newer (x64).
 - To build: [Node.js](https://nodejs.org) 18 or newer.
-- OBS Studio 28 or newer (for the ScreenCaptureKit based Window Capture).
+- OBS Studio 28 or newer.
+
+On Windows, OBS's own window-capture source doesn't yet get the same automatic management macOS
+does -- see [Known issues](documentation/known-issues.md) for the exact gap and how to add the
+window as a source by hand in the meantime.
 
 ## Get the app
 
 ### Option A: download a release (easiest)
 
-Go to the repository's **Releases** page and download the `.dmg` attached to the latest
-release, then follow [First launch](#first-launch-unsigned-build) below.
+Go to the repository's **Releases** page and download the `.dmg` (macOS) or the installer `.exe`
+(Windows) attached to the latest release, then follow [First launch](#first-launch-unsigned-build)
+below.
 
-Every push also runs the **Build macOS app** workflow on a macOS runner. If you need a build
-from a branch that has not been released, open the **Actions** tab, pick the run, and download
-the **Coffee-Pub-Studio-macOS** artifact (a zip containing the `.dmg`).
+Every push also runs the **Build desktop app** workflow, building both platforms. If you need a
+build from a branch that has not been released, open the **Actions** tab, pick the run, and
+download the **Coffee-Pub-Studio-macOS** or **Coffee-Pub-Studio-Windows** artifact.
 
 ### Option B: build it yourself
 
 ```bash
 npm install
-npm run dist
+npm run dist        # macOS: universal (Apple Silicon + Intel) dmg and zip
+npm run dist:win     # Windows: NSIS installer
 ```
 
-This produces a universal (Apple Silicon + Intel) build in `dist/`:
+macOS output lands in `dist/`:
 
 - `dist/Coffee Pub Studio-1.0.0-universal.dmg`
 - `dist/Coffee Pub Studio-1.0.0-universal-mac.zip`
 
-Open the `.dmg` and drag **Coffee Pub Studio** into `Applications`.
+Open the `.dmg` and drag **Coffee Pub Studio** into `Applications`. Windows output is
+`dist/Coffee Pub Studio Setup 1.0.0.exe`; run it and follow the installer.
 
-For a faster, smaller build for just your machine's chip:
+For a faster, smaller macOS build for just your machine's chip:
 
 ```bash
 npm run dist:arm64   # Apple Silicon
@@ -82,13 +89,17 @@ npm start
 
 ### First launch (unsigned build)
 
-The build is not code-signed, so macOS Gatekeeper blocks it the first time. Either
-right-click the app in `Applications` and choose **Open**, then **Open** again in the dialog,
-or clear the quarantine flag from a terminal:
+Neither build is code-signed, so each platform's own warning shows the first time.
+
+On macOS, Gatekeeper blocks it: right-click the app in `Applications` and choose **Open**, then
+**Open** again in the dialog, or clear the quarantine flag from a terminal:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/Coffee Pub Studio.app"
 ```
+
+On Windows, SmartScreen shows "Windows protected your PC": click **More info**, then
+**Run anyway**.
 
 ## Using it
 
@@ -132,10 +143,11 @@ server itself is built is on the wiki too:
 ## Releasing a new version
 
 1. Bump `version` in `package.json`, commit and push.
-2. On GitHub, open **Actions > Build macOS app > Run workflow**, choose the branch, enter the
+2. On GitHub, open **Actions > Build desktop app > Run workflow**, choose the branch, enter the
    new tag in **release_tag** (for example `v1.1.0`) and click **Run workflow**.
-3. About five minutes later a GitHub Release named after the tag appears with the `.dmg`
-   attached and auto-generated notes. The workflow creates the git tag for you.
+3. About five minutes later a GitHub Release named after the tag appears with both the `.dmg`
+   and the Windows `.exe` attached, plus auto-generated notes. The workflow creates the git tag
+   for you.
 
 Pushing a tag that starts with `v` from your machine triggers the same release build.
 
