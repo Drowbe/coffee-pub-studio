@@ -250,22 +250,18 @@
               <span>Token</span>
               <input id="automations-token" type="password" size="24" autocomplete="off" placeholder="not set">
             </label>
+            <button id="automations-copy-token" class="btn btn-small btn-icon" type="button" title="Copy token" aria-label="Copy token"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg></button>
             <button id="automations-generate-token" class="btn" type="button">Generate token</button>
           </div>
           <p class="hint">
-            Give a Foundry module this address and token. It sends a <code>POST</code> to
-            <code>/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code> header and a
-            JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS with a self-signed certificate
-            (needed so it works from a Foundry page that's itself served over HTTPS) — open the address below
-            directly in a browser <strong>on the Foundry machine</strong> once and click through the "not private"
-            warning first, or every call from a module will silently fail.
+            Give a Foundry module the address and token below. It sends a <code>POST</code> to
+            <code>&lt;address&gt;/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code>
+            header and a JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS with a self-signed
+            certificate (needed so it works from a Foundry page that's itself served over HTTPS) — open one of the
+            addresses below directly in a browser <strong>on the Foundry machine</strong> once and click through the
+            "not private" warning first, or every call from a module will silently fail.
           </p>
-          <div class="details">
-            <div class="details-row">
-              <span class="details-key">Address</span>
-              <span class="details-value" id="automations-address">—</span>
-            </div>
-          </div>
+          <div class="details" id="automations-addresses"></div>
           <p class="hint" id="automations-status">Not enabled.</p>
         </div>
       </div>

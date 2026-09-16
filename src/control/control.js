@@ -1278,7 +1278,8 @@ const automationsEls = {
   port: $('automations-port'),
   token: $('automations-token'),
   generateToken: $('automations-generate-token'),
-  address: $('automations-address'),
+  copyToken: $('automations-copy-token'),
+  addresses: $('automations-addresses'),
   status: $('automations-status'),
   scene: $('automations-scene'),
   switchScene: $('automations-switch-scene'),
@@ -1348,6 +1349,27 @@ automationsEls.generateToken.addEventListener('click', () => {
   automationsEls.token.value = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
   saveAutomationsSettings();
 });
+automationsEls.copyToken.addEventListener('click', async () => {
+  if (!automationsEls.token.value) return;
+  await navigator.clipboard.writeText(automationsEls.token.value);
+  setSaveState('Token copied');
+});
+
+// A small "copy" icon button, matching the one used for a Tavern view link.
+function copyButton(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-small btn-icon';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg>';
+  btn.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(value);
+    setSaveState('Address copied');
+  });
+  return btn;
+}
 
 // The server's own live state (listening/port/addresses/events) -- distinct
 // from config.automations above (the settings that drive it).
@@ -1356,8 +1378,37 @@ function renderAutomationsStatus() {
   const listening = a.state === 'listening';
   automationsEls.tag.hidden = !listening;
   automationsEls.dot.classList.toggle('on', listening);
-  automationsEls.address.textContent =
-    listening && a.addresses.length ? a.addresses.map((ip) => `https://${ip}:${a.port}/api/automations/event`).join(', ') : '—';
+  automationsEls.addresses.textContent = '';
+  // One row per network interface this Mac has right now -- which one is
+  // actually reachable from the Foundry machine depends on the network, so
+  // rather than guess, every candidate gets shown with its own copy button.
+  const candidates = listening ? a.addresses : [];
+  if (!candidates.length) {
+    const row = document.createElement('div');
+    row.className = 'details-row';
+    const key = document.createElement('span');
+    key.className = 'details-key';
+    key.textContent = 'Address';
+    const value = document.createElement('span');
+    value.className = 'details-value';
+    value.textContent = '—';
+    row.append(key, value);
+    automationsEls.addresses.appendChild(row);
+  } else {
+    for (const ip of candidates) {
+      const url = `https://${ip}:${a.port}`;
+      const row = document.createElement('div');
+      row.className = 'details-row';
+      const key = document.createElement('span');
+      key.className = 'details-key';
+      key.textContent = 'Address';
+      const value = document.createElement('span');
+      value.className = 'details-value';
+      value.textContent = url;
+      row.append(key, value, copyButton(url, `Copy ${url}`));
+      automationsEls.addresses.appendChild(row);
+    }
+  }
   const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
   automationsEls.status.textContent = labels[a.state] || '';
   automationsEls.status.classList.toggle('hint-error', a.state === 'error');
