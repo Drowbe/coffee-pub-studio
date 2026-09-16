@@ -18,17 +18,9 @@ const DEFAULT_GROUP = 'Main';
 const LIMITS = {
   minSize: 100,
   maxSize: 7680,
-  minViews: 1,
+  minViews: 0,
   maxViews: 5,
 };
-
-// Defaults for the first two windows on a fresh install.
-const SEED_VIEWS = [
-  { id: 'game', label: 'Game', url: 'https://game.coffeepub.live/game', width: 1920, height: 1080, muted: false, wholeWindow: true },
-  // Same size as the canvas: regions pick out the chat and any widgets a module adds anywhere
-  // on the page, so the whole window is not a source by default.
-  { id: 'stream', label: 'Stream', url: 'https://game.coffeepub.live/stream', width: 1920, height: 1080, muted: true, wholeWindow: false },
-];
 
 // The OBS source name a window gets unless the user picks another. Every
 // source this app creates -- windows, regions, Tavern sources -- follows
@@ -40,23 +32,27 @@ function defaultSourceName(label) {
   return `Window: ${label} (CP Studio)`;
 }
 
+// A fresh window: no URL, a generic label and size. Nothing here assumes
+// Foundry, or any particular site -- this app wraps any web page in a
+// fixed-size, OBS-capturable window, and is optimized for FoundryVTT
+// without being exclusive to it. The user names and points each window at
+// whatever they're actually running.
 function defaultView(index) {
-  const seed = SEED_VIEWS[index];
-  const label = seed ? seed.label : `Window ${index + 1}`;
+  const label = `Window ${index + 1}`;
   return {
-    id: seed ? seed.id : `window${index + 1}`,
+    id: `window${index + 1}`,
     label,
-    url: seed ? seed.url : '',
-    width: seed ? seed.width : 1280,
-    height: seed ? seed.height : 720,
+    url: '',
+    width: 1280,
+    height: 720,
     x: null,
     y: null,
-    muted: seed ? seed.muted : true,
+    muted: true,
     enabled: true,
     dockOnLaunch: false,
     wakeAudio: true,
     session: DEFAULT_GROUP,
-    windowSource: { enabled: seed ? seed.wholeWindow : true, name: defaultSourceName(label) },
+    windowSource: { enabled: true, name: defaultSourceName(label) },
     regions: [],
   };
 }
@@ -254,7 +250,9 @@ function defaultConfig() {
     obs: defaultObs(),
     tavern: defaultTavern(),
     automations: defaultAutomations(),
-    views: [defaultView(0), defaultView(1)],
+    // No windows on a fresh install -- the user adds and points each one at
+    // whatever they're actually running via the "+" tab.
+    views: [],
   };
 }
 

@@ -81,12 +81,11 @@ This adoption pass covers the API (`api/api-automations.md`), one paired archite
 (`userguides/userguide-getting-started.md`) -- the rest of the standard's checklist is still
 open:
 
-- **README is not yet the strict product-page template.** It currently keeps the full deep
-  walkthrough ("Using it") in place rather than moving it into `userguides/`; only the
-  Automations section was trimmed to a wiki pointer as part of adding `api/`. Splitting the rest
-  of that walkthrough into `userguide-settings.md`, `userguide-obs.md`,
-  `userguide-tavern.md`, etc., and cutting README down to name, bullets, requirements, install,
-  and links, is real remaining work, not an oversight.
+- ~~**README is not yet the strict product-page template.**~~ Done: the deep walkthrough moved
+  out into `userguide-settings.md`, `userguide-obs.md`, `userguide-tavern.md` and
+  `userguide-configuration.md`; README now keeps only the short version plus links to the wiki
+  guides, alongside the Automations section (already a wiki pointer) and the maintainer-facing
+  sections (requirements, install, releasing, dev setup, project layout).
 - **`documentation/assets/` has no screenshots yet.** A product screenshot for `home.md` and
   README, and any screenshots a future user guide needs, are still owed.
 - **No `CHANGELOG.md` exists yet.** The standard requires one at the repository root; this

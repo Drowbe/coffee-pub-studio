@@ -10,16 +10,18 @@ and choose Open, then Open again in the dialog that follows.
 
 ## What happens the moment it opens
 
-A control panel opens, and so do the Game and Stream windows -- two borderless Chromium windows,
-each with a thin bar of Studio's own at the top for dragging and resizing. Nothing is pointed at
-Foundry yet; each window shows a placeholder until you give it a page.
+A control panel opens, with no windows configured yet. Studio wraps any web page in a
+borderless, fixed-size Chromium window with a thin bar of its own at the top for dragging and
+resizing; it is optimized for running FoundryVTT sessions but works with any web-based
+experience. The rest of this guide uses a two-window FoundryVTT setup as the running example,
+since that is the most common case, but any page works the same way.
 
-## Point it at your game
+## Add a window and point it at your game
 
-In the control panel's Session tab, find the Game window's card and set its address to your
-Foundry game's URL. Do the same for the Stream window if you use one. Log in to Foundry once, in
-the Game window; every window sharing the default session group uses that same login, so you do
-not log in twice.
+Click the **+** tab to add a window (up to five), give it a label such as Game, and set its
+address to your Foundry game's URL. Add a second one labeled Stream if you use a stream-facing
+view. Log in to Foundry once, in the Game window; every window sharing the default session group
+uses that same login, so you do not log in twice.
 
 ## Set the size OBS will capture
 
@@ -31,8 +33,8 @@ remember.
 
 Connect Studio to OBS from the Session tab's OBS card (OBS's own WebSocket server has to be
 turned on first, from OBS's Tools menu). Once connected, Studio creates and points OBS sources at
-the Game and Stream windows on its own, cropping out Studio's own bar so OBS only ever sees the
-Foundry page underneath it.
+your windows on its own, cropping out Studio's own bar so OBS only ever sees the page underneath
+it.
 
 ## Where to go from here
 
