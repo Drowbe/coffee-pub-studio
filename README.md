@@ -291,29 +291,42 @@ to a server), Automations is a small HTTPS server Studio itself runs, listening 
 interface, not just localhost, waiting for the Foundry side to call in. HTTPS, not HTTP: Foundry
 is commonly served over HTTPS itself (this README's own example URLs are), and a browser flatly
 blocks an HTTPS page from making a plain-HTTP request at all — "mixed content", no CORS header
-gets around it. Studio generates and serves a self-signed certificate for this on its own (via
-the `openssl` CLI every Mac already has); the one real cost is a one-time step below.
+gets around it. Studio runs its own small local Certificate Authority for this (via the `openssl`
+CLI every Mac already has): a root generated once and reused, which signs the server's actual
+certificate (regenerated whenever this Mac's LAN addresses change). The server only ever presents
+that signed certificate, never the CA's private key. The one real cost is a one-time trust step,
+in one of two shapes, below.
 
 1. On the Session tab, in **Automations**, tick **Enable Automations**, set a **Port** (9500 by
    default), then either type a **Token** or click **Generate token**. The server refuses to
    start without one — it's the only thing standing between that open port and anyone else on
    your network, so treat it like a password: don't reuse a real one, and regenerate it if you
    think it leaked.
-2. The card shows the address once it's listening — one per network interface this Mac has, since
-   a laptop often has more than one. Give the Foundry side the one actually reachable from the
-   Windows machine (same Wi-Fi/LAN segment), together with the token.
+2. The card shows an **Address** and a **CA cert** link for each network interface this Mac has,
+   since a laptop often has more than one. Give the Foundry side the **Address** actually
+   reachable from the Windows machine (same Wi-Fi/LAN segment), together with the token.
 3. **If the module's calls come from a browser Studio doesn't control** — the GM's own browser on
-   the Windows machine, say — **open that address directly in it once** and click through the
-   self-signed certificate's "not private" warning first. A browser only trusts a self-signed cert
-   for a given host once someone's done this by hand; skip it and every call a module makes will
-   fail silently (rejected before it reaches Studio at all, so nothing shows up in **Recent
-   Events** either — that's the tell that this step was missed). It only has to happen once per
-   browser, and survives Studio restarts (the certificate itself is reused, not regenerated,
-   unless this Mac's LAN address changes). **This step is not needed at all if the calling code
-   runs inside one of Studio's own windows** (Herald's "cameraman" client, if it's the Stream
-   window rather than a separate browser, is exactly this case) — Studio recognizes its own
-   certificate and trusts it automatically for its own webContents, verified against the actual
-   certificate bytes, not just a hostname or port match.
+   the Windows machine, say — pick one of two ways to make the certificate trusted there, or every
+   call a module makes will fail silently (rejected before it reaches Studio at all, so nothing
+   shows up in **Recent Events** either — that's the tell that this step was missed):
+   - **Quick, per-browser:** open the **Address** directly in it once and click through the
+     "not private" warning. Only trusts that one browser, and stops working the moment this Mac's
+     address changes and the certificate is regenerated to match — everyone would need to
+     re-click-through once that happens.
+   - **Once, for every browser and every future address:** open the **CA cert** link once — it
+     downloads `coffee-pub-studio-ca.crt` — and import it into Windows' **Trusted Root
+     Certification Authorities** store (double-click the file, "Install Certificate", Local
+     Machine or Current User, place it in that store directly rather than letting Windows pick
+     automatically). A CA's certificate isn't a secret (only its private key is, which never
+     leaves this Mac), so this needs no token. Every certificate this CA ever issues is trusted
+     from then on, including one regenerated later because this Mac's address changed — nothing
+     to redo.
+
+   **Neither step is needed at all if the calling code runs inside one of Studio's own windows**
+   (Herald's "cameraman" client, if it's the Stream window rather than a separate browser, is
+   exactly this case) — Studio recognizes its own certificate and trusts it automatically for its
+   own webContents, verified against the actual certificate bytes, not just a hostname or port
+   match.
 4. Open the **Automations** tab. **OBS Control** is the manual remote: pick a scene and
    **Switch**, or **Start/Stop Recording** and **Start/Stop Streaming**, independent of anything
    else on this tab. **Rules** map an event name to an action — **Switch scene to**, **Show

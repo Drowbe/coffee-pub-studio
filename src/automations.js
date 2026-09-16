@@ -15,12 +15,23 @@
 // header fixes that, confirmed against how Chrome's Private Network Access
 // policy treats exactly this shape of request (a public HTTPS origin
 // reaching into a private/LAN address), which is stricter about it than
-// plain mixed-content blocking alone. So this generates and serves a
-// self-signed certificate; the one real cost is that whoever's setting up
-// the Foundry side has to open this server's address directly in a browser
-// once and click through the "not trusted" warning before fetch() calls
-// from a module will succeed -- there's no way around a self-signed cert
-// needing that, and it only has to happen once per browser.
+// plain mixed-content blocking alone.
+//
+// So this runs its own small local Certificate Authority: a root cert
+// generated once and reused, which signs the actual server certificate
+// (regenerated whenever this machine's LAN addresses change, same as
+// before). The server only ever presents the signed leaf, never the CA's
+// private key. Trusting the *CA* rather than a specific leaf is the whole
+// point: install that one root certificate on a device once (GET /ca.crt,
+// no auth needed -- a CA's public certificate isn't a secret, only its
+// private key is), and every certificate this CA ever issues is trusted
+// automatically from then on, including a leaf regenerated later because
+// this Mac's IP changed -- unlike trusting one specific self-signed leaf
+// directly, which stops working the moment that leaf is replaced. The one
+// real cost is that installing a root CA is a more deliberate step than
+// clicking through a browser's "not private" warning (Windows' certificate
+// import dialog, not just a link to click) -- worth it since it only ever
+// has to happen once per device, not once per browser per certificate.
 
 const https = require('https');
 const crypto = require('crypto');
@@ -41,7 +52,8 @@ class AutomationsServer extends EventEmitter {
     this.message = '';
     this.port = 0;
     this.getToken = null;
-    this.certPem = ''; // this server's own cert, PEM -- see trustOwnCertificate() in main.js
+    this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
+    this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
   }
 
@@ -86,9 +98,10 @@ class AutomationsServer extends EventEmitter {
       return;
     }
     this.certPem = cert.cert.toString();
+    this.caCertPem = cert.caCert.toString();
     this.getToken = getToken;
     await new Promise((resolve) => {
-      const server = https.createServer(cert, (req, res) => this.handle(req, res));
+      const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
       server.on('error', (err) => {
         this.server = null;
         this.setState('error', describeError(err));
@@ -151,6 +164,20 @@ class AutomationsServer extends EventEmitter {
     if (req.method === 'GET' && url === '/api/automations/ping') {
       if (!authed()) return send(401, { error: 'Unauthorized' });
       return send(200, { ok: true });
+    }
+
+    // No auth: a CA's public certificate isn't a secret (only its private
+    // key is, which never leaves this machine) -- this is meant to be
+    // fetched by whatever's about to install it, before it has any way to
+    // prove it holds the token yet.
+    if (req.method === 'GET' && url === '/ca.crt') {
+      res.writeHead(200, {
+        'Content-Type': 'application/x-x509-ca-cert',
+        'Content-Length': Buffer.byteLength(this.caCertPem),
+        'Content-Disposition': 'attachment; filename="coffee-pub-studio-ca.crt"',
+        'Access-Control-Allow-Origin': '*',
+      });
+      return res.end(this.caCertPem);
     }
 
     if (req.method === 'POST' && url === '/api/automations/event') {
@@ -227,19 +254,31 @@ function describeError(err) {
   return (err && err.message) || String(err);
 }
 
-// Loads the self-signed cert/key pair in certDir, generating one (via the
-// macOS-provided `openssl` CLI -- present on every Mac, so no dependency to
-// add) if there is none yet, or if the current one doesn't cover every LAN
-// address this machine has right now (an address list openssl itself has
-// no notion of, so this is the one thing worth checking on every start
-// rather than just "does a file exist").
+// Loads the CA (generating it once, on the first ever start) and the
+// leaf cert it signs for this server (regenerated whenever it's missing,
+// doesn't cover every LAN address this machine has right now, or -- an
+// upgrade case -- isn't actually signed by the current CA, e.g. a leaf
+// left over from before this app used a CA at all). All via the
+// macOS-provided `openssl` CLI, present on every Mac, so no dependency to
+// add.
 function ensureCert(certDir) {
+  const caKeyPath = path.join(certDir, 'automations-ca-key.pem');
+  const caCertPath = path.join(certDir, 'automations-ca-cert.pem');
+  if (!fs.existsSync(caKeyPath) || !fs.existsSync(caCertPath)) {
+    generateCa(caKeyPath, caCertPath);
+  }
+
   const keyPath = path.join(certDir, 'automations-key.pem');
   const certPath = path.join(certDir, 'automations-cert.pem');
   const addresses = lanAddresses();
-  const stale = !fs.existsSync(keyPath) || !fs.existsSync(certPath) || !certCoversAddresses(certPath, addresses);
-  if (stale) generateSelfSignedCert(keyPath, certPath, addresses);
-  return { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+  const stale =
+    !fs.existsSync(keyPath) ||
+    !fs.existsSync(certPath) ||
+    !certCoversAddresses(certPath, addresses) ||
+    !certIssuedBy(certPath, caCertPath);
+  if (stale) generateLeafCert(keyPath, certPath, caKeyPath, caCertPath, addresses);
+
+  return { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath), caCert: fs.readFileSync(caCertPath) };
 }
 
 function certCoversAddresses(certPath, addresses) {
@@ -251,12 +290,56 @@ function certCoversAddresses(certPath, addresses) {
   }
 }
 
-function generateSelfSignedCert(keyPath, certPath, addresses) {
+function certIssuedBy(certPath, caCertPath) {
+  try {
+    execFileSync('openssl', ['verify', '-CAfile', caCertPath, certPath]);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// A self-signed root, generated once and reused for as long as its files
+// exist -- deliberately never touched by the "stale" check the leaf gets,
+// since the whole point of installing it once on a device is that it
+// keeps working across every future leaf this CA signs.
+function generateCa(keyPath, certPath) {
+  const configText = [
+    '[req]',
+    'distinguished_name = req_distinguished_name',
+    'x509_extensions = v3_ca',
+    'prompt = no',
+    '[req_distinguished_name]',
+    'CN = Coffee Pub Studio Local CA',
+    '[v3_ca]',
+    'basicConstraints = critical, CA:true',
+    'keyUsage = critical, keyCertSign, cRLSign',
+    '',
+  ].join('\n');
+  fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+  const tmpConfig = path.join(os.tmpdir(), `cp-studio-automations-ca-${process.pid}-${Date.now()}.cnf`);
+  fs.writeFileSync(tmpConfig, configText);
+  try {
+    execFileSync('openssl', [
+      'req', '-x509', '-newkey', 'rsa:2048', '-sha256', '-days', '3650', '-nodes',
+      '-keyout', keyPath, '-out', certPath, '-config', tmpConfig,
+    ]);
+  } finally {
+    fs.unlinkSync(tmpConfig);
+  }
+}
+
+// The server's actual certificate: a request (CSR) with this machine's
+// current addresses as its SAN, signed by the CA above. `x509 -req` does
+// not carry a CSR's own extensions into the signed certificate by itself
+// -- `-extfile`/`-extensions` is what actually copies the SAN over, so the
+// same config file is reused for both the request and the signing step.
+function generateLeafCert(keyPath, certPath, caKeyPath, caCertPath, addresses) {
   const san = ['DNS:localhost', 'IP:127.0.0.1', ...addresses.map((ip) => `IP:${ip}`)].join(',');
   const configText = [
     '[req]',
     'distinguished_name = req_distinguished_name',
-    'x509_extensions = v3_req',
+    'req_extensions = v3_req',
     'prompt = no',
     '[req_distinguished_name]',
     'CN = Coffee Pub Studio Automations',
@@ -264,33 +347,24 @@ function generateSelfSignedCert(keyPath, certPath, addresses) {
     `subjectAltName = ${san}`,
     '',
   ].join('\n');
-  fs.mkdirSync(certDirOf(keyPath), { recursive: true });
-  const tmpConfig = path.join(os.tmpdir(), `cp-studio-automations-${process.pid}-${Date.now()}.cnf`);
+  fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+  const stamp = `${process.pid}-${Date.now()}`;
+  const tmpConfig = path.join(os.tmpdir(), `cp-studio-automations-req-${stamp}.cnf`);
+  const csrPath = path.join(os.tmpdir(), `cp-studio-automations-csr-${stamp}.pem`);
   fs.writeFileSync(tmpConfig, configText);
   try {
     execFileSync('openssl', [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-sha256',
-      '-days',
-      '3650',
-      '-nodes',
-      '-keyout',
-      keyPath,
-      '-out',
-      certPath,
-      '-config',
-      tmpConfig,
+      'req', '-newkey', 'rsa:2048', '-sha256', '-nodes',
+      '-keyout', keyPath, '-out', csrPath, '-config', tmpConfig,
+    ]);
+    execFileSync('openssl', [
+      'x509', '-req', '-in', csrPath, '-CA', caCertPath, '-CAkey', caKeyPath, '-CAcreateserial',
+      '-out', certPath, '-days', '3650', '-sha256', '-extfile', tmpConfig, '-extensions', 'v3_req',
     ]);
   } finally {
     fs.unlinkSync(tmpConfig);
+    if (fs.existsSync(csrPath)) fs.unlinkSync(csrPath);
   }
-}
-
-function certDirOf(keyPath) {
-  return path.dirname(keyPath);
 }
 
 module.exports = { AutomationsServer };

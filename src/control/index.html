@@ -256,10 +256,14 @@
           <p class="hint">
             Give a Foundry module the address and token below. It sends a <code>POST</code> to
             <code>&lt;address&gt;/api/automations/event</code> with an <code>Authorization: Bearer &lt;token&gt;</code>
-            header and a JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS with a self-signed
-            certificate (needed so it works from a Foundry page that's itself served over HTTPS) — open one of the
-            addresses below directly in a browser <strong>on the Foundry machine</strong> once and click through the
-            "not private" warning first, or every call from a module will silently fail.
+            header and a JSON body like <code>{"event":"combat:start"}</code>. This is HTTPS, needed so it works from
+            a Foundry page that's itself served over HTTPS — pick <strong>one</strong> of two ways to make the
+            certificate trusted on the Foundry machine first, or every call from a module will silently fail:
+            open the <strong>Address</strong> directly in a browser there once and click through the "not private"
+            warning (quick, but only trusts that one browser, and stops working if this Mac's address ever changes);
+            or download the <strong>CA cert</strong> link and import it into Windows' Trusted Root Certification
+            Authorities store once (a couple more clicks, but trusts every address this Mac ever uses, and every
+            browser, permanently).
           </p>
           <div class="details" id="automations-addresses"></div>
           <p class="hint" id="automations-status">Not enabled.</p>

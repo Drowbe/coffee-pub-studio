@@ -1407,6 +1407,22 @@ function renderAutomationsStatus() {
       value.textContent = url;
       row.append(key, value, copyButton(url, `Copy ${url}`));
       automationsEls.addresses.appendChild(row);
+
+      // The CA cert install link, one per address for the same reason the
+      // address itself gets one per interface -- whichever address is
+      // actually reachable from the Foundry machine is also the one whose
+      // /ca.crt link will resolve there.
+      const caUrl = `${url}/ca.crt`;
+      const caRow = document.createElement('div');
+      caRow.className = 'details-row';
+      const caKey = document.createElement('span');
+      caKey.className = 'details-key';
+      caKey.textContent = 'CA cert';
+      const caValue = document.createElement('span');
+      caValue.className = 'details-value hint';
+      caValue.textContent = caUrl;
+      caRow.append(caKey, caValue, copyButton(caUrl, `Copy ${caUrl}`));
+      automationsEls.addresses.appendChild(caRow);
     }
   }
   const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
