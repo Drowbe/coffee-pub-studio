@@ -57,8 +57,14 @@ function defaultView(index) {
   };
 }
 
-// A free-form session group name; empty means the default group.
-function sanitizeSession(value) {
+// A free-form session GROUP name (windows sharing cookies/storage); empty
+// means the default group. Named distinctly from the season/episode
+// sanitizeSession below -- a second `function sanitizeSession` declared
+// later in this same module would silently win at every call site,
+// including this one's, above it in the file (a real bug caught live: it
+// had been overwriting every view's group name with a season/episode
+// object on each save).
+function sanitizeSessionGroup(value) {
   if (value === undefined || value === null) return DEFAULT_GROUP;
   const text = String(value).trim().slice(0, 40);
   return text || DEFAULT_GROUP;
@@ -464,7 +470,7 @@ function sanitizeView(input, index) {
     enabled: src.enabled === undefined ? fallback.enabled : Boolean(src.enabled),
     dockOnLaunch: src.dockOnLaunch === undefined ? fallback.dockOnLaunch : Boolean(src.dockOnLaunch),
     wakeAudio: src.wakeAudio === undefined ? fallback.wakeAudio : Boolean(src.wakeAudio),
-    session: sanitizeSession(src.session),
+    session: sanitizeSessionGroup(src.session),
     windowSource: sanitizeWindowSource(src.windowSource, label, fallback),
     regions: sanitizeRegions(src.regions),
   };
