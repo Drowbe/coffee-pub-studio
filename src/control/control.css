@@ -1426,3 +1426,63 @@ select.automation-step-param-missing {
 .cert-trust-help li + li {
   margin-top: 4px;
 }
+
+/* A minimal replacement for window.prompt(), which Electron's renderer
+   does not support at all (confirmed live: it throws "prompt() is not
+   supported" and silently aborts whatever called it -- the rule set
+   "Run Automation" button's own JSON-test-data prompt, in this case,
+   meaning the event it was building never got sent). Everywhere else this
+   app already avoids native dialogs in favor of inline UI; this is the
+   one place that still needed an actual blocking prompt substitute. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  width: 420px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-message {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0;
+}
+
+.modal-textarea {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 9px;
+  font: inherit;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  min-height: 110px;
+  resize: vertical;
+}
+
+.modal-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

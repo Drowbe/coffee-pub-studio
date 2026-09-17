@@ -229,6 +229,28 @@ field only *resolves* correctly here if whatever triggered the rule set that run
 makes it discoverable and offers it as a template placeholder, it does not give Studio a value for
 it outside of an actual triggering event.
 
+## `window.prompt()` does not exist in this renderer
+
+Found live, the hard way: Electron's renderer does not implement `window.prompt()` at all --
+calling it throws `Error: prompt() is not supported`, synchronously, which meant the "Run
+Automation" button's own "this rule set has a Data Field step, enter test data as JSON" prompt
+(`automationsEls.rulesets`'s `run-ruleset` handler, `src/control/control.js`) threw before ever
+reaching the `api.automationsTestEvent(...)` call beneath it -- so clicking the button on a rule
+set with any Data Field `setText` step did nothing at all: no event sent, nothing in the activity
+log, no error surfaced anywhere a user would see it, because the throw happened inside an `async`
+click handler with nothing awaiting or catching it. `window.confirm()` is used in several places
+elsewhere in this file and does work (Chromium's blocking `confirm`/`alert` are supported here;
+only `prompt`, which needs a text-input dialog, is not) -- this is not a reason to suspect those.
+
+`promptModal` (`src/control/control.js`, next to `insertAtCursor`) replaces it: a real overlay
+(`#prompt-modal-overlay` in `index.html`, hidden by default) with a textarea, OK/Cancel, Escape and
+Cmd/Ctrl+Enter, resolving a Promise with the typed text or `null` -- the same contract
+`window.prompt()` had, so its one call site needed nothing else changed beyond `await`ing it.
+Everywhere else in this app already avoided native dialogs in favor of inline UI for other reasons
+(consistency, not needing a text-input prompt at all); this was the one place that still did, and
+it turned out `window.prompt()` was never going to work in the first place -- worth remembering
+before reaching for it again anywhere in this codebase.
+
 ## Migrating an older config
 
 A config saved before rule sets existed has the old flat shape: `automations.rules`, an array of

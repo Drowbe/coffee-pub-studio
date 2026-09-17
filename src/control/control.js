@@ -113,12 +113,55 @@ function insertAtCursor(input, text) {
   input.setSelectionRange(pos, pos);
 }
 
-// The "insert a Data Field" panel next to the Episode Format and Filename
-// format inputs -- built from the exact same dataFieldGroups() a setText
-// step's own Data Field dropdown uses (defined further down, alongside
-// buildStepRow), so a registered module's fields, Studio's own Metadata
-// fields, and the evergreen/Season/Episode built-ins are all discoverable
-// here too, not just from an automation step.
+// window.prompt() is not implemented by Electron's renderer at all --
+// confirmed live: calling it throws "Error: prompt() is not supported"
+// and aborts whatever called it, silently, since nothing here was
+// catching it. Everywhere else in this app already avoids native dialogs
+// in favor of inline UI; this fills the one remaining spot that still
+// needed an actual blocking prompt (a rule set's "Run Automation" button
+// asking for JSON test data before sending a Data Field step's event).
+// Returns the typed text, or null if cancelled -- same contract
+// window.prompt() had, so its one call site needed no other changes.
+function promptModal(message, defaultValue) {
+  return new Promise((resolve) => {
+    const overlay = $('prompt-modal-overlay');
+    const input = $('prompt-modal-input');
+    $('prompt-modal-message').textContent = message;
+    input.value = defaultValue || '';
+    overlay.hidden = false;
+    input.focus();
+    input.select();
+
+    const cleanup = (value) => {
+      overlay.hidden = true;
+      $('prompt-modal-ok').removeEventListener('click', onOk);
+      $('prompt-modal-cancel').removeEventListener('click', onCancel);
+      overlay.removeEventListener('mousedown', onOverlayClick);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(value);
+    };
+    const onOk = () => cleanup(input.value);
+    const onCancel = () => cleanup(null);
+    const onOverlayClick = (event) => {
+      if (event.target === overlay) cleanup(null);
+    };
+    const onKeydown = (event) => {
+      if (event.key === 'Escape') cleanup(null);
+      else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) cleanup(input.value);
+    };
+    $('prompt-modal-ok').addEventListener('click', onOk);
+    $('prompt-modal-cancel').addEventListener('click', onCancel);
+    overlay.addEventListener('mousedown', onOverlayClick);
+    document.addEventListener('keydown', onKeydown);
+  });
+}
+
+// The "insert a Data Field" panel next to the Filename format input --
+// built from the exact same dataFieldGroups() a setText step's own Data
+// Field dropdown uses (defined further down, alongside buildStepRow), so
+// a registered module's fields, Studio's own Metadata fields, and the
+// evergreen built-ins are all discoverable here too, not just from an
+// automation step.
 function renderDataFieldPicker(panelEl, inputEl) {
   panelEl.textContent = '';
   const groups = dataFieldGroups().filter((g) => g.fields.length);
@@ -2484,7 +2527,7 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
     if (fields.length) {
       const skeleton = {};
       for (const f of fields) skeleton[f] = '';
-      const input = window.prompt(
+      const input = await promptModal(
         'This rule set has a step reading a Data Field. Enter data as JSON:',
         JSON.stringify(skeleton)
       );
