@@ -1869,12 +1869,17 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
     // two different sources (a title into one, a campaign name into
     // another).
     if (step.action === 'setText') {
+      const dataFieldLabel = document.createElement('span');
+      dataFieldLabel.className = 'automation-step-label';
+      dataFieldLabel.textContent = 'data field';
+      row.appendChild(dataFieldLabel);
+
       const dataFieldInput = document.createElement('input');
       dataFieldInput.type = 'text';
       dataFieldInput.className = 'automation-step-datafield';
       dataFieldInput.spellcheck = false;
       dataFieldInput.placeholder = 'text';
-      dataFieldInput.title = 'Which key of the triggering event\'s data to write -- e.g. "title" or "campaign". Defaults to "text".';
+      dataFieldInput.title = 'The KEY to read from the triggering event\'s data -- not the text value itself. E.g. "title" reads data.title. Defaults to "text" (data.text).';
       dataFieldInput.value = step.dataField || '';
       dataFieldInput.dataset.sfield = 'dataField';
       row.appendChild(dataFieldInput);
@@ -2015,8 +2020,36 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       reportError(new Error('Set this rule set\'s event before testing it.'));
       return;
     }
+    // A setText step reads its value from the triggering event's data, not
+    // a fixed param -- testing with no data at all (what this used to
+    // always send) means it reads nothing and writes blank text, no
+    // matter what the step is configured with. Ask for real data,
+    // pre-filled with every setText step's own dataField (default
+    // "text") as an empty skeleton, so there's something to actually
+    // fill in rather than silently testing blank.
+    let data = {};
+    const fields = [
+      ...new Set(
+        ruleSet.steps.filter((s) => s.type === 'action' && s.action === 'setText').map((s) => s.dataField || 'text')
+      ),
+    ];
+    if (fields.length) {
+      const skeleton = {};
+      for (const f of fields) skeleton[f] = '';
+      const input = window.prompt(
+        'This rule set has a step that reads event data (setText). Enter test data as JSON:',
+        JSON.stringify(skeleton)
+      );
+      if (input === null) return; // cancelled
+      try {
+        data = JSON.parse(input);
+      } catch (err) {
+        reportError(new Error('That was not valid JSON -- test cancelled.'));
+        return;
+      }
+    }
     try {
-      status.automations = await api.automationsTestEvent(ruleSet.event, {});
+      status.automations = await api.automationsTestEvent(ruleSet.event, data);
       renderAutomationsStatus();
       setSaveState(`Test event "${ruleSet.event}" sent`);
     } catch (err) {
