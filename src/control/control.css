@@ -232,6 +232,21 @@ main {
   letter-spacing: 0;
 }
 
+.field-wide {
+  flex: 1;
+  min-width: 320px;
+}
+
+.field-wide input {
+  flex: 1;
+  width: 100%;
+}
+
+.filename-preview {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  margin-top: 2px;
+}
+
 .field input,
 .field select,
 select {

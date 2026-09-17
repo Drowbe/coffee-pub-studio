@@ -34,6 +34,26 @@ const sessionEpisodeSourceEl = $('session-episode-source');
 const sessionEpisodeFormatEl = $('session-episode-format');
 const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
+const sessionFilenamePreviewEl = $('session-filename-preview');
+
+// A live preview of what applySessionFilename would actually write, mirroring
+// formatSessionTemplate in src/main.js: {season}/{episode} from the Season/
+// Episode fields above (zero-padded, same as the real thing), {title}/
+// {campaign} shown as placeholders since there's no triggering event to read
+// them from here, and OBS's own %-style macros left untouched either way.
+function updateFilenamePreview() {
+  const pad2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
+  const vars = {
+    season: pad2(sessionSeasonEl.value),
+    episode: pad2(sessionEpisodeEl.value),
+    title: '(title)',
+    campaign: '(campaign)',
+  };
+  const format = sessionFilenameFormatEl.value;
+  sessionFilenamePreviewEl.textContent = format
+    ? `Preview: ${format.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key])}`
+    : '';
+}
 
 let config = null;
 let status = {
@@ -209,6 +229,7 @@ function applyConfig(next) {
   sessionFilenameEnabledEl.checked = config.session.filenameFormatEnabled;
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
   sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
+  updateFilenamePreview();
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
   if (!sameViews) {
@@ -840,8 +861,10 @@ for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, 
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
 });
+for (const el of [sessionSeasonEl, sessionEpisodeEl, sessionFilenameFormatEl]) el.addEventListener('input', updateFilenamePreview);
 sessionEpisodeIncrementEl.addEventListener('click', () => {
   sessionEpisodeEl.value = String((Number(sessionEpisodeEl.value) || 0) + 1);
+  updateFilenamePreview();
   scheduleSave();
 });
 $('clear-session').addEventListener('click', () => api.clearSession());
