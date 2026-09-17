@@ -1862,12 +1862,18 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
       // The saved value might not be in the live list (OBS not connected,
       // or the scene/source was since renamed or removed) -- keep it
       // selectable rather than silently discarding it on the next save.
+      // The warning goes at the FRONT of the label, not the end: a closed
+      // <select> only ever shows the start of its selected option's text,
+      // so an "(not currently in OBS)" suffix was invisible until the user
+      // actually opened the dropdown.
       if (step.param && !options.includes(step.param)) {
         const opt = document.createElement('option');
         opt.value = step.param;
-        opt.textContent = `${step.param} (not currently in OBS)`;
+        opt.textContent = `[!] ${step.param} — not in OBS`;
+        opt.style.color = 'var(--danger)';
         opt.selected = true;
         paramSelect.appendChild(opt);
+        paramSelect.classList.add('automation-step-param-missing');
       }
       row.appendChild(paramSelect);
     }
@@ -1942,9 +1948,11 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         if (step.dataField && !registered.some((f) => f.key === step.dataField)) {
           const opt = document.createElement('option');
           opt.value = step.dataField;
-          opt.textContent = `${step.dataField} (not currently registered)`;
+          opt.textContent = `[!] ${step.dataField} — not registered`;
+          opt.style.color = 'var(--danger)';
           opt.selected = true;
           fieldSelect.appendChild(opt);
+          fieldSelect.classList.add('automation-step-param-missing');
         }
         row.appendChild(fieldSelect);
       }

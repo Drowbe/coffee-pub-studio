@@ -1236,6 +1236,14 @@ select.automation-step-valuetype {
   min-width: 110px;
 }
 
+/* A step's source/scene/data-field picker still pointing at a name that no
+   longer exists (renamed or deleted in OBS, or a field never registered) --
+   a red border so it reads as wrong even collapsed, since a closed <select>
+   only shows the start of its selected option's own [!]-prefixed label. */
+select.automation-step-param-missing {
+  border-color: var(--danger);
+}
+
 .activity-log-box {
   border: 1px solid var(--border);
   border-radius: 6px;
