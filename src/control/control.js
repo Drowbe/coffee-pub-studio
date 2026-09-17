@@ -333,6 +333,33 @@ function renderConnectionsBoard() {
     if (cls) dot.classList.add(cls);
     chip.querySelector('.connection-state').textContent = label;
   }
+  renderActivityLog(status.activity || []);
+}
+
+// The Connections card's log: state changes and errors from OBS, Tavern,
+// and Automations, plus every automation event received -- one shared feed
+// for troubleshooting a bad connection, fed by src/main.js's logActivity().
+function renderActivityLog(events) {
+  const list = $('connections-activity');
+  const empty = $('connections-activity-empty');
+  list.textContent = '';
+  empty.hidden = events.length > 0;
+  for (const e of events.slice(0, 50)) {
+    const row = document.createElement('div');
+    row.className = 'activity-row';
+    if (e.level === 'error') row.classList.add('level-error');
+    const time = document.createElement('span');
+    time.className = 'activity-time';
+    time.textContent = new Date(e.at).toLocaleTimeString();
+    const source = document.createElement('span');
+    source.className = 'activity-source';
+    source.textContent = e.source;
+    const text = document.createElement('span');
+    text.className = 'activity-event';
+    text.textContent = e.event;
+    row.append(time, source, text);
+    list.appendChild(row);
+  }
 }
 
 function renderStatus() {
@@ -1363,8 +1390,6 @@ const automationsEls = {
   addRuleset: $('automations-add-ruleset'),
   testEvent: $('automations-test-event'),
   sendTest: $('automations-send-test'),
-  events: $('automations-events'),
-  eventsEmpty: $('automations-events-empty'),
 };
 
 // What each OBS action means, what kind of thing its `param` holds
@@ -1548,27 +1573,6 @@ function renderAutomationsStatus() {
   const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
   automationsEls.status.textContent = labels[a.state] || '';
   automationsEls.status.classList.toggle('hint-error', a.state === 'error');
-  renderAutomationsEvents(a.events || []);
-}
-
-function renderAutomationsEvents(events) {
-  automationsEls.events.textContent = '';
-  automationsEls.eventsEmpty.hidden = events.length > 0;
-  for (const e of events.slice(0, 20)) {
-    const row = document.createElement('div');
-    row.className = 'automations-event-row';
-    const time = document.createElement('span');
-    time.className = 'automations-event-time';
-    time.textContent = new Date(e.at).toLocaleTimeString();
-    const name = document.createElement('span');
-    name.className = 'automations-event-name';
-    name.textContent = e.event;
-    const data = document.createElement('span');
-    data.className = 'automations-event-data hint';
-    data.textContent = e.data && Object.keys(e.data).length ? JSON.stringify(e.data) : '';
-    row.append(time, name, data);
-    automationsEls.events.appendChild(row);
-  }
 }
 
 // Recording/streaming/paused state and which scene button is current, from
@@ -1779,7 +1783,12 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
           return;
         }
         try {
-          await api.automationsRunSteps(timeableActions.map((s) => ({ action: s.action, param: s.param })));
+          // The whole step, not just {action, param} -- a setText step needs
+          // its valueType/value/filePath/dataField to resolve to anything at
+          // all (see resolveTextValue in main.js); sending only action/param
+          // used to make a timed "File" or "Data Field" step write blank
+          // text every time, since there was nothing left to read from.
+          await api.automationsRunSteps(timeableActions.map((s) => ({ ...s })));
         } catch (err) {
           reportError(err);
           return;

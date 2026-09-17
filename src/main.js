@@ -157,11 +157,34 @@ function writeSecret(file, secret) {
 const readObsPassword = () => readSecret(OBS_SECRET_PATH);
 const writeObsPassword = (password) => writeSecret(OBS_SECRET_PATH, password);
 
+// ---------------------------------------------------------------------------
+// Activity log (Connections card, Session tab) -- a shared, in-memory record
+// of state transitions and errors from OBS, Tavern, and Automations, so
+// troubleshooting a bad connection doesn't mean reading main-process console
+// output. Not persisted -- resets on restart.
+// ---------------------------------------------------------------------------
+const ACTIVITY_LOG_LIMIT = 100;
+let activityLog = []; // newest first: {at, source, event, level}
+
+function logActivity(source, event, level = 'info') {
+  activityLog.unshift({ at: Date.now(), source, event, level });
+  activityLog.length = Math.min(activityLog.length, ACTIVITY_LOG_LIMIT);
+  broadcastStatus();
+}
+
 const obs = new ObsBridge({
   getSettings: () => configStore.get().obs,
   getPassword: readObsPassword,
 });
-obs.on('status', () => broadcastStatus());
+let lastObsState = null;
+obs.on('status', (s) => {
+  if (s.state !== lastObsState) {
+    lastObsState = s.state;
+    logActivity('OBS', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 obs.on('connected', () => {
   syncObs().catch(() => {});
   syncTavern().catch(() => {});
@@ -177,7 +200,15 @@ const tavern = new TavernBridge({
 });
 // What the last sync found in OBS, shown on the Tavern tab.
 let tavernSync = { at: 0, inputs: [], created: [], updated: [], renamed: [], missing: [], note: '' };
-tavern.on('status', () => broadcastStatus());
+let lastTavernState = null;
+tavern.on('status', (s) => {
+  if (s.state !== lastTavernState) {
+    lastTavernState = s.state;
+    logActivity('Tavern', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 tavern.on('connected', () => syncTavern().catch(() => {}));
 tavern.on('party', () => syncTavern().catch(() => {}));
 
@@ -471,9 +502,21 @@ async function unpublishPlayer(key, removeFromObs = true) {
 // ---------------------------------------------------------------------------
 
 const automations = new AutomationsServer();
-automations.on('status', () => broadcastStatus());
+let lastAutomationsState = null;
+automations.on('status', (s) => {
+  if (s.state !== lastAutomationsState) {
+    lastAutomationsState = s.state;
+    logActivity('Automations', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 automations.on('event', (entry) => {
-  runAutomationRuleSets(entry).catch((err) => console.warn(`[automations] rule set dispatch failed: ${err.message}`));
+  logActivity('Automations', `Event received: ${entry.event}`, 'info');
+  runAutomationRuleSets(entry).catch((err) => {
+    console.warn(`[automations] rule set dispatch failed: ${err.message}`);
+    logActivity('Automations', `Rule set dispatch failed: ${err.message}`, 'error');
+  });
 });
 
 function requireObs() {
@@ -660,7 +703,9 @@ async function runRuleSet(ruleSet, eventData) {
     await Promise.all(
       stage.steps.map((step) =>
         runAutomationAction(step.action, step.param, eventData, step).catch((err) => {
-          console.warn(`[automations] rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`);
+          const message = `Rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`;
+          console.warn(`[automations] ${message}`);
+          logActivity('Automations', message, 'error');
         })
       )
     );
@@ -676,7 +721,11 @@ async function runAutomationRuleSets(entry) {
   const { ruleSets } = configStore.get().automations;
   const matched = ruleSets.filter((r) => r.enabled && r.event === entry.event);
   for (const ruleSet of matched) {
-    runRuleSet(ruleSet, entry.data).catch((err) => console.warn(`[automations] rule set "${ruleSet.name}" failed: ${err.message}`));
+    runRuleSet(ruleSet, entry.data).catch((err) => {
+      const message = `Rule set "${ruleSet.name}" failed: ${err.message}`;
+      console.warn(`[automations] ${message}`);
+      logActivity('Automations', message, 'error');
+    });
   }
 }
 
@@ -854,6 +903,7 @@ function fullStatus() {
     obs: { ...obs.status(), hasPassword: readObsPassword() !== '' },
     tavern: { ...tavern.status(), hasPassword: readSecret(TAVERN_SECRET_PATH) !== '', sync: tavernSync },
     automations: automations.status(),
+    activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
   };

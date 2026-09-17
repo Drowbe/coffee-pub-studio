@@ -1236,50 +1236,67 @@ select.automation-step-valuetype {
   min-width: 110px;
 }
 
-.automations-events-log {
+.activity-log-box {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-input);
   max-height: 220px;
   overflow-y: auto;
   padding: 8px 10px;
+  margin-top: 10px;
+  user-select: text;
 }
 
-.automations-events-log .hint {
+.activity-log-box .hint {
   margin: 0;
 }
 
-.automations-events {
+.activity-log {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
 }
 
-.automations-event-row {
+.activity-row {
   display: flex;
   gap: 10px;
   align-items: baseline;
-  padding: 2px 0;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
-.automations-event-row + .automations-event-row {
+.activity-row + .activity-row {
   border-top: 1px solid var(--border);
 }
 
-.automations-event-time {
+.activity-time {
   color: var(--text-dim);
   min-width: 72px;
+  flex: none;
 }
 
-.automations-event-name {
+.activity-source {
   font-weight: 600;
+  min-width: 84px;
+  flex: none;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
 }
 
-.automations-event-data {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.activity-event {
+  flex: 1;
+}
+
+.activity-row.level-error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.activity-row.level-error .activity-event,
+.activity-row.level-error .activity-source {
+  color: var(--danger);
 }
 
 .cert-trust-help {

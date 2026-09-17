@@ -53,6 +53,10 @@
             <span class="connection-state hint"></span>
           </div>
         </div>
+        <div class="activity-log-box">
+          <div id="connections-activity" class="activity-log"></div>
+          <p class="hint" id="connections-activity-empty">No activity yet.</p>
+        </div>
       </div>
 
       <div class="card">
@@ -448,20 +452,16 @@
       <div class="card">
         <div class="view-head">
           <div class="view-head-left">
-            <h2>Test &amp; Recent Events</h2>
+            <h2>Test Events</h2>
           </div>
         </div>
-        <p class="hint">Smoke test one of the events above to simulate the end-to-end connection.</p>
+        <p class="hint">Smoke test one of the events above to simulate the end-to-end connection. Recent activity, including this, shows in Connections on the Session tab.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Event</span>
             <input id="automations-test-event" type="text" size="20" placeholder="combat:start" spellcheck="false">
           </label>
           <button id="automations-send-test" class="btn" type="button">Send test event</button>
-        </div>
-        <div class="automations-events-log">
-          <div id="automations-events" class="automations-events"></div>
-          <p class="hint" id="automations-events-empty">No events received yet.</p>
         </div>
       </div>
     </section>

@@ -150,5 +150,22 @@ shape; nothing writes it again once migrated.
 The token is read fresh on every request (`getToken`, passed into `start`) rather than captured
 once, so rotating it in settings takes effect without restarting the server. Comparison is
 timing-safe (`timingSafeEqualStr`). The last 50 received events are kept in memory
-(`EVENT_LOG_LIMIT`) for the control panel's own log; nothing is persisted to disk beyond the
-certificate files and the configured rule sets.
+(`EVENT_LOG_LIMIT`) for `automations.js`'s own `status().events`; nothing is persisted to disk
+beyond the certificate files and the configured rule sets.
+
+## The Connections activity log
+
+A separate, smaller log than `automations.js`'s own `events` -- `activityLog`
+(`src/main.js:167`, capped at `ACTIVITY_LOG_LIMIT` = 100) exists so the Connections card on the
+Session tab can answer "what just happened" across all three services at a glance, not just
+Automations' own. `logActivity(source, event, level)` (`src/main.js:169`) pushes an entry and
+broadcasts; fed from four places: OBS's and Tavern's `'status'` listeners
+(`src/main.js:180`/`204`) only log when `state` itself changed (not every status ping -- OBS/Tavern
+emit `'status'` on routine polling too, e.g. input or output list refreshes, which would otherwise
+spam the log on a timer), Automations' own `'status'` listener the same way (`src/main.js:506`),
+and its `'event'` listener logging every event received (`src/main.js:515`) plus every rule-set
+step or dispatch failure as a `level: 'error'` entry (`src/main.js:518`, `:708`, `:727`) -- the one
+place those failures were previously only a `console.warn`, invisible outside the main process's
+own stdout. The Automations tab's rule-set "Test" button and the "Time it" button both still work
+exactly as before; their effects just show up here instead of (or now, in addition to) the tab
+they were run from. Not persisted, same as `automations.js`'s own log -- resets on restart.
