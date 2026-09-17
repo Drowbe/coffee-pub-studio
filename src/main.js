@@ -480,12 +480,36 @@ function requireObs() {
   if (!obs.connected) throw new Error('OBS is not connected.');
 }
 
+// Substitutes {season}/{episode} (Studio's own stored session.season/
+// .episode, zero-padded to 2 digits) and {title}/{campaign} (from
+// eventData -- whatever triggered this, e.g. Herald's POST /event data;
+// blank when there is none, such as a manual "Time it" run) into a
+// user-configured template. Shared by applyEpisodeText and
+// applySessionFilename; anything OBS's own %-style recording macros use is
+// untouched, since this only ever replaces the four {..} placeholders.
+function formatSessionTemplate(template, eventData) {
+  const s = configStore.get().session;
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const vars = {
+    season: pad2(s.season),
+    episode: pad2(s.episode),
+    title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
+    campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
+  };
+  return template.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key]);
+}
+
 // One step's action -> the OBS or Studio call it makes. `param` is the
 // step's own value: a scene name for sceneSwitch, a source name for
-// sourceShow/sourceHide/sourceToggle, ignored otherwise. OBS actions need
-// OBS connected; Studio actions (everything from wakeAudio down) work
-// regardless -- none of them but syncObs touches OBS at all.
-async function runAutomationAction(action, param) {
+// sourceShow/sourceHide/sourceToggle/setText/applyEpisodeText, ignored
+// otherwise. `eventData` is whatever triggered this (undefined for a
+// manual "Time it" run or a direct action call with none given);
+// `dataField` (only meaningful for setText) names which of its keys to
+// write, defaulting to "text". OBS actions need OBS connected; Studio
+// actions (everything from wakeAudio down) work regardless -- none of them
+// but syncObs and applySessionFilename/applyEpisodeText touch OBS at all,
+// and incrementEpisode doesn't either.
+async function runAutomationAction(action, param, eventData, dataField) {
   switch (action) {
     case 'sceneSwitch':
       requireObs();
@@ -503,6 +527,13 @@ async function runAutomationAction(action, param) {
       requireObs();
       if (!param) throw new Error('sourceToggle needs a source name.');
       return obs.toggleSourceVisible(param);
+    case 'setText': {
+      requireObs();
+      if (!param) throw new Error('setText needs a source name.');
+      const field = dataField || 'text';
+      const value = eventData && typeof eventData[field] === 'string' ? eventData[field] : '';
+      return obs.setInputText(param, value);
+    }
     case 'startRecording':
       requireObs();
       return obs.startRecording();
@@ -537,6 +568,23 @@ async function runAutomationAction(action, param) {
     case 'syncObs':
       requireObs();
       return syncObs();
+    case 'incrementEpisode': {
+      const current = configStore.get();
+      configStore.save({ ...current, session: { ...current.session, episode: current.session.episode + 1 } });
+      broadcastStatus();
+      return;
+    }
+    case 'applyEpisodeText': {
+      requireObs();
+      if (!param) throw new Error('applyEpisodeText needs a text source name.');
+      return obs.setInputText(param, formatSessionTemplate(configStore.get().session.episodeFormat, eventData));
+    }
+    case 'applySessionFilename': {
+      requireObs();
+      const format = configStore.get().session.filenameFormat;
+      if (!format) throw new Error('Set a filename format on the Session tab first.');
+      return obs.setFilenameFormat(formatSessionTemplate(format, eventData));
+    }
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -571,7 +619,7 @@ function sleep(ms) {
 // plain timers Studio keeps itself, not a wait for OBS to confirm anything.
 // One step failing (OBS not connected, a scene that doesn't exist) does not
 // stop the rest of its stage or the stages after it.
-async function runRuleSet(ruleSet) {
+async function runRuleSet(ruleSet, eventData) {
   for (const stage of stagesFor(ruleSet.steps)) {
     if (stage.kind === 'delay') {
       await sleep(stage.seconds * 1000);
@@ -579,7 +627,7 @@ async function runRuleSet(ruleSet) {
     }
     await Promise.all(
       stage.steps.map((step) =>
-        runAutomationAction(step.action, step.param).catch((err) => {
+        runAutomationAction(step.action, step.param, eventData, step.dataField).catch((err) => {
           console.warn(`[automations] rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`);
         })
       )
@@ -596,7 +644,7 @@ async function runAutomationRuleSets(entry) {
   const { ruleSets } = configStore.get().automations;
   const matched = ruleSets.filter((r) => r.enabled && r.event === entry.event);
   for (const ruleSet of matched) {
-    runRuleSet(ruleSet).catch((err) => console.warn(`[automations] rule set "${ruleSet.name}" failed: ${err.message}`));
+    runRuleSet(ruleSet, entry.data).catch((err) => console.warn(`[automations] rule set "${ruleSet.name}" failed: ${err.message}`));
   }
 }
 
@@ -613,7 +661,7 @@ async function syncAutomationsServer() {
       getToken: () => configStore.get().automations.token,
       getRuleSets: () => configStore.get().automations.ruleSets,
       actions: [...AUTOMATIONS_ACTION_SCHEMA, ...studioActions],
-      runAction: (action, param) => runAutomationAction(action, param),
+      runAction: (action, param, data) => runAutomationAction(action, param, data),
       getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
       getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
       getObsStatus: () => {
@@ -1965,7 +2013,10 @@ function registerIpc() {
   // there is a person at the control panel waiting to see whether it worked.
   ipcMain.handle('automations:runSteps', async (_event, steps) => {
     const list = Array.isArray(steps) ? steps : [];
-    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param)));
+    // No real triggering event during a manual test, so a timed setText
+    // step writes an empty string rather than pulling from live data --
+    // there is none to pull from.
+    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param, undefined, s && s.dataField)));
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {

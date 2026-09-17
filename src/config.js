@@ -145,7 +145,7 @@ const AUTOMATIONS_LIMITS = {
   maxDelaySeconds: 3600,
 };
 const AUTOMATIONS_ACTIONS = [
-  'sceneSwitch', 'sourceShow', 'sourceHide', 'sourceToggle',
+  'sceneSwitch', 'sourceShow', 'sourceHide', 'sourceToggle', 'setText',
   'startRecording', 'pauseRecording', 'resumeRecording', 'stopRecording',
   'startStreaming', 'stopStreaming',
 ];
@@ -163,6 +163,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
   { action: 'sourceShow', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'sourceHide', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'sourceToggle', param: 'source name', paramType: 'source', group: 'Sources' },
+  { action: 'setText', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'startRecording', param: null, paramType: 'none', group: 'Controls' },
   { action: 'pauseRecording', param: null, paramType: 'none', group: 'Controls' },
   { action: 'resumeRecording', param: null, paramType: 'none', group: 'Controls' },
@@ -174,7 +175,10 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 // for most of these the way there is for the OBS actions). Every one is off
 // by default and only reaches capabilities / the rule-set step list once
 // ticked on in automations.studioActions -- see the note above.
-const STUDIO_ACTIONS = ['wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs'];
+const STUDIO_ACTIONS = [
+  'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
+  'incrementEpisode', 'applyEpisodeText', 'applySessionFilename',
+];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'startAll', label: 'Start all windows', param: null, paramType: 'none', group: 'Studio Control' },
@@ -182,6 +186,9 @@ const STUDIO_ACTION_SCHEMA = [
   { action: 'dockAll', label: 'Dock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'undockAll', label: 'Undock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'syncObs', label: 'Sync OBS', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'incrementEpisode', label: 'Increment episode number', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'applyEpisodeText', label: 'Write season/episode to a text source', param: 'source name', paramType: 'source', group: 'Studio Control' },
+  { action: 'applySessionFilename', label: 'Apply the session filename format to OBS', param: null, paramType: 'none', group: 'Studio Control' },
 ];
 
 function defaultAutomations() {
@@ -217,6 +224,13 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
     and: Boolean(src.and),
+    // Only meaningful for setText: which key of the triggering event's
+    // `data` to write into the source named by `param`. Defaults to
+    // "text" (both server-side when empty and in the UI's placeholder),
+    // stored explicitly so two setText steps on one event can each read a
+    // different field (e.g. "title" into one source, "campaign" into
+    // another).
+    dataField: typeof src.dataField === 'string' ? src.dataField.trim().slice(0, 60) : '',
   };
 }
 
@@ -331,6 +345,36 @@ function sanitizeTavern(input) {
   };
 }
 
+// Season/episode numbering Studio itself tracks, for the Studio Control
+// actions that write it into OBS (a text source, the recording filename)
+// instead of it being hand-typed into OBS before every session. `season`
+// and `episode` are always zero-padded to 2 digits wherever a template
+// substitutes them in ({season}/{episode}); {title}/{campaign}, the other
+// two placeholders the same templates accept, come from the triggering
+// event's own data, not from here -- see incrementEpisode/applyEpisodeText/
+// applySessionFilename in src/main.js.
+function defaultSession() {
+  return {
+    season: 1,
+    episode: 1,
+    episodeSourceName: '',
+    episodeFormat: 'SEASON {season}              EPISODE {episode}',
+    filenameFormat: '',
+  };
+}
+
+function sanitizeSession(input) {
+  const d = defaultSession();
+  const src = input && typeof input === 'object' ? input : {};
+  return {
+    season: clamp(toInt(src.season, d.season), 0, 999),
+    episode: clamp(toInt(src.episode, d.episode), 0, 9999),
+    episodeSourceName: typeof src.episodeSourceName === 'string' ? src.episodeSourceName.trim().slice(0, 200) : d.episodeSourceName,
+    episodeFormat: typeof src.episodeFormat === 'string' ? src.episodeFormat.slice(0, 300) : d.episodeFormat,
+    filenameFormat: typeof src.filenameFormat === 'string' ? src.filenameFormat.slice(0, 300) : d.filenameFormat,
+  };
+}
+
 // Where the control panel was last left; null lets Electron place it.
 function sanitizePanel(input) {
   if (!input || typeof input !== 'object') return null;
@@ -357,6 +401,7 @@ function defaultConfig() {
     obs: defaultObs(),
     tavern: defaultTavern(),
     automations: defaultAutomations(),
+    session: defaultSession(),
     // No windows on a fresh install -- the user adds and points each one at
     // whatever they're actually running via the "+" tab.
     views: [],
@@ -463,6 +508,7 @@ function sanitizeConfig(input) {
     obs: sanitizeObs(src.obs),
     tavern: sanitizeTavern(src.tavern),
     automations: sanitizeAutomations(src.automations),
+    session: sanitizeSession(src.session),
     panel: sanitizePanel(src.panel),
     views,
   };

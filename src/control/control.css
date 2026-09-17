@@ -1089,7 +1089,8 @@ select:focus {
 }
 
 .ruleset-group,
-.automation-step-seconds {
+.automation-step-seconds,
+.automation-step-datafield {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1101,7 +1102,8 @@ select:focus {
 
 .ruleset-name:focus,
 .ruleset-group:focus,
-.automation-step-seconds:focus {
+.automation-step-seconds:focus,
+.automation-step-datafield:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1210,6 +1212,10 @@ select:focus {
 
 .automation-step-seconds {
   width: 64px;
+}
+
+.automation-step-datafield {
+  width: 90px;
 }
 
 .automation-step select {

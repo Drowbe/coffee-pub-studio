@@ -537,6 +537,22 @@ class ObsBridge extends EventEmitter {
     await this.obs.call('SetCurrentProgramScene', { sceneName });
   }
 
+  // Overwrites a text source's displayed text -- works for OBS's own text
+  // input kinds (confirmed live against obs_text_pthread_source_v2, macOS's
+  // text source), which all carry a plain `text` field in inputSettings.
+  async setInputText(sourceName, text) {
+    await this.obs.call('SetInputSettings', { inputName: sourceName, inputSettings: { text: String(text) } });
+  }
+
+  // The recording filename *format* (OBS's Output > Recording > Filename
+  // Formatting) -- the only filename-related thing OBS's WebSocket API
+  // actually exposes for setting; there is no request for a literal
+  // one-off filename, only this template (still expanded by OBS itself at
+  // record time for its own %CCYY-style macros) and the output directory.
+  async setFilenameFormat(value) {
+    await this.obs.call('SetProfileParameter', { parameterCategory: 'Output', parameterName: 'FilenameFormatting', parameterValue: value });
+  }
+
   async startRecording() {
     await this.obs.call('StartRecord');
   }

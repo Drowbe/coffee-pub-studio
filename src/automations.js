@@ -54,7 +54,7 @@ class AutomationsServer extends EventEmitter {
     this.getToken = null;
     this.getRuleSets = null; // () => the currently configured rule sets -- see GET /api/automations/capabilities
     this.actions = []; // the static action vocabulary Studio supports, same endpoint
-    this.runAction = null; // (action, param) => Promise -- see POST /api/automations/action
+    this.runAction = null; // (action, param, data) => Promise -- see POST /api/automations/action
     this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
     this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
     this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
@@ -304,9 +304,14 @@ class AutomationsServer extends EventEmitter {
           return send(400, { error: `Unknown or currently disabled action: ${action}` });
         }
         const param = typeof body.param === 'string' ? body.param.trim().slice(0, 200) : '';
+        // Optional, for an action like setText that needs a value beyond
+        // param -- mirrors /event's own {event, data} shape. setText reads
+        // data.text by default (there's no per-request field-name override
+        // here the way a saved rule-set step's own dataField gives it).
+        const data = body.data && typeof body.data === 'object' ? body.data : undefined;
         if (!this.runAction) return send(500, { error: 'Studio is not ready to run actions.' });
         try {
-          await this.runAction(action, param);
+          await this.runAction(action, param, data);
           send(200, { ok: true });
         } catch (err) {
           send(500, { error: describeError(err) });

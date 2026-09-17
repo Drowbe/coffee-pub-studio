@@ -27,6 +27,12 @@ const collapseEl = $('collapse');
 const dockEnabledEl = $('dock-enabled');
 const dockSideEl = $('dock-side');
 const dockOverlapEl = $('dock-overlap');
+const sessionSeasonEl = $('session-season');
+const sessionEpisodeEl = $('session-episode');
+const sessionEpisodeIncrementEl = $('session-episode-increment');
+const sessionEpisodeSourceEl = $('session-episode-source');
+const sessionEpisodeFormatEl = $('session-episode-format');
+const sessionFilenameFormatEl = $('session-filename-format');
 
 let config = null;
 let status = {
@@ -195,6 +201,11 @@ function applyConfig(next) {
   obsAutoEl.checked = config.obs.autoConnect;
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
+  if (document.activeElement !== sessionSeasonEl) sessionSeasonEl.value = String(config.session.season);
+  if (document.activeElement !== sessionEpisodeEl) sessionEpisodeEl.value = String(config.session.episode);
+  if (document.activeElement !== sessionEpisodeSourceEl) sessionEpisodeSourceEl.value = config.session.episodeSourceName;
+  if (document.activeElement !== sessionEpisodeFormatEl) sessionEpisodeFormatEl.value = config.session.episodeFormat;
+  if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
   if (!sameViews) {
@@ -764,6 +775,13 @@ async function flushSave() {
     config.wakeAudioDelay = Number(wakeDelayEl.value);
     config.dock = { enabled: dockEnabledEl.checked, side: dockSideEl.value === 'left' ? 'left' : 'right', overlap: Number(dockOverlapEl.value) };
     if (arrangeDisplayEl.value) config.arrangeDisplayId = Number(arrangeDisplayEl.value);
+    config.session = {
+      season: Number(sessionSeasonEl.value) || 0,
+      episode: Number(sessionEpisodeEl.value) || 0,
+      episodeSourceName: sessionEpisodeSourceEl.value,
+      episodeFormat: sessionEpisodeFormatEl.value,
+      filenameFormat: sessionFilenameFormatEl.value,
+    };
     const saved = await api.saveConfig(config);
     setSaveState('All changes saved');
     applyConfig(saved);
@@ -787,9 +805,13 @@ arrangeDisplayEl.addEventListener('change', () => {
   config.arrangeDisplayId = Number(arrangeDisplayEl.value);
   scheduleSave();
 });
-for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl]) el.addEventListener('change', scheduleSave);
+for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionSeasonEl, sessionEpisodeEl, sessionEpisodeSourceEl, sessionEpisodeFormatEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
+});
+sessionEpisodeIncrementEl.addEventListener('click', () => {
+  sessionEpisodeEl.value = String((Number(sessionEpisodeEl.value) || 0) + 1);
+  scheduleSave();
 });
 $('clear-session').addEventListener('click', () => api.clearSession());
 $('reveal-config').addEventListener('click', () => api.revealConfig());
@@ -1355,6 +1377,7 @@ const AUTOMATION_ACTIONS = [
   { value: 'sourceShow', label: 'Show source', paramType: 'source', group: 'Sources' },
   { value: 'sourceHide', label: 'Hide source', paramType: 'source', group: 'Sources' },
   { value: 'sourceToggle', label: 'Toggle source', paramType: 'source', group: 'Sources' },
+  { value: 'setText', label: 'Set text on source', paramType: 'source', group: 'Sources' },
   { value: 'startRecording', label: 'Start recording', paramType: 'none', group: 'Controls' },
   { value: 'pauseRecording', label: 'Pause recording', paramType: 'none', group: 'Controls' },
   { value: 'resumeRecording', label: 'Resume recording', paramType: 'none', group: 'Controls' },
@@ -1372,6 +1395,9 @@ const STUDIO_ACTIONS = [
   { value: 'dockAll', label: 'Dock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'undockAll', label: 'Undock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'syncObs', label: 'Sync OBS', paramType: 'none', group: 'Studio Control' },
+  { value: 'incrementEpisode', label: 'Increment episode number', paramType: 'none', group: 'Studio Control' },
+  { value: 'applyEpisodeText', label: 'Write season/episode to a text source', paramType: 'source', group: 'Studio Control' },
+  { value: 'applySessionFilename', label: 'Apply the session filename format to OBS', paramType: 'none', group: 'Studio Control' },
 ];
 
 // Live OBS scene/source names, refreshed by refreshAutomationsScenes() below
@@ -1835,6 +1861,23 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         paramSelect.appendChild(opt);
       }
       row.appendChild(paramSelect);
+    }
+
+    // setText's actual value comes from the triggering event's data, not a
+    // fixed param -- this names which key of it to read. Two setText steps
+    // on one event, each with a different dataField, is how one event sets
+    // two different sources (a title into one, a campaign name into
+    // another).
+    if (step.action === 'setText') {
+      const dataFieldInput = document.createElement('input');
+      dataFieldInput.type = 'text';
+      dataFieldInput.className = 'automation-step-datafield';
+      dataFieldInput.spellcheck = false;
+      dataFieldInput.placeholder = 'text';
+      dataFieldInput.title = 'Which key of the triggering event\'s data to write -- e.g. "title" or "campaign". Defaults to "text".';
+      dataFieldInput.value = step.dataField || '';
+      dataFieldInput.dataset.sfield = 'dataField';
+      row.appendChild(dataFieldInput);
     }
   }
 

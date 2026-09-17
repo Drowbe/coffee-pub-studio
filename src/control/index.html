@@ -56,6 +56,39 @@
       </div>
 
       <div class="card">
+        <h2>Episode</h2>
+        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong>, <strong>Write season/episode to a text source</strong>, and <strong>Apply the session filename format to OBS</strong> use these. <code>{title}</code> and <code>{campaign}</code> in either format below come from whatever triggered the rule set (a Foundry module's event data), not from here.</p>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Season</span>
+            <input id="session-season" type="number" min="0" max="999" step="1" size="4">
+          </label>
+          <label class="field field-inline">
+            <span>Episode</span>
+            <input id="session-episode" type="number" min="0" max="9999" step="1" size="4">
+          </label>
+          <button id="session-episode-increment" class="btn btn-small" type="button" title="Bump the episode number by 1, the same as the Studio Control action">+1 episode</button>
+        </div>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Text source</span>
+            <input id="session-episode-source" type="text" spellcheck="false" placeholder="Episode NUMBER">
+          </label>
+          <label class="field field-inline">
+            <span>Format</span>
+            <input id="session-episode-format" type="text" spellcheck="false" placeholder="SEASON {season}              EPISODE {episode}">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field field-inline">
+            <span>Recording filename format</span>
+            <input id="session-filename-format" type="text" spellcheck="false" placeholder="Show S{season}E{episode} - {campaign} - %CCYY-%MM-%DD">
+          </label>
+        </div>
+        <p class="hint">Leave the filename format blank to leave OBS's own Filename Formatting setting alone -- <strong>Apply the session filename format to OBS</strong> refuses to run rather than clearing it.</p>
+      </div>
+
+      <div class="card">
         <h2>Layout &amp; Startup</h2>
         <div class="row">
           <label class="field field-inline">

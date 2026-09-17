@@ -64,9 +64,11 @@ Content-Type: application/json
   calling module's side. This is also how a caller triggers a rule set on demand, by name, from a
   menu built from `GET /api/automations/capabilities` below: just POST the same event a rule set
   is configured to react to.
-- `data` (object, optional) is shown back in Studio's Recent Events log for a human to read. No
-  action currently reads any field from it; sending whatever is cheaply available (a scene name, a
-  combat id) costs nothing and may be used by a future rule type.
+- `data` (object, optional) is shown back in Studio's Recent Events log for a human to read, and
+  is also what a `setText` step reads its value from (see the actions table below) and what
+  `applyEpisodeText`/`applySessionFilename`'s `{title}`/`{campaign}` placeholders come from.
+  Sending whatever is cheaply available (a scene name, a combat id) beyond what a rule set
+  actually uses still costs nothing.
 - The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
   request), 401 (missing or wrong token), or 404 (wrong path or method) otherwise.
 - A 200 means Studio accepted and logged the event, not that a matched rule set's sequence
@@ -187,6 +189,7 @@ under HTTPS.
 | `sourceShow` | Sources | Makes a source visible in every scene it is used in | the exact OBS source name |
 | `sourceHide` | Sources | Hides a source in every scene it is used in | the exact OBS source name |
 | `sourceToggle` | Sources | Flips a source's current visibility -- one event both shows and hides, so a caller does not need to track state itself or send two different events | the exact OBS source name |
+| `setText` | Sources | Overwrites a text source's displayed text | the exact OBS source name |
 | `startRecording` | Controls | Starts OBS recording | not used |
 | `pauseRecording` | Controls | Pauses OBS recording (recording must already be running) | not used |
 | `resumeRecording` | Controls | Resumes a paused OBS recording | not used |
@@ -194,8 +197,18 @@ under HTTPS.
 | `startStreaming` | Controls | Starts OBS streaming | not used |
 | `stopStreaming` | Controls | Stops OBS streaming | not used |
 
-All ten reuse the same OBS WebSocket connection Studio already keeps for everything else; there is
-no separate connection or credential for Automations to reach OBS, and all ten need it connected.
+All eleven reuse the same OBS WebSocket connection Studio already keeps for everything else; there
+is no separate connection or credential for Automations to reach OBS, and all eleven need it
+connected.
+
+`setText`'s actual text does not come from `param` (that names which source to write to) -- it
+comes from the triggering event's own `data`, read from whichever key a rule set step's own
+`dataField` names (Studio's own business, not part of this API), defaulting to `"text"`. A
+`POST /api/automations/action` call always uses the default `"text"` key (see below); there is no
+way to pick a different key from a direct call. So `{"event": "session:start", "data": {"title":
+"Darn Skarn", "campaign": "The Burden of Knowledge"}}` can drive two different `setText` steps in
+one rule set -- one with `dataField: "title"`, one with `dataField: "campaign"` -- each writing a
+different source.
 
 `sceneSwitch` restarts the scene if it is already the active one, rather than the no-op OBS itself
 makes of "switch to the scene already showing" -- otherwise nothing in that scene (a media source,
@@ -207,7 +220,8 @@ genuine no-op.
 ## Studio actions
 
 Off by default -- see the Studio Control card on the Automations tab. Reach into Studio itself,
-not OBS, so (`syncObs` aside) they work even while OBS is disconnected:
+not OBS, so (`syncObs`/`applyEpisodeText`/`applySessionFilename` aside) they work even while OBS
+is disconnected:
 
 | Action | What it does |
 | --- | --- |
@@ -217,6 +231,15 @@ not OBS, so (`syncObs` aside) they work even while OBS is disconnected:
 | `dockAll` | Slides every open window into the edge dock |
 | `undockAll` | Brings every docked window back out |
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
+| `incrementEpisode` | Bumps Studio's own stored episode number by 1 (season is untouched -- there is no auto-increment for that) |
+| `applyEpisodeText` | Writes Studio's stored season/episode into the named text source, formatted by the Session tab's **Format** template (`{season}`/`{episode}` only -- `{title}`/`{campaign}` in this same template still come from the triggering event's `data`, same as everywhere else) |
+| `applySessionFilename` | Writes the Session tab's **Recording filename format** template (all four placeholders) into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything if that template is empty -- it is empty by default, deliberately, since this overwrites a real OBS setting |
+
+Both templates accept the same four placeholders: `{season}` and `{episode}` are Studio's own
+stored numbers (Session tab), always zero-padded to 2 digits; `{title}` and `{campaign}` come from
+the triggering event's `data.title`/`data.campaign`, blank if absent. Anything else in either
+template -- including OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the
+filename format -- passes through untouched; only the four `{...}` placeholders are substituted.
 
 ## Sequences, delays, and running steps together
 
@@ -267,3 +290,25 @@ and the 16 KB/JSON-shape check on Studio's side means a malformed or oversized b
 event; `canvasReady` fires on every scene change (`data: {sceneId: canvas.scene?.id}`) for a
 `scene:change` event. None of the three are specific to Herald -- any module could report them
 the same way.
+
+## Example: session start with title and campaign
+
+A `session:start` event carrying the episode title and campaign name, for a rule set with two
+`setText` steps (`dataField: "title"` targeting an episode-title source, `dataField: "campaign"`
+targeting a campaign-name source) plus `incrementEpisode`, `applyEpisodeText`, and
+`applySessionFilename` all AND-grouped into one stage:
+
+```javascript
+await fetch(`${url}/api/automations/event`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    event: 'session:start',
+    data: { title: 'Darn Skarn', campaign: 'The Burden of Knowledge' },
+  }),
+});
+```
+
+Everything on Studio's side -- which sources get `title`/`campaign`, whether the episode number
+increments, whether the filename format gets touched at all -- is entirely the rule set's own
+configuration; this call looks identical regardless of what Studio does with it.

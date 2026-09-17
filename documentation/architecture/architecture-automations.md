@@ -77,13 +77,39 @@ during development) purely to compute the numbers shown next to each step -- it 
 execution.
 
 `runAutomationAction`'s switch covers two families: OBS actions (`sceneSwitch`, `sourceShow`,
-`sourceHide`, `sourceToggle`, and the recording/streaming controls) all require `obs.connected`
-and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio actions
-(`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`) reach into Studio's own
-window management instead and need no OBS connection at all, except `syncObs` itself. Which Studio
-actions are even reachable is gated by `automations.studioActions` (config.js) -- off by default,
-since they reach further than an OBS action does -- and `syncAutomationsServer` folds only the
-currently-enabled ones into the `actions` list `GET /api/automations/capabilities` returns.
+`sourceHide`, `sourceToggle`, `setText`, and the recording/streaming controls) all require
+`obs.connected` and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio
+actions (`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`,
+`incrementEpisode`, `applyEpisodeText`, `applySessionFilename`) reach into Studio's own state
+instead and need no OBS connection at all, except `syncObs`/`applyEpisodeText`/
+`applySessionFilename`. Which Studio actions are even reachable is gated by
+`automations.studioActions` (config.js) -- off by default, since they reach further than an OBS
+action does -- and `syncAutomationsServer` folds only the currently-enabled ones into the
+`actions` list `GET /api/automations/capabilities` returns.
+
+## Event data reaching a step: setText and the session templates
+
+Every other action's `param` is fixed at edit time (a scene name, a source name) -- `setText`
+needs an actual value nobody types into a step, since the whole point is Herald (or whoever)
+supplying it per event. `runAutomationAction` (`src/main.js:512`) takes two more arguments beyond
+`action`/`param` for exactly this: `eventData` (whatever triggered the run -- `entry.data` from a
+real `POST /event`, whatever a direct `POST /action` call supplied in its own `data`, or
+`undefined` for a manual "Time it" run, which has no real trigger) and `dataField` (only read by
+`setText`, naming which key of `eventData` to write, defaulting to `"text"`). Threading this
+through cost three call sites: `runAutomationRuleSets` (`src/main.js:643`) passes `entry.data`
+into `runRuleSet` (`src/main.js:622`), which passes it and each step's own `dataField` into every
+`runAutomationAction` call; the "Time it" IPC handler and the `/action` route's `runAction` wiring
+both just supply whatever they actually have (`undefined`, or the caller-provided `data`).
+
+`formatSessionTemplate` (`src/main.js:490`) is the other consumer: `applyEpisodeText` and
+`applySessionFilename` both call it to substitute `{season}`/`{episode}` (from `session.season`/
+`.episode`, read fresh from `configStore` and zero-padded) and `{title}`/`{campaign}` (from
+`eventData`, blank if absent) into a user-configured template, leaving anything else in the string
+-- OBS's own `%CCYY`-style recording macros, in `applySessionFilename`'s case -- untouched. Both
+were verified against the real OBS instance this was built against: reading the actual live
+`FilenameFormatting` value and the actual live text-source settings before writing anything,
+confirming `SetProfileParameter`/`SetInputSettings` were the right calls before committing to the
+design, not assumed from the protocol docs alone.
 
 ## Migrating an older config
 
