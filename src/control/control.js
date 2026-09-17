@@ -1863,26 +1863,82 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
       row.appendChild(paramSelect);
     }
 
-    // setText's actual value comes from the triggering event's data, not a
-    // fixed param -- this names which key of it to read. Two setText steps
-    // on one event, each with a different dataField, is how one event sets
-    // two different sources (a title into one, a campaign name into
-    // another).
+    // setText's value is one of three explicit kinds -- "where it goes" is
+    // param above, this picks "what it is": a fixed preset typed once
+    // (no external caller involved at all), a local file Studio re-reads
+    // every run, or a field a connected module has actually registered
+    // (never a name typed blind against an undocumented contract).
     if (step.action === 'setText') {
-      const dataFieldLabel = document.createElement('span');
-      dataFieldLabel.className = 'automation-step-label';
-      dataFieldLabel.textContent = 'data field';
-      row.appendChild(dataFieldLabel);
+      const valueTypeSelect = document.createElement('select');
+      valueTypeSelect.className = 'automation-step-valuetype';
+      valueTypeSelect.dataset.sfield = 'valueType';
+      for (const [v, label] of [['literal', 'Free Text'], ['file', 'File'], ['dataField', 'Data Field']]) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = label;
+        if ((step.valueType || 'literal') === v) opt.selected = true;
+        valueTypeSelect.appendChild(opt);
+      }
+      row.appendChild(valueTypeSelect);
 
-      const dataFieldInput = document.createElement('input');
-      dataFieldInput.type = 'text';
-      dataFieldInput.className = 'automation-step-datafield';
-      dataFieldInput.spellcheck = false;
-      dataFieldInput.placeholder = 'text';
-      dataFieldInput.title = 'The KEY to read from the triggering event\'s data -- not the text value itself. E.g. "title" reads data.title. Defaults to "text" (data.text).';
-      dataFieldInput.value = step.dataField || '';
-      dataFieldInput.dataset.sfield = 'dataField';
-      row.appendChild(dataFieldInput);
+      const valueType = step.valueType || 'literal';
+      if (valueType === 'literal') {
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.className = 'automation-step-value';
+        valueInput.placeholder = 'Text to set';
+        valueInput.value = step.value || '';
+        valueInput.dataset.sfield = 'value';
+        row.appendChild(valueInput);
+      } else if (valueType === 'file') {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'text';
+        fileInput.className = 'automation-step-filepath';
+        fileInput.spellcheck = false;
+        fileInput.placeholder = '/path/to/file.txt';
+        fileInput.value = step.filePath || '';
+        fileInput.dataset.sfield = 'filePath';
+        row.appendChild(fileInput);
+
+        const browseBtn = document.createElement('button');
+        browseBtn.type = 'button';
+        browseBtn.className = 'btn btn-small';
+        browseBtn.textContent = 'Browse';
+        browseBtn.addEventListener('click', async () => {
+          const picked = await api.automationsPickTextFile();
+          if (!picked) return;
+          fileInput.value = picked;
+          step.filePath = picked;
+          saveAutomationsRuleSets();
+        });
+        row.appendChild(browseBtn);
+      } else {
+        const fieldSelect = document.createElement('select');
+        fieldSelect.dataset.sfield = 'dataField';
+        const registered = (status.automations && status.automations.registeredFields) || [];
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = registered.length ? 'Choose a field…' : 'No fields registered yet';
+        fieldSelect.appendChild(blank);
+        for (const f of registered) {
+          const opt = document.createElement('option');
+          opt.value = f.key;
+          opt.textContent = `${f.label} (${f.key})`;
+          if (f.key === step.dataField) opt.selected = true;
+          fieldSelect.appendChild(opt);
+        }
+        // The saved key might not be (or not yet be) registered -- keep it
+        // selectable rather than silently discarding it, same reasoning as
+        // the scene/source pickers above.
+        if (step.dataField && !registered.some((f) => f.key === step.dataField)) {
+          const opt = document.createElement('option');
+          opt.value = step.dataField;
+          opt.textContent = `${step.dataField} (not currently registered)`;
+          opt.selected = true;
+          fieldSelect.appendChild(opt);
+        }
+        row.appendChild(fieldSelect);
+      }
     }
   }
 
@@ -2020,24 +2076,27 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       reportError(new Error('Set this rule set\'s event before testing it.'));
       return;
     }
-    // A setText step reads its value from the triggering event's data, not
-    // a fixed param -- testing with no data at all (what this used to
-    // always send) means it reads nothing and writes blank text, no
-    // matter what the step is configured with. Ask for real data,
-    // pre-filled with every setText step's own dataField (default
-    // "text") as an empty skeleton, so there's something to actually
+    // Only a "Data Field" setText step genuinely needs external test data
+    // -- "Free Text" and "File" are self-contained and already run
+    // correctly with none. Testing with no data at all for a Data Field
+    // step (what this used to always send, unconditionally) means it
+    // reads nothing and writes blank text no matter what it's configured
+    // with. Ask for real data, pre-filled with every such step's own
+    // dataField as an empty skeleton, so there's something to actually
     // fill in rather than silently testing blank.
     let data = {};
     const fields = [
       ...new Set(
-        ruleSet.steps.filter((s) => s.type === 'action' && s.action === 'setText').map((s) => s.dataField || 'text')
+        ruleSet.steps
+          .filter((s) => s.type === 'action' && s.action === 'setText' && s.valueType === 'dataField')
+          .map((s) => s.dataField || 'text')
       ),
     ];
     if (fields.length) {
       const skeleton = {};
       for (const f of fields) skeleton[f] = '';
       const input = window.prompt(
-        'This rule set has a step that reads event data (setText). Enter test data as JSON:',
+        'This rule set has a step reading a Data Field. Enter test data as JSON:',
         JSON.stringify(skeleton)
       );
       if (input === null) return; // cancelled

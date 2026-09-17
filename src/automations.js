@@ -61,6 +61,14 @@ class AutomationsServer extends EventEmitter {
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
+    // Data fields a connected module has told us it will send, via
+    // POST /api/automations/fields -- [{key, label}], newest registration
+    // wholesale replacing whatever was there before. In memory only, same
+    // as `events`: reset on restart, repopulated once a module reconnects
+    // and re-registers. Lets a setText step's "Data Field" picker be a
+    // real dropdown of what a module says it provides, instead of a name
+    // typed blind against an undocumented contract.
+    this.registeredFields = [];
   }
 
   status() {
@@ -70,6 +78,7 @@ class AutomationsServer extends EventEmitter {
       port: this.port,
       addresses: this.state === 'listening' ? lanAddresses() : [],
       events: this.events,
+      registeredFields: this.registeredFields,
     };
   }
 
@@ -316,6 +325,50 @@ class AutomationsServer extends EventEmitter {
         } catch (err) {
           send(500, { error: describeError(err) });
         }
+      });
+      return;
+    }
+
+    // Lets a connected module declare what it will actually put in a
+    // future POST /event's `data` -- the other half of the discovery
+    // GET /capabilities already gives a caller about Studio. Wholesale
+    // replaces whatever was registered before (this is "here is my
+    // current full list", not "add to the list"), so a module can just
+    // call this once at connect time, or again whenever its own fields
+    // change, without needing to track what it registered last time.
+    if (req.method === 'POST' && url === '/api/automations/fields') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      let size = 0;
+      const chunks = [];
+      let tooBig = false;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > MAX_BODY_BYTES) {
+          tooBig = true;
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', () => {
+        if (tooBig) return;
+        let body;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        } catch (err) {
+          return send(400, { error: 'Invalid JSON' });
+        }
+        const fields = Array.isArray(body.fields) ? body.fields : [];
+        this.registeredFields = fields
+          .filter((f) => f && typeof f.key === 'string' && f.key.trim())
+          .slice(0, 100)
+          .map((f) => {
+            const key = f.key.trim().slice(0, 60);
+            const label = typeof f.label === 'string' && f.label.trim() ? f.label.trim().slice(0, 120) : key;
+            return { key, label };
+          });
+        this.emit('status', this.status());
+        send(200, { ok: true, fields: this.registeredFields });
       });
       return;
     }

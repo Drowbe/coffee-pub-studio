@@ -66,6 +66,7 @@ contextBridge.exposeInMainWorld('coffeePub', {
   automationsSetSettings: (settings) => ipcRenderer.invoke('automations:setSettings', settings),
   automationsTestEvent: (eventName, data) => ipcRenderer.invoke('automations:testEvent', eventName, data),
   automationsRunSteps: (steps) => ipcRenderer.invoke('automations:runSteps', steps),
+  automationsPickTextFile: () => ipcRenderer.invoke('automations:pickTextFile'),
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('status', listener);

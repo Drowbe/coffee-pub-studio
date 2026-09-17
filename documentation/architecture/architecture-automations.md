@@ -87,29 +87,54 @@ instead and need no OBS connection at all, except `syncObs`/`applyEpisodeText`/
 action does -- and `syncAutomationsServer` folds only the currently-enabled ones into the
 `actions` list `GET /api/automations/capabilities` returns.
 
-## Event data reaching a step: setText and the session templates
+## Where setText's value actually comes from
 
 Every other action's `param` is fixed at edit time (a scene name, a source name) -- `setText`
-needs an actual value nobody types into a step, since the whole point is Herald (or whoever)
-supplying it per event. `runAutomationAction` (`src/main.js:512`) takes two more arguments beyond
-`action`/`param` for exactly this: `eventData` (whatever triggered the run -- `entry.data` from a
-real `POST /event`, whatever a direct `POST /action` call supplied in its own `data`, or
-`undefined` for a manual "Time it" run, which has no real trigger) and `dataField` (only read by
-`setText`, naming which key of `eventData` to write, defaulting to `"text"`). Threading this
-through cost three call sites: `runAutomationRuleSets` (`src/main.js:643`) passes `entry.data`
-into `runRuleSet` (`src/main.js:622`), which passes it and each step's own `dataField` into every
-`runAutomationAction` call; the "Time it" IPC handler and the `/action` route's `runAction` wiring
-both just supply whatever they actually have (`undefined`, or the caller-provided `data`).
+needs an actual value nobody necessarily types into a step at all, and there are three genuinely
+different sources for it, not one: a fixed value typed once (no external caller involved), a
+local file Studio re-reads on every run, or a key read from whatever triggered this. Conflating
+these into one free-text field was tried first and rejected live: it made a user type a literal
+test value into a box that was actually a lookup key, and testing it sent no data at all to look
+the key up against regardless, so every test wrote blank text no matter what was typed -- both
+confirmed by reproducing them against the real app before redesigning.
 
-`formatSessionTemplate` (`src/main.js:490`) is the other consumer: `applyEpisodeText` and
-`applySessionFilename` both call it to substitute `{season}`/`{episode}` (from `session.season`/
-`.episode`, read fresh from `configStore` and zero-padded) and `{title}`/`{campaign}` (from
-`eventData`, blank if absent) into a user-configured template, leaving anything else in the string
--- OBS's own `%CCYY`-style recording macros, in `applySessionFilename`'s case -- untouched. Both
-were verified against the real OBS instance this was built against: reading the actual live
-`FilenameFormatting` value and the actual live text-source settings before writing anything,
-confirming `SetProfileParameter`/`SetInputSettings` were the right calls before committing to the
-design, not assumed from the protocol docs alone.
+`resolveTextValue` (`src/main.js:517`) is the single place that decides: given `stepContext` (a
+rule-set step, or `undefined` for a direct `POST /action` call or a "Time it" run with no step to
+consult) and `eventData` (whatever triggered this -- `entry.data` from a real `POST /event`, a
+direct call's own `data`, or `undefined`), it returns `stepContext.value` for `"literal"`, reads
+`stepContext.filePath` off disk for `"file"`, or indexes `eventData[stepContext.dataField]` for
+`"dataField"` -- falling back to the original `eventData.text` convention when there's no
+`stepContext` at all, since a direct caller already fully controls what it sends. Getting the
+whole step (not just a resolved value) to `runAutomationAction` (`src/main.js:546`) cost the same
+three call sites as before: `runAutomationRuleSets` (`src/main.js:675`) passes `entry.data` into
+`runRuleSet` (`src/main.js:654`), which now passes the step object itself (not just its
+`dataField`) into every
+`runAutomationAction` call; the "Time it" IPC handler does the same, which is also why "Time it"
+on a `"literal"`/`"file"` setText step now actually works (it never could before, since it always
+ran with no data at all to read from).
+
+`formatSessionTemplate` (`src/main.js:490`) is the other consumer of `eventData`: `applyEpisodeText`
+and `applySessionFilename` both call it to substitute `{season}`/`{episode}` (from
+`session.season`/`.episode`, read fresh from `configStore` and zero-padded) and
+`{title}`/`{campaign}` (from `eventData`, blank if absent) into a user-configured template,
+leaving anything else in the string -- OBS's own `%CCYY`-style recording macros, in
+`applySessionFilename`'s case -- untouched. Both were verified against the real OBS instance this
+was built against: reading the actual live `FilenameFormatting` value and the actual live
+text-source settings before writing anything, confirming `SetProfileParameter`/`SetInputSettings`
+were the right calls before committing to the design, not assumed from the protocol docs alone.
+
+## Field registration: making "Data Field" a real dropdown
+
+A `dataField` key typed blind is a name guessed against an undocumented contract -- the user has
+no way to know what Herald will actually send without reading Herald's own source. `POST
+/api/automations/fields` (`src/automations.js`) is the fix: a connected module declares its
+fields (`{key, label}` pairs) once, wholesale-replacing whatever was registered before each time
+it's called, stored on `this.registeredFields` and folded into `status()` the same way `events`
+already is. Studio's step editor (`src/control/control.js`) reads `status.automations
+.registeredFields` to build the "Data Field" dropdown -- the same discoverability pattern already
+used for scene/source pickers, just running in the other direction (a caller telling Studio about
+itself, instead of Studio telling a caller about itself). In memory only, same as `events`: reset
+on a Studio restart, repopulated whenever the module reconnects and registers again.
 
 ## Migrating an older config
 

@@ -175,6 +175,40 @@ Content-Type: application/json
   succeeded, not just whether Studio accepted the request. `200 {"ok": true}` means it ran;
   otherwise `400` (bad request) or `500` (the action itself failed -- OBS not connected, a scene
   that doesn't exist) with `{"error": "..."}` explaining why.
+- `data` (object, optional): for `setText`, an alternative to `param` alone -- reads `data.text`
+  as the literal value to write. There is no way to pick a different key from a direct call the
+  way a saved rule-set step's own `dataField` can; that only matters once a rule set is involved.
+
+## POST /api/automations/fields
+
+Declares which fields a caller will actually put in a future `POST /event`'s `data` -- the other
+half of the discovery `GET /capabilities` already gives a caller about Studio. Without this, a
+`setText` step's "Data Field" option has nothing to offer but a blind free-text box, guessing
+against an undocumented contract; with it, that becomes a real dropdown of what a connected module
+says it provides, the same way scene/source pickers work from live OBS data.
+
+```
+POST https://<studio-host>:<port>/api/automations/fields
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"fields": [
+  {"key": "title", "label": "Episode Title"},
+  {"key": "campaign", "label": "Campaign Name"}
+]}
+```
+
+- `fields` (array, required) -- each entry needs a `key` (string; what actually appears in a
+  future `data` object) and may include a human-readable `label` (defaults to `key` if omitted or
+  blank).
+- This call is **wholesale replacement**, not additive -- send your full current list every time,
+  not just what changed. Call it once when connecting, and again whenever the set of fields you
+  provide changes; there's no need to track what was registered last time.
+- Kept in memory only, like the recent-events log -- reset on a Studio restart, gone until the
+  module reconnects and registers again. There is nothing to read back over HTTP; this is
+  Studio-UI-facing state (the "Data Field" dropdown), not something a caller queries.
+- Response: `200 {"ok": true, "fields": [...]}` (the sanitized list actually stored) or `400` for
+  a malformed body.
 
 ## GET /ca.crt
 
@@ -201,14 +235,19 @@ All eleven reuse the same OBS WebSocket connection Studio already keeps for ever
 is no separate connection or credential for Automations to reach OBS, and all eleven need it
 connected.
 
-`setText`'s actual text does not come from `param` (that names which source to write to) -- it
-comes from the triggering event's own `data`, read from whichever key a rule set step's own
-`dataField` names (Studio's own business, not part of this API), defaulting to `"text"`. A
-`POST /api/automations/action` call always uses the default `"text"` key (see below); there is no
-way to pick a different key from a direct call. So `{"event": "session:start", "data": {"title":
-"Darn Skarn", "campaign": "The Burden of Knowledge"}}` can drive two different `setText` steps in
-one rule set -- one with `dataField: "title"`, one with `dataField: "campaign"` -- each writing a
-different source.
+`setText`'s actual text does not come from `param` (that names which source to write to) -- a
+rule-set step picks one of three sources for it, entirely Studio's own business, not part of this
+API's contract: a fixed value typed once, a local file Studio re-reads every run, or a key read
+from the triggering event's own `data`. Only that last kind involves a caller at all -- and only
+a key that's actually been declared via `POST /api/automations/fields` shows up as a choice in
+Studio's own step editor, rather than being typed blind. A direct `POST /api/automations/action`
+call is simpler: it always just reads `data.text` literally (see above), no per-request key choice
+the way a saved step's own field selection gives it.
+
+So `{"event": "session:start", "data": {"title": "Darn Skarn", "campaign": "The Burden of
+Knowledge"}}`, after registering `title` and `campaign` via `POST /api/automations/fields`, can
+drive two different `setText` steps in one rule set -- one reading `title`, one reading
+`campaign` -- each writing a different source.
 
 `sceneSwitch` restarts the scene if it is already the active one, rather than the no-op OBS itself
 makes of "switch to the scene already showing" -- otherwise nothing in that scene (a media source,
@@ -293,10 +332,25 @@ the same way.
 
 ## Example: session start with title and campaign
 
-A `session:start` event carrying the episode title and campaign name, for a rule set with two
-`setText` steps (`dataField: "title"` targeting an episode-title source, `dataField: "campaign"`
-targeting a campaign-name source) plus `incrementEpisode`, `applyEpisodeText`, and
-`applySessionFilename` all AND-grouped into one stage:
+Register the fields once (at connect time is fine), so Studio's own rule-set editor can offer them
+as a real dropdown instead of someone typing `title`/`campaign` blind:
+
+```javascript
+await fetch(`${url}/api/automations/fields`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    fields: [
+      { key: 'title', label: 'Episode Title' },
+      { key: 'campaign', label: 'Campaign Name' },
+    ],
+  }),
+});
+```
+
+Then a `session:start` event carrying both, for a rule set with two `setText` steps (each set to
+"Data Field" in Studio's step editor, one picking `title`, one picking `campaign`) plus
+`incrementEpisode`, `applyEpisodeText`, and `applySessionFilename` all AND-grouped into one stage:
 
 ```javascript
 await fetch(`${url}/api/automations/event`, {

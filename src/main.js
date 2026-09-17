@@ -499,17 +499,51 @@ function formatSessionTemplate(template, eventData) {
   return template.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key]);
 }
 
+// What a setText step actually writes -- "where it goes" is `param`
+// (the source name), this is "what it is", one of three kinds a user
+// picks explicitly rather than one ambiguous free-text field:
+//   - "literal": a fixed value, typed once, the same every run -- no
+//     external caller involved, for a preset the user swaps in by hand
+//     (a rule set is still the way to trigger it) or via Herald picking a
+//     rule set from its own menu with no data needed at all.
+//   - "file": a local text file, read fresh every run.
+//   - "dataField": a key into `eventData` -- whatever triggered this run.
+// `stepContext` is the whole step object for a rule-set-driven run
+// (carrying whichever of value/filePath/dataField its valueType uses), or
+// `undefined` for a direct `POST /api/automations/action` call or a "Time
+// it" step -- undefined keeps the original convention of reading
+// `eventData.text` literally, since a direct caller already fully
+// controls what it sends and has no step config to consult.
+function resolveTextValue(stepContext, eventData) {
+  if (!stepContext) {
+    return eventData && typeof eventData.text === 'string' ? eventData.text : '';
+  }
+  if (stepContext.valueType === 'file') {
+    try {
+      return fs.readFileSync(stepContext.filePath, 'utf8').trim();
+    } catch (err) {
+      throw new Error(`Could not read text file "${stepContext.filePath}": ${err.message}`);
+    }
+  }
+  if (stepContext.valueType === 'dataField') {
+    const field = stepContext.dataField || 'text';
+    return eventData && typeof eventData[field] === 'string' ? eventData[field] : '';
+  }
+  return stepContext.value || ''; // "literal", and the default for anything unrecognised
+}
+
 // One step's action -> the OBS or Studio call it makes. `param` is the
 // step's own value: a scene name for sceneSwitch, a source name for
 // sourceShow/sourceHide/sourceToggle/setText/applyEpisodeText, ignored
 // otherwise. `eventData` is whatever triggered this (undefined for a
 // manual "Time it" run or a direct action call with none given);
-// `dataField` (only meaningful for setText) names which of its keys to
-// write, defaulting to "text". OBS actions need OBS connected; Studio
-// actions (everything from wakeAudio down) work regardless -- none of them
-// but syncObs and applySessionFilename/applyEpisodeText touch OBS at all,
-// and incrementEpisode doesn't either.
-async function runAutomationAction(action, param, eventData, dataField) {
+// `stepContext` (only read by setText, via resolveTextValue above) is the
+// rule-set step itself, or undefined for a direct call. OBS actions need
+// OBS connected; Studio actions (everything from wakeAudio down) work
+// regardless -- none of them but syncObs and
+// applySessionFilename/applyEpisodeText touch OBS at all, and
+// incrementEpisode doesn't either.
+async function runAutomationAction(action, param, eventData, stepContext) {
   switch (action) {
     case 'sceneSwitch':
       requireObs();
@@ -530,9 +564,7 @@ async function runAutomationAction(action, param, eventData, dataField) {
     case 'setText': {
       requireObs();
       if (!param) throw new Error('setText needs a source name.');
-      const field = dataField || 'text';
-      const value = eventData && typeof eventData[field] === 'string' ? eventData[field] : '';
-      return obs.setInputText(param, value);
+      return obs.setInputText(param, resolveTextValue(stepContext, eventData));
     }
     case 'startRecording':
       requireObs();
@@ -627,7 +659,7 @@ async function runRuleSet(ruleSet, eventData) {
     }
     await Promise.all(
       stage.steps.map((step) =>
-        runAutomationAction(step.action, step.param, eventData, step.dataField).catch((err) => {
+        runAutomationAction(step.action, step.param, eventData, step).catch((err) => {
           console.warn(`[automations] rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`);
         })
       )
@@ -2013,10 +2045,25 @@ function registerIpc() {
   // there is a person at the control panel waiting to see whether it worked.
   ipcMain.handle('automations:runSteps', async (_event, steps) => {
     const list = Array.isArray(steps) ? steps : [];
-    // No real triggering event during a manual test, so a timed setText
-    // step writes an empty string rather than pulling from live data --
-    // there is none to pull from.
-    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param, undefined, s && s.dataField)));
+    // No real triggering event during a manual test -- a timed setText
+    // step set to "literal" or "file" still runs correctly (neither needs
+    // one), only "dataField" reads blank, since there is genuinely no
+    // live data to pull from outside a real trigger.
+    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param, undefined, s)));
+  });
+  // A setText step's "File" value type: browse for the local text file
+  // Studio will re-read every time that step runs. Returns the picked
+  // path, or null if the user cancelled.
+  ipcMain.handle('automations:pickTextFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(controlWindow, {
+      title: 'Choose a text file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Text files', extensions: ['txt', 'md', 'log'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    return canceled || !filePaths.length ? null : filePaths[0];
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {

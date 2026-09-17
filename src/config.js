@@ -224,12 +224,21 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
     and: Boolean(src.and),
-    // Only meaningful for setText: which key of the triggering event's
-    // `data` to write into the source named by `param`. Defaults to
-    // "text" (both server-side when empty and in the UI's placeholder),
-    // stored explicitly so two setText steps on one event can each read a
-    // different field (e.g. "title" into one source, "campaign" into
-    // another).
+    // Only meaningful for setText -- "where it goes" is `param` above;
+    // these four are "what it is", one of three kinds a user picks
+    // explicitly rather than there being one ambiguous free-text field
+    // that's sometimes a literal value and sometimes a lookup key:
+    //   - "literal": `value`, typed once, always the same when this step
+    //     runs -- a fixed text preset, no external caller involved at all.
+    //   - "file": `filePath`, a local text file Studio reads fresh every
+    //     time this step runs.
+    //   - "dataField": `dataField`, a key into the triggering event's own
+    //     `data` -- picked from whatever fields a connected module has
+    //     actually registered (POST /api/automations/fields), not typed
+    //     blind against an undocumented contract.
+    valueType: ['literal', 'file', 'dataField'].includes(src.valueType) ? src.valueType : 'literal',
+    value: typeof src.value === 'string' ? src.value.slice(0, 500) : '',
+    filePath: typeof src.filePath === 'string' ? src.filePath.trim().slice(0, 500) : '',
     dataField: typeof src.dataField === 'string' ? src.dataField.trim().slice(0, 60) : '',
   };
 }

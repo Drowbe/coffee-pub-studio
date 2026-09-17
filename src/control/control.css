@@ -1090,7 +1090,8 @@ select:focus {
 
 .ruleset-group,
 .automation-step-seconds,
-.automation-step-datafield {
+.automation-step-value,
+.automation-step-filepath {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1103,7 +1104,8 @@ select:focus {
 .ruleset-name:focus,
 .ruleset-group:focus,
 .automation-step-seconds:focus,
-.automation-step-datafield:focus {
+.automation-step-value:focus,
+.automation-step-filepath:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1214,13 +1216,24 @@ select:focus {
   width: 64px;
 }
 
-.automation-step-datafield {
-  width: 90px;
+.automation-step-value {
+  min-width: 160px;
+  flex: 1;
+}
+
+.automation-step-filepath {
+  min-width: 200px;
+  flex: 1;
 }
 
 .automation-step select {
   min-width: 130px;
   flex: 1;
+}
+
+select.automation-step-valuetype {
+  flex: none;
+  min-width: 110px;
 }
 
 .automations-events {

@@ -27,6 +27,32 @@ determines whether `applySessionFilename` touches a real OBS setting at all, and
 right template (which needs to fold in the existing `%CCYY`-style macros by hand) is a decision
 for whoever actually owns that recording setup, not something to seed with a guess.
 
+### Addendum: `setText`'s value redesigned after real-world use
+
+The first pass gave `setText` a single free-text `dataField` box (a key name to read from the
+triggering event's `data`). Tried against the real app, it broke two ways: the rule set's own
+"Test" button sent no data at all regardless of what was configured, so testing a `setText` step
+always wrote blank text no matter what; and a literal test value ("Some title") got typed into
+what was actually a lookup-key field, which just meant looking up a key that didn't exist -- also
+blank. The deeper problem underneath both: there was no way for someone configuring a rule set to
+know what keys a connected module would actually send, short of reading that module's own source.
+
+Redesigned as a genuine three-way choice, "where it goes" (`param`, unchanged) kept separate from
+"what it is": **Free Text** (a fixed value typed once, no external caller involved at all -- the
+"swap between text presets" case), **File** (a local text file Studio re-reads every run, with a
+native Browse dialog), and **Data Field** (a key read from the triggering event's `data`, now
+populated as a real dropdown instead of typed blind). That last one needed the other half of the
+handshake: `POST /api/automations/fields`, letting a connected module declare which fields it
+actually provides (`{key, label}` pairs), the same discoverability `GET /capabilities` already
+gives in the other direction for scenes/sources/actions. The rule set's Test button now only
+prompts for data when a step is genuinely `"dataField"`-typed -- Free Text and File need none.
+
+All three value types verified live: Free Text and File round-tripped through a real rule-set
+trigger against `Episode NAME`/`Campaign Name` and were restored to their originals afterward; the
+direct `POST /action` endpoint's existing `data.text` convention (unchanged, no step config to
+consult there) reconfirmed still working; the field-registration endpoint confirmed storing and
+returning what was registered.
+
 Below is the original design write-up this was built from.
 
 ### What it needs to do
