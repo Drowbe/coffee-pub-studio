@@ -192,23 +192,40 @@ POST https://<studio-host>:<port>/api/automations/fields
 Authorization: Bearer <token>
 Content-Type: application/json
 
-{"fields": [
-  {"key": "title", "label": "Episode Title"},
-  {"key": "campaign", "label": "Campaign Name"}
-]}
+{
+  "module": "herald",
+  "fields": [
+    {"key": "title", "label": "Episode Title"},
+    {"key": "campaign", "label": "Campaign Name"}
+  ]
+}
 ```
 
+- `module` (string, required) -- a short, stable name identifying *your* module (`"herald"`, not
+  `"Herald v2.3"` -- pick one name and keep calling with that same name). **Required as of this
+  version**; a request without it gets `400 {"error": "\"module\" is required"}`. This exists
+  because registration is scoped per module (see below) -- Studio needs to know whose list it's
+  replacing.
 - `fields` (array, required) -- each entry needs a `key` (string; what actually appears in a
   future `data` object) and may include a human-readable `label` (defaults to `key` if omitted or
   blank).
-- This call is **wholesale replacement**, not additive -- send your full current list every time,
-  not just what changed. Call it once when connecting, and again whenever the set of fields you
-  provide changes; there's no need to track what was registered last time.
-- Kept in memory only, like the recent-events log -- reset on a Studio restart, gone until the
+- This call is **wholesale replacement of your own module's fields only**, not additive and not
+  global -- send your full current list every time, not just what changed, and it will not affect
+  what any other module has registered. Call it once when connecting, and again whenever the set of
+  fields you provide changes; there's no need to track what was registered last time.
+- Kept in memory only, like the recent-events log -- reset on a Studio restart, gone until your
   module reconnects and registers again. There is nothing to read back over HTTP; this is
   Studio-UI-facing state (the "Data Field" dropdown), not something a caller queries.
-- Response: `200 {"ok": true, "fields": [...]}` (the sanitized list actually stored) or `400` for
-  a malformed body.
+- Response: `200 {"ok": true, "fields": [...]}` (the sanitized list actually stored for *your*
+  module) or `400` for a malformed body or a missing `module`.
+
+**Reserved keys.** Studio has its own built-in Data Field entries that always exist, plus whatever
+the person running Studio creates themselves on the Session tab -- `sessionTime`, `sessionDate`,
+`sessionDay`, `sessionMonth`, `sessionYear`, `sessionSeasonNumber`, `sessionEpisodeNumber`, and any
+`session<Something>` key a user-created field has claimed. If your module registers a field using
+one of those exact keys, Studio's own field of that name wins in the "Data Field" dropdown --
+yours is not deleted or rejected, just shadowed. Pick a more specific key if this matters to you
+(`heraldSessionYear` rather than `sessionYear`).
 
 ## GET /ca.crt
 
@@ -340,6 +357,7 @@ await fetch(`${url}/api/automations/fields`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
   body: JSON.stringify({
+    module: 'herald',
     fields: [
       { key: 'title', label: 'Episode Title' },
       { key: 'campaign', label: 'Campaign Name' },
