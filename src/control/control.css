@@ -1236,6 +1236,19 @@ select.automation-step-valuetype {
   min-width: 110px;
 }
 
+.automations-events-log {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+.automations-events-log .hint {
+  margin: 0;
+}
+
 .automations-events {
   display: flex;
   flex-direction: column;
@@ -1247,6 +1260,11 @@ select.automation-step-valuetype {
   display: flex;
   gap: 10px;
   align-items: baseline;
+  padding: 2px 0;
+}
+
+.automations-event-row + .automations-event-row {
+  border-top: 1px solid var(--border);
 }
 
 .automations-event-time {

@@ -451,7 +451,7 @@
             <h2>Test &amp; Recent Events</h2>
           </div>
         </div>
-        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule set.</p>
+        <p class="hint">Smoke test one of the events above to simulate the end-to-end connection.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Event</span>
@@ -459,8 +459,10 @@
           </label>
           <button id="automations-send-test" class="btn" type="button">Send test event</button>
         </div>
-        <div id="automations-events" class="automations-events"></div>
-        <p class="hint" id="automations-events-empty">No events received yet.</p>
+        <div class="automations-events-log">
+          <div id="automations-events" class="automations-events"></div>
+          <p class="hint" id="automations-events-empty">No events received yet.</p>
+        </div>
       </div>
     </section>
 
