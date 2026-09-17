@@ -32,9 +32,13 @@ const sessionEpisodeEl = $('session-episode');
 const sessionEpisodeIncrementEl = $('session-episode-increment');
 const sessionEpisodeSourceEl = $('session-episode-source');
 const sessionEpisodeFormatEl = $('session-episode-format');
+const sessionEpisodeFieldsToggleEl = $('session-episode-fields-toggle');
+const sessionEpisodeFieldsPanelEl = $('session-episode-fields-panel');
 const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
 const sessionFilenamePreviewEl = $('session-filename-preview');
+const sessionFilenameFieldsToggleEl = $('session-filename-fields-toggle');
+const sessionFilenameFieldsPanelEl = $('session-filename-fields-panel');
 const metadataEls = {
   add: $('metadata-add'),
   addForm: $('metadata-add-form'),
@@ -111,6 +115,67 @@ function updateFilenamePreview() {
       )}`
     : '';
 }
+
+// Inserts at the cursor (replacing any current selection) rather than
+// appending, so clicking a field while partway through typing a template
+// lands it exactly where the cursor is, not at the end.
+function insertAtCursor(input, text) {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + text + input.value.slice(end);
+  const pos = start + text.length;
+  input.focus();
+  input.setSelectionRange(pos, pos);
+}
+
+// The "insert a Data Field" panel next to the Episode Format and Filename
+// format inputs -- built from the exact same dataFieldGroups() a setText
+// step's own Data Field dropdown uses (defined further down, alongside
+// buildStepRow), so a registered module's fields, Studio's own Metadata
+// fields, and the evergreen/Season/Episode built-ins are all discoverable
+// here too, not just from an automation step.
+function renderDataFieldPicker(panelEl, inputEl) {
+  panelEl.textContent = '';
+  const groups = dataFieldGroups().filter((g) => g.fields.length);
+  if (!groups.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No Data Fields available yet.';
+    panelEl.appendChild(empty);
+    return;
+  }
+  for (const group of groups) {
+    const wrap = document.createElement('div');
+    const label = document.createElement('div');
+    label.className = 'datafield-picker-group-label';
+    label.textContent = group.label;
+    const chips = document.createElement('div');
+    chips.className = 'datafield-picker-chips';
+    for (const f of group.fields) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'btn btn-small';
+      chip.textContent = f.label;
+      chip.addEventListener('click', () => {
+        insertAtCursor(inputEl, `{${f.key}}`);
+        panelEl.hidden = true;
+        if (inputEl === sessionFilenameFormatEl) updateFilenamePreview();
+        scheduleSave();
+      });
+      chips.appendChild(chip);
+    }
+    wrap.append(label, chips);
+    panelEl.appendChild(wrap);
+  }
+}
+
+function toggleDataFieldPicker(panelEl, inputEl) {
+  panelEl.hidden = !panelEl.hidden;
+  if (!panelEl.hidden) renderDataFieldPicker(panelEl, inputEl);
+}
+
+sessionEpisodeFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionEpisodeFieldsPanelEl, sessionEpisodeFormatEl));
+sessionFilenameFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionFilenameFieldsPanelEl, sessionFilenameFormatEl));
 
 // Kept in lockstep with sanitizeMetadataField's key generation in
 // src/config.js -- generated once here, client-side, when "Add" is

@@ -215,6 +215,17 @@ constant `src/config.js` exports -- small and static enough that duplicating it 
 through IPC, the same reasoning `stageNumbers` reimplementing `stagesFor`'s grouping logic already
 established for this file.
 
+`dataFieldGroups()` has a second caller besides the `setText` step editor: the small "insert a
+Data Field" panel next to the Episode Format and Filename format inputs (`renderDataFieldPicker`,
+toggled by the info button next to each), so the same registered/Metadata/built-in fields
+`formatSessionTemplate` can already resolve by name are also discoverable without knowing the key
+by heart -- clicking one inserts `{key}` at the input's current cursor position
+(`insertAtCursor`), not just appended, so it works mid-edit. A module's own registered fields show
+up here too, one caveat worth knowing: a field only *resolves* correctly here if whatever
+triggered the rule set that runs `applySessionFilename`/`applyEpisodeText` actually sent that key
+in its event `data` -- registering a field only makes it discoverable and offers it as a template
+placeholder, it does not give Studio a value for it outside of an actual triggering event.
+
 ## Migrating an older config
 
 A config saved before rule sets existed has the old flat shape: `automations.rules`, an array of

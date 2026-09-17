@@ -82,7 +82,9 @@
             <span>Format</span>
             <input id="session-episode-format" type="text" spellcheck="false" placeholder="SEASON {season}              EPISODE {episode}">
           </label>
+          <button id="session-episode-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
         </div>
+        <div class="datafield-picker" id="session-episode-fields-panel" hidden></div>
       </div>
 
       <div class="card">
@@ -139,7 +141,9 @@
             <span>Filename format</span>
             <input id="session-filename-format" type="text" spellcheck="false" placeholder="Show S{season}E{episode} - {campaign} - %CCYY-%MM-%DD">
           </label>
+          <button id="session-filename-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
         </div>
+        <div class="datafield-picker" id="session-filename-fields-panel" hidden></div>
         <p class="hint filename-preview" id="session-filename-preview"></p>
       </div>
 
