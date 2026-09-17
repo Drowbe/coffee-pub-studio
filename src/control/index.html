@@ -86,13 +86,10 @@
       </div>
 
       <div class="card">
-        <div class="view-head">
-          <div class="view-head-left">
-            <h2>Metadata</h2>
-          </div>
-          <button id="metadata-add" class="btn btn-small" type="button">New</button>
-        </div>
+        <h2>Metadata</h2>
         <p class="hint">Your own Text, Number, or Text+Number values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. Renaming isn't supported; delete a field and create a new one instead.</p>
+        <div id="metadata-fields" class="metadata-fields"></div>
+        <p class="hint" id="metadata-fields-empty">No metadata fields yet.</p>
         <div class="row" id="metadata-add-form" hidden>
           <label class="field field-inline">
             <span>Label</span>
@@ -123,8 +120,9 @@
           <button id="metadata-add-confirm" class="btn btn-primary btn-small" type="button">Add</button>
           <button id="metadata-add-cancel" class="btn btn-small" type="button">Cancel</button>
         </div>
-        <div id="metadata-fields" class="metadata-fields"></div>
-        <p class="hint" id="metadata-fields-empty">No metadata fields yet.</p>
+        <div class="row">
+          <button id="metadata-add" class="btn btn-small" type="button">New</button>
+        </div>
       </div>
 
       <div class="card">

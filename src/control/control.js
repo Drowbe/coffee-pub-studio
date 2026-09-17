@@ -140,7 +140,7 @@ function renderMetadataFields() {
   const fields = (config && config.metadataFields) || [];
   metadataEls.fields.textContent = '';
   metadataEls.fieldsEmpty.hidden = fields.length > 0;
-  for (const field of fields) {
+  fields.forEach((field, index) => {
     const row = document.createElement('div');
     row.className = 'metadata-field-row';
 
@@ -170,13 +170,13 @@ function renderMetadataFields() {
       numberInput.addEventListener('change', () => updateField({ number: Number(numberInput.value) || 0 }));
 
       // No separator input here -- it's fixed at creation, same as the
-      // order (textNumber vs numberText) and the padding. Shown as plain
-      // text between the two live inputs so the composed shape ("Chapter"
-      // [_] "" [5], reading as "Chapter5") stays visible without being
-      // editable in place.
+      // order (textNumber vs numberText) and the padding. Rendered exactly
+      // as typed, including empty -- any filler character here reads as a
+      // divider the user didn't ask for ("Chapter" + "" + "5" must show as
+      // "Chapter5", not "Chapter—5").
       const sep = document.createElement('span');
       sep.className = 'metadata-field-separator hint';
-      sep.textContent = field.separator || '—'; // em dash: "no separator" still shows as a joint, not a gap
+      sep.textContent = field.separator;
       sep.title = field.separator ? `Separator: "${field.separator}"` : 'No separator';
 
       if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
@@ -197,6 +197,38 @@ function renderMetadataFields() {
     key.className = 'metadata-field-key hint';
     key.textContent = `(data field: ${field.key})`;
 
+    // Display order only -- reordering has no effect on resolution (a
+    // Data Field is always looked up by key), it just lets the list on
+    // screen match whatever hierarchy or grouping makes sense to whoever
+    // is reading it.
+    const reorder = (from, to) => {
+      const next = [...config.metadataFields];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      config.metadataFields = next;
+      renderMetadataFields();
+      updateFilenamePreview();
+      scheduleSave();
+    };
+
+    const moveUp = document.createElement('button');
+    moveUp.type = 'button';
+    moveUp.className = 'btn btn-small btn-icon';
+    moveUp.title = 'Move up';
+    moveUp.setAttribute('aria-label', 'Move up');
+    moveUp.innerHTML = '<i class="fa-solid fa-arrow-up" aria-hidden="true"></i>';
+    moveUp.disabled = index === 0;
+    moveUp.addEventListener('click', () => reorder(index, index - 1));
+
+    const moveDown = document.createElement('button');
+    moveDown.type = 'button';
+    moveDown.className = 'btn btn-small btn-icon';
+    moveDown.title = 'Move down';
+    moveDown.setAttribute('aria-label', 'Move down');
+    moveDown.innerHTML = '<i class="fa-solid fa-arrow-down" aria-hidden="true"></i>';
+    moveDown.disabled = index === fields.length - 1;
+    moveDown.addEventListener('click', () => reorder(index, index + 1));
+
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'btn btn-small btn-icon btn-danger';
@@ -210,9 +242,9 @@ function renderMetadataFields() {
       scheduleSave();
     });
 
-    row.append(label, ...valueEls, key, remove);
+    row.append(label, ...valueEls, key, moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
-  }
+  });
 }
 
 function updateMetadataAddFormVisibility() {
