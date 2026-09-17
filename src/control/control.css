@@ -1172,13 +1172,23 @@ select:focus {
 .ruleset-group,
 .automation-step-seconds,
 .automation-step-value,
-.automation-step-filepath {
+.automation-step-filepath,
+.metadata-field-value {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
   padding: 7px 9px;
   font: inherit;
+}
+
+.ruleset-group,
+.automation-step-seconds,
+.automation-step-value,
+.automation-step-filepath {
+  /* .metadata-field-value keeps its own min-width (120px, set above,
+     with .metadata-field-number narrowing it further) -- this group
+     wants 0 so it can shrink inside a flex row instead. */
   min-width: 0;
 }
 
