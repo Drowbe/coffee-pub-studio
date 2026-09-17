@@ -27,13 +27,6 @@ const collapseEl = $('collapse');
 const dockEnabledEl = $('dock-enabled');
 const dockSideEl = $('dock-side');
 const dockOverlapEl = $('dock-overlap');
-const sessionSeasonEl = $('session-season');
-const sessionEpisodeEl = $('session-episode');
-const sessionEpisodeIncrementEl = $('session-episode-increment');
-const sessionEpisodeSourceEl = $('session-episode-source');
-const sessionEpisodeFormatEl = $('session-episode-format');
-const sessionEpisodeFieldsToggleEl = $('session-episode-fields-toggle');
-const sessionEpisodeFieldsPanelEl = $('session-episode-fields-panel');
 const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
 const sessionFilenamePreviewEl = $('session-filename-preview');
@@ -57,26 +50,19 @@ const METADATA_COMPOUND_TYPES = ['textNumber', 'numberText'];
 // Kept in lockstep with METADATA_FIELD_TYPES in src/config.js.
 const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES];
 
-// A live preview of what applySessionFilename would actually write, mirroring
-// formatSessionTemplate in src/main.js: {season}/{episode} from the Season/
-// Episode fields above (zero-padded, same as the real thing), {title}/
-// {campaign} shown as placeholders since there's no triggering event to read
-// them from here, and OBS's own %-style macros left untouched either way.
 // Mirrors resolveDataField in src/main.js, read-only -- a preview must
-// never actually mutate a Number field or the episode counter just because
-// its format string happens to be visible on screen. {season}/{episode}/
-// {title}/{campaign} keep their own fixed meaning (matching
-// formatSessionTemplate's own legacy aliases); any other {name} is looked
-// up the same way a Data Field picker's options are built (evergreen,
-// Season/Episode, then config.metadataFields), showing (name) when nothing
-// matches -- same spirit as the (title)/(campaign) placeholders below,
-// which truly have no value to show here since there's no triggering event
-// on this tab.
+// never actually mutate a Number field just because its format string
+// happens to be visible on screen. {title}/{campaign} keep their own
+// fixed meaning (matching formatSessionTemplate's own legacy aliases);
+// any other {name} is looked up the same way a Data Field picker's
+// options are built (evergreen, then config.metadataFields), showing
+// (name) when nothing matches -- same spirit as the (title)/(campaign)
+// placeholders below, which truly have no value to show here since
+// there's no triggering event on this tab.
 function previewDataField(key) {
   const match = /^(.+)([+-]1)$/.exec(key);
   const baseKey = match ? match[1] : key;
   const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
-  const pad2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
 
   const now = new Date();
   if (baseKey === 'sessionTime') return now.toLocaleTimeString();
@@ -84,8 +70,6 @@ function previewDataField(key) {
   if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
   if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
   if (baseKey === 'sessionYear') return String(now.getFullYear());
-  if (baseKey === 'sessionSeasonNumber') return pad2((Number(sessionSeasonEl.value) || 0) + delta);
-  if (baseKey === 'sessionEpisodeNumber') return pad2((Number(sessionEpisodeEl.value) || 0) + delta);
 
   const field = ((config && config.metadataFields) || []).find((f) => f.key === baseKey);
   if (field) {
@@ -100,11 +84,12 @@ function previewDataField(key) {
   return `(${key})`;
 }
 
+// A live preview of what applySessionFilename would actually write --
+// {title}/{campaign} shown as placeholders since there's no triggering
+// event to read them from here, and OBS's own %-style macros left
+// untouched either way.
 function updateFilenamePreview() {
-  const pad2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
   const legacy = {
-    season: pad2(sessionSeasonEl.value),
-    episode: pad2(sessionEpisodeEl.value),
     title: '(title)',
     campaign: '(campaign)',
   };
@@ -174,7 +159,6 @@ function toggleDataFieldPicker(panelEl, inputEl) {
   if (!panelEl.hidden) renderDataFieldPicker(panelEl, inputEl);
 }
 
-sessionEpisodeFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionEpisodeFieldsPanelEl, sessionEpisodeFormatEl));
 sessionFilenameFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionFilenameFieldsPanelEl, sessionFilenameFormatEl));
 
 // Kept in lockstep with sanitizeMetadataField's key generation in
@@ -219,6 +203,26 @@ function renderMetadataFields() {
       scheduleSave();
     };
 
+    // A Number field's own "+1"/"-1" -- the manual counterpart to selecting
+    // the same variant from a Data Field picker (mutate + persist, no
+    // automation needed for a one-off manual bump). Re-renders the whole
+    // list afterward since nothing else updates the input's displayed
+    // value for a button-driven change the way typing already does.
+    const bumpButtons = () =>
+      [-1, 1].map((sign) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-small';
+        btn.textContent = sign > 0 ? '+1' : '-1';
+        btn.title = sign > 0 ? 'Add 1' : 'Subtract 1';
+        btn.addEventListener('click', () => {
+          if (field.type === 'number') updateField({ value: Number(field.value) + sign });
+          else updateField({ number: field.number + sign });
+          renderMetadataFields();
+        });
+        return btn;
+      });
+
     const valueEls = [];
     if (METADATA_COMPOUND_TYPES.includes(field.type)) {
       const textInput = document.createElement('input');
@@ -244,8 +248,8 @@ function renderMetadataFields() {
       sep.textContent = field.separator;
       sep.title = field.separator ? `Separator: "${field.separator}"` : 'No separator';
 
-      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
-      else valueEls.push(numberInput, sep, textInput);
+      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput, ...bumpButtons());
+      else valueEls.push(numberInput, ...bumpButtons(), sep, textInput);
     } else {
       const valueInput = document.createElement('input');
       valueInput.type = field.type === 'number' ? 'number' : 'text';
@@ -256,6 +260,7 @@ function renderMetadataFields() {
         updateField({ value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value })
       );
       valueEls.push(valueInput);
+      if (field.type === 'number') valueEls.push(...bumpButtons());
     }
 
     const key = document.createElement('span');
@@ -516,10 +521,6 @@ function applyConfig(next) {
   obsAutoEl.checked = config.obs.autoConnect;
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
-  if (document.activeElement !== sessionSeasonEl) sessionSeasonEl.value = String(config.session.season);
-  if (document.activeElement !== sessionEpisodeEl) sessionEpisodeEl.value = String(config.session.episode);
-  if (document.activeElement !== sessionEpisodeSourceEl) sessionEpisodeSourceEl.value = config.session.episodeSourceName;
-  if (document.activeElement !== sessionEpisodeFormatEl) sessionEpisodeFormatEl.value = config.session.episodeFormat;
   sessionFilenameEnabledEl.checked = config.session.filenameFormatEnabled;
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
   sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
@@ -1122,10 +1123,6 @@ async function flushSave() {
     config.dock = { enabled: dockEnabledEl.checked, side: dockSideEl.value === 'left' ? 'left' : 'right', overlap: Number(dockOverlapEl.value) };
     if (arrangeDisplayEl.value) config.arrangeDisplayId = Number(arrangeDisplayEl.value);
     config.session = {
-      season: Number(sessionSeasonEl.value) || 0,
-      episode: Number(sessionEpisodeEl.value) || 0,
-      episodeSourceName: sessionEpisodeSourceEl.value,
-      episodeFormat: sessionEpisodeFormatEl.value,
       filenameFormat: sessionFilenameFormatEl.value,
       filenameFormatEnabled: sessionFilenameEnabledEl.checked,
     };
@@ -1152,16 +1149,11 @@ arrangeDisplayEl.addEventListener('change', () => {
   config.arrangeDisplayId = Number(arrangeDisplayEl.value);
   scheduleSave();
 });
-for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionSeasonEl, sessionEpisodeEl, sessionEpisodeSourceEl, sessionEpisodeFormatEl, sessionFilenameEnabledEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
+for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionFilenameEnabledEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
 });
-for (const el of [sessionSeasonEl, sessionEpisodeEl, sessionFilenameFormatEl]) el.addEventListener('input', updateFilenamePreview);
-sessionEpisodeIncrementEl.addEventListener('click', () => {
-  sessionEpisodeEl.value = String((Number(sessionEpisodeEl.value) || 0) + 1);
-  updateFilenamePreview();
-  scheduleSave();
-});
+sessionFilenameFormatEl.addEventListener('input', updateFilenamePreview);
 $('clear-session').addEventListener('click', () => api.clearSession());
 $('reveal-config').addEventListener('click', () => api.revealConfig());
 $('reset-config').addEventListener('click', async () => {
@@ -1742,8 +1734,6 @@ const STUDIO_ACTIONS = [
   { value: 'dockAll', label: 'Dock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'undockAll', label: 'Undock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'syncObs', label: 'Sync OBS', paramType: 'none', group: 'Studio Control' },
-  { value: 'incrementEpisode', label: 'Increment episode number', paramType: 'none', group: 'Studio Control' },
-  { value: 'applyEpisodeText', label: 'Write season/episode to a text source', paramType: 'source', group: 'Studio Control' },
   { value: 'applySessionFilename', label: 'Apply the session filename format to OBS', paramType: 'none', group: 'Studio Control' },
 ];
 
@@ -2053,7 +2043,7 @@ function tintClassFor(step, actions) {
 // Kept in lockstep with RESERVED_FIELD_KEYS in src/config.js -- small and
 // static enough to just duplicate rather than round-trip through IPC for
 // something that never changes at runtime.
-const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear', 'sessionSeasonNumber', 'sessionEpisodeNumber'];
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear'];
 
 // Every option a setText step's "Data Field" picker offers, grouped for the
 // <optgroup> markup below -- Studio's own built-ins (always present, no
@@ -2076,18 +2066,6 @@ function dataFieldGroups() {
       ['sessionYear', 'Year'],
     ]),
   });
-  groups.push({
-    label: 'Season & Episode',
-    fields: withKeys([
-      ['sessionSeasonNumber', 'Season number'],
-      ['sessionSeasonNumber+1', 'Season number + 1'],
-      ['sessionSeasonNumber-1', 'Season number - 1'],
-      ['sessionEpisodeNumber', 'Episode number'],
-      ['sessionEpisodeNumber+1', 'Episode number + 1'],
-      ['sessionEpisodeNumber-1', 'Episode number - 1'],
-    ]),
-  });
-
   const metadataFields = (config && config.metadataFields) || [];
   if (metadataFields.length) {
     const fields = [];
@@ -2482,19 +2460,19 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
     saveAutomationsRuleSets();
     return;
   }
-  if (action === 'test-ruleset') {
+  if (action === 'run-ruleset') {
     if (!ruleSet.event) {
-      reportError(new Error('Set this rule set\'s event before testing it.'));
+      reportError(new Error('Set this rule set\'s event before running it.'));
       return;
     }
-    // Only a "Data Field" setText step genuinely needs external test data
-    // -- "Free Text" and "File" are self-contained and already run
-    // correctly with none. Testing with no data at all for a Data Field
-    // step (what this used to always send, unconditionally) means it
-    // reads nothing and writes blank text no matter what it's configured
-    // with. Ask for real data, pre-filled with every such step's own
-    // dataField as an empty skeleton, so there's something to actually
-    // fill in rather than silently testing blank.
+    // Only a "Data Field" setText step genuinely needs external data --
+    // "Free Text" and "File" are self-contained and already run correctly
+    // with none. Running with no data at all for a Data Field step (what
+    // this used to always send, unconditionally) means it reads nothing
+    // and writes blank text no matter what it's configured with. Ask for
+    // real data, pre-filled with every such step's own dataField as an
+    // empty skeleton, so there's something to actually fill in rather than
+    // silently running blank.
     let data = {};
     const fields = [
       ...new Set(
@@ -2507,21 +2485,21 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       const skeleton = {};
       for (const f of fields) skeleton[f] = '';
       const input = window.prompt(
-        'This rule set has a step reading a Data Field. Enter test data as JSON:',
+        'This rule set has a step reading a Data Field. Enter data as JSON:',
         JSON.stringify(skeleton)
       );
       if (input === null) return; // cancelled
       try {
         data = JSON.parse(input);
       } catch (err) {
-        reportError(new Error('That was not valid JSON -- test cancelled.'));
+        reportError(new Error('That was not valid JSON -- run cancelled.'));
         return;
       }
     }
     try {
       status.automations = await api.automationsTestEvent(ruleSet.event, data);
       renderAutomationsStatus();
-      setSaveState(`Test event "${ruleSet.event}" sent`);
+      setSaveState(`Ran "${ruleSet.event}"`);
     } catch (err) {
       reportError(err);
     }

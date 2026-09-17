@@ -80,9 +80,8 @@ execution.
 `sourceHide`, `sourceToggle`, `setText`, and the recording/streaming controls) all require
 `obs.connected` and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio
 actions (`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`,
-`incrementEpisode`, `applyEpisodeText`, `applySessionFilename`) reach into Studio's own state
-instead and need no OBS connection at all, except `syncObs`/`applyEpisodeText`/
-`applySessionFilename`. Which Studio actions are even reachable is gated by
+`applySessionFilename`) reach into Studio's own state instead and need no OBS connection at all,
+except `syncObs`/`applySessionFilename`. Which Studio actions are even reachable is gated by
 `automations.studioActions` (config.js) -- off by default, since they reach further than an OBS
 action does -- and `syncAutomationsServer` folds only the currently-enabled ones into the
 `actions` list `GET /api/automations/capabilities` returns.
@@ -113,21 +112,26 @@ three call sites as before: `runAutomationRuleSets` (`src/main.js:675`) passes `
 on a `"literal"`/`"file"` setText step now actually works (it never could before, since it always
 ran with no data at all to read from).
 
-`formatSessionTemplate` (`src/main.js:533`) is the other consumer of `eventData`: `applyEpisodeText`
-and `applySessionFilename` both call it to substitute a user-configured template. `{season}`,
-`{episode}`, `{title}`, and `{campaign}` are kept as their own fixed `legacy` aliases (every
-template written before Data Fields existed uses them, and `{title}`/`{campaign}` read `eventData`
-directly rather than through `resolveDataField`'s fallback-to-`eventData` branch -- same outcome,
-skipping the key-parsing that only makes sense for an actual Data Field key). Any *other* `{name}`
-found in the template is resolved through `resolveDataField` -- the exact same function a
-`setText` step's `dataField` goes through -- so `{sessionCampaign}` or `{sessionDaysLeft+1}` work
-in a filename or episode-text template exactly as they would from a `setText` step, including a
-`+1`/`-1` variant's mutate-and-persist behavior. Anything left in the string that isn't a
-`{...}`-bracketed name -- OBS's own `%CCYY`-style recording macros, in `applySessionFilename`'s
-case -- is untouched either way. Both actions were verified against the real OBS instance this was
-built against: reading the actual live `FilenameFormatting` value and the actual live text-source
-settings before writing anything, confirming `SetProfileParameter`/`SetInputSettings` were the
-right calls before committing to the design, not assumed from the protocol docs alone.
+`formatSessionTemplate` (`src/main.js:533`) is the other consumer of `eventData`: `applySessionFilename`
+calls it to substitute a user-configured template. `{title}` and `{campaign}` are kept as their own
+fixed `legacy` aliases, reading `eventData` directly rather than through `resolveDataField`'s
+fallback-to-`eventData` branch (same outcome, skipping the key-parsing that only makes sense for an
+actual Data Field key). Any *other* `{name}` found in the template is resolved through
+`resolveDataField` -- the exact same function a `setText` step's `dataField` goes through -- so
+`{sessionCampaign}` or `{sessionDaysLeft+1}` work in a filename template exactly as they would from
+a `setText` step, including a `+1`/`-1` variant's mutate-and-persist behavior. Anything left in the
+string that isn't a `{...}`-bracketed name -- OBS's own `%CCYY`-style recording macros -- is
+untouched either way. Verified against the real OBS instance this was built against: reading the
+actual live `FilenameFormatting` value before writing anything, confirming `SetProfileParameter`
+was the right call before committing to the design, not assumed from the protocol docs alone.
+
+`formatSessionTemplate` used to also carry `{season}`/`{episode}` as fixed aliases, backing a
+dedicated Episode card (Studio-tracked season/episode numbers, a `applyEpisodeText` action writing
+them to a text source, an `incrementEpisode` action bumping the counter). Retired once Metadata
+fields made the same job possible without a second, parallel system for tracking a number --
+confirmed unused in practice before removal, including by the person who owned the feature: the
+card's own season/episode counter had already drifted out of sync with equivalent Metadata fields
+they'd started maintaining by hand instead.
 
 ## Field registration: making "Data Field" a real dropdown
 
@@ -154,7 +158,7 @@ Studio restart, repopulated whenever a module reconnects and registers again. A 
 ## Studio's own Data Field entries
 
 Not every value a `setText` step wants comes from a connected module -- the person running Studio
-might want their own campaign name, a countdown, or Season/Episode itself available the same way.
+might want their own campaign name, a countdown, or anything else available the same way.
 `config.metadataFields` (`src/config.js`) is a persisted list the Session tab's Metadata card
 creates and edits directly -- unlike `registeredFieldsByModule` above, this is real config, not
 in-memory state, since the whole point of a Number field is that Studio remembers its last value
@@ -177,35 +181,34 @@ where both the dropdown's derived-variant generation and the "New" form's condit
 separator/padding fields check for that.
 
 `resolveDataField` (`src/main.js:586`) is where a `dataField` key actually resolves, in order:
-an evergreen built-in (`sessionTime`/`Date`/`Day`/`Month`/`Year`, computed fresh, no storage), the
-two Season/Episode aliases (`sessionSeasonNumber`/`sessionEpisodeNumber`, backed by
-`session.season`/`.episode` -- the same numbers the Episode card edits), a `metadataFields` entry
-by key (composing `text`/`separator`/`number` for the two compound types), then falling through to
-`eventData[key]` -- the original, only behavior before any of this existed, still exactly how a
-module's own registered fields resolve.
+an evergreen built-in (`sessionTime`/`Date`/`Day`/`Month`/`Year`, computed fresh, no storage), a
+`metadataFields` entry by key (composing `text`/`separator`/`number` for the two compound types),
+then falling through to `eventData[key]` -- the original, only behavior before any of this existed,
+still exactly how a module's own registered fields resolve.
 
 **A trailing `+1`/`-1` is not a pure read.** Confirmed directly, with the user's own example: "In
 the automation, they choose 'sessionDaysLeft + 1'... we change the value for 'Days Left' from '3'
 to '4' in the session area." `resolveDataField` parses the suffix off the key, and on a
-Number-shaped result (the two Season/Episode aliases, or a `metadataFields` entry with
-`type: 'number'`) computes the new number, persists it (`configStore.save` + `broadcastStatus`),
-and returns the new value as the resolved text -- so selecting a `+1` variant in a rule-set step
-both writes the incremented number to OBS and leaves it incremented for next time, generalizing
-what `incrementEpisode` already did for the episode counter specifically to any Number field, and
-folded into resolution itself rather than needing a dedicated action per field. A delta against an
-evergreen field, a Text-typed field, or a key that doesn't resolve to anything Studio-known at all
-is silently ignored (evergreen: delta makes no sense against a value with no stored state to
-increment; Text: same; unknown: falls through to `eventData` with no delta parsing at all, since a
-triggering event was never going to send an arithmetic-suffixed key) -- matching `dataField`'s
-existing "an unresolvable key returns `''`, never throws" posture, so a stale reference degrades a
-rule set's output rather than breaking its run.
+Number-shaped result (a `metadataFields` entry with `type: 'number'`, or a compound field's number
+segment) computes the new number, persists it (`configStore.save` + `broadcastStatus`), and returns
+the new value as the resolved text -- so selecting a `+1` variant in a rule-set step both writes the
+incremented number to OBS and leaves it incremented for next time, folded into resolution itself
+rather than needing a dedicated action per field. A delta against an evergreen field, a Text-typed
+field, or a key that doesn't resolve to anything Studio-known at all is silently ignored (evergreen:
+delta makes no sense against a value with no stored state to increment; Text: same; unknown: falls
+through to `eventData` with no delta parsing at all, since a triggering event was never going to
+send an arithmetic-suffixed key) -- matching `dataField`'s existing "an unresolvable key returns
+`''`, never throws" posture, so a stale reference degrades a rule set's output rather than breaking
+its run.
 
 This reuses the *engine's* existing overlap behavior, not a new risk of its own: nothing dedupes
 or cancels an in-flight rule-set run that matches again mid-sequence (see "Rule sets and dispatch"
 above), so two overlapping runs referencing the same `+1` field would genuinely double-increment
-it, the same way `incrementEpisode` already could. Worth knowing, not a reason this was built
-differently -- it is an existing property of the engine, just more visible now that it can touch a
-value the user is actively watching.
+it. Worth knowing, not a reason this was built differently -- it is an existing property of the
+engine, just more visible now that it can touch a value the user is actively watching. The Metadata
+card's own inline `+1`/`-1` buttons (next to a Number or compound field's number segment) go
+through the same mutate-and-persist path, just triggered by a click instead of a rule-set run --
+the manual counterpart, for a one-off bump that doesn't need an automation.
 
 `src/control/control.js`'s `dataFieldGroups()` is the renderer-side merge that actually builds the
 picker: Studio's built-ins and `config.metadataFields` (each Number field contributing its own
@@ -216,15 +219,15 @@ through IPC, the same reasoning `stageNumbers` reimplementing `stagesFor`'s grou
 established for this file.
 
 `dataFieldGroups()` has a second caller besides the `setText` step editor: the small "insert a
-Data Field" panel next to the Episode Format and Filename format inputs (`renderDataFieldPicker`,
-toggled by the info button next to each), so the same registered/Metadata/built-in fields
-`formatSessionTemplate` can already resolve by name are also discoverable without knowing the key
-by heart -- clicking one inserts `{key}` at the input's current cursor position
-(`insertAtCursor`), not just appended, so it works mid-edit. A module's own registered fields show
-up here too, one caveat worth knowing: a field only *resolves* correctly here if whatever
-triggered the rule set that runs `applySessionFilename`/`applyEpisodeText` actually sent that key
-in its event `data` -- registering a field only makes it discoverable and offers it as a template
-placeholder, it does not give Studio a value for it outside of an actual triggering event.
+Data Field" panel next to the Filename format input (`renderDataFieldPicker`, toggled by the info
+button beside it), so the same registered/Metadata/built-in fields `formatSessionTemplate` can
+already resolve by name are also discoverable without knowing the key by heart -- clicking one
+inserts `{key}` at the input's current cursor position (`insertAtCursor`), not just appended, so
+it works mid-edit. A module's own registered fields show up here too, one caveat worth knowing: a
+field only *resolves* correctly here if whatever triggered the rule set that runs
+`applySessionFilename` actually sent that key in its event `data` -- registering a field only
+makes it discoverable and offers it as a template placeholder, it does not give Studio a value for
+it outside of an actual triggering event.
 
 ## Migrating an older config
 
@@ -256,6 +259,6 @@ spam the log on a timer), Automations' own `'status'` listener the same way (`sr
 and its `'event'` listener logging every event received (`src/main.js:515`) plus every rule-set
 step or dispatch failure as a `level: 'error'` entry (`src/main.js:518`, `:708`, `:727`) -- the one
 place those failures were previously only a `console.warn`, invisible outside the main process's
-own stdout. The Automations tab's rule-set "Test" button and the "Time it" button both still work
-exactly as before; their effects just show up here instead of (or now, in addition to) the tab
-they were run from. Not persisted, same as `automations.js`'s own log -- resets on restart.
+own stdout. The Automations tab's rule-set "Run Automation" button and the "Time it" button both
+still work exactly as before; their effects just show up here instead of (or now, in addition to)
+the tab they were run from. Not persisted, same as `automations.js`'s own log -- resets on restart.

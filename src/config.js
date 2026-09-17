@@ -183,7 +183,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 // ticked on in automations.studioActions -- see the note above.
 const STUDIO_ACTIONS = [
   'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
-  'incrementEpisode', 'applyEpisodeText', 'applySessionFilename',
+  'applySessionFilename',
 ];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
@@ -192,8 +192,6 @@ const STUDIO_ACTION_SCHEMA = [
   { action: 'dockAll', label: 'Dock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'undockAll', label: 'Undock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'syncObs', label: 'Sync OBS', param: null, paramType: 'none', group: 'Studio Control' },
-  { action: 'incrementEpisode', label: 'Increment episode number', param: null, paramType: 'none', group: 'Studio Control' },
-  { action: 'applyEpisodeText', label: 'Write season/episode to a text source', param: 'source name', paramType: 'source', group: 'Studio Control' },
   { action: 'applySessionFilename', label: 'Apply the session filename format to OBS', param: null, paramType: 'none', group: 'Studio Control' },
 ];
 
@@ -360,20 +358,15 @@ function sanitizeTavern(input) {
   };
 }
 
-// Season/episode numbering Studio itself tracks, for the Studio Control
-// actions that write it into OBS (a text source, the recording filename)
-// instead of it being hand-typed into OBS before every session. `season`
-// and `episode` are always zero-padded to 2 digits wherever a template
-// substitutes them in ({season}/{episode}); {title}/{campaign}, the other
-// two placeholders the same templates accept, come from the triggering
-// event's own data, not from here -- see incrementEpisode/applyEpisodeText/
-// applySessionFilename in src/main.js.
+// A template Studio writes into OBS's own recording Filename Formatting
+// setting instead of it being hand-typed before every session -- see
+// applySessionFilename in src/main.js. Season/episode numbering used to
+// live here too (a dedicated Studio-tracked pair with their own card),
+// retired once Metadata fields could do the same job without a second,
+// parallel system -- confirmed unused in practice ("too confusing") before
+// removal.
 function defaultSession() {
   return {
-    season: 1,
-    episode: 1,
-    episodeSourceName: '',
-    episodeFormat: 'SEASON {season}              EPISODE {episode}',
     filenameFormat: '',
     filenameFormatEnabled: false,
   };
@@ -383,10 +376,6 @@ function sanitizeSession(input) {
   const d = defaultSession();
   const src = input && typeof input === 'object' ? input : {};
   return {
-    season: clamp(toInt(src.season, d.season), 0, 999),
-    episode: clamp(toInt(src.episode, d.episode), 0, 9999),
-    episodeSourceName: typeof src.episodeSourceName === 'string' ? src.episodeSourceName.trim().slice(0, 200) : d.episodeSourceName,
-    episodeFormat: typeof src.episodeFormat === 'string' ? src.episodeFormat.slice(0, 300) : d.episodeFormat,
     filenameFormat: typeof src.filenameFormat === 'string' ? src.filenameFormat.slice(0, 300) : d.filenameFormat,
     filenameFormatEnabled: Boolean(src.filenameFormatEnabled),
   };
@@ -397,13 +386,12 @@ const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText'];
 const METADATA_PADDING_OPTIONS = [0, 2, 3, 4];
 
 // Data Field keys Studio itself resolves specially (src/main.js's
-// resolveDataField) -- today's date/time, and the two Season/Episode
-// aliases backed by session.season/.episode above. A user-created
-// metadata field's generated key can never collide with one of these
-// (see uniqueMetadataKey), and a connected module registering one of
-// these exact keys has its field shadowed by Studio's own, not rejected
-// -- see api-automations.md's "Reserved keys" note.
-const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear', 'sessionSeasonNumber', 'sessionEpisodeNumber'];
+// resolveDataField) -- today's date/time. A user-created metadata field's
+// generated key can never collide with one of these (see
+// uniqueMetadataKey), and a connected module registering one of these
+// exact keys has its field shadowed by Studio's own, not rejected -- see
+// api-automations.md's "Reserved keys" note.
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear'];
 
 function sanitizeMetadataField(input) {
   const src = input && typeof input === 'object' ? input : {};

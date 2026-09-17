@@ -48,6 +48,36 @@ above. All test data removed and diffed clean afterward, alongside the user's ow
 (`sessionCampaign`, `sessionParty`) created independently during this same window and left
 untouched throughout.
 
+### Addendum: the dedicated Episode card is retired
+
+Once Text+Number/Number+Text existed, the Episode card (`session.season`/`.episode`/
+`.episodeSourceName`/`.episodeFormat`, the `incrementEpisode`/`applyEpisodeText` actions, and the
+`sessionSeasonNumber`/`sessionEpisodeNumber` built-in Data Field aliases) was doing nothing a
+Metadata field couldn't already do -- raised directly by the person who owned the feature,
+observing that Season/Episode as generic Number (or Number+Text) fields covered everything except
+a one-click manual bump, since the Data Field `+1`/`-1` variant was only reachable from within an
+automation. Confirmed unused in practice before removing it: `incrementEpisode`/`applyEpisodeText`
+weren't in the real, live `automations.studioActions` list, and the real Episode card's own
+`session.episode` (32) had already drifted out of sync with an equivalent Metadata field the user
+had started maintaining by hand instead (28) -- the built-in system wasn't just theoretically
+redundant, it had already been abandoned in favor of Metadata fields.
+
+Removed entirely (`session.season`/`.episode`/`.episodeSourceName`/`.episodeFormat`,
+`incrementEpisode`, `applyEpisodeText`, the two reserved Season/Episode Data Field aliases, the
+Episode card UI) with no migration -- confirmed directly that the real season/episode values and
+the `Episode NUMBER` source binding didn't need preserving. `applySessionFilename` and the
+Recording Filename card are untouched; they were never Episode-specific, just a generic
+`formatSessionTemplate` consumer that happened to also support the legacy `{season}`/`{episode}`
+aliases (now removed along with everything else backing them -- a bare `{season}`/`{episode}` in
+an existing template now falls through to the triggering event's own data, same as `{title}`/
+`{campaign}` already did, rather than resolving to nothing).
+
+The one genuine gap -- a manual, one-click bump without needing to fire an automation -- is filled
+by new inline `+1`/`-1` buttons directly on a Metadata Number (or compound) field's row, next to
+its number segment. Same mutate-and-persist path `resolveDataField` already uses, just triggered by
+a click in `src/control/control.js` (`config` mutated locally, `renderMetadataFields()` +
+`scheduleSave()`) instead of a rule-set run.
+
 ## Why
 
 `setText`'s "Data Field" value type only ever sees whatever a *connected module* has registered via

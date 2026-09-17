@@ -59,24 +59,26 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   needs it.
 - ~~**Herald-driven text sources, and Studio-managed season/episode.**~~ `setText` writes a value
   from an event's own `data` into a named OBS text source (which key of `data` is configurable
-  per step, so one event can drive two different sources); `incrementEpisode`,
-  `applyEpisodeText`, and `applySessionFilename` are Studio-side season/episode tracking (a new
-  Session-tab card) applied to a text source and to OBS's own recording Filename Formatting via
-  two editable templates. Full design and what was verified live (every write captured and
-  restored) in `documentation/plans/plan-session-text-and-youtube-upload.md`.
+  per step, so one event can drive two different sources); `applySessionFilename` applies a
+  template to OBS's own recording Filename Formatting. Full design and what was verified live
+  (every write captured and restored) in
+  `documentation/plans/plan-session-text-and-youtube-upload.md`. The season/episode-tracking half
+  of this (a dedicated Episode card, `incrementEpisode`, `applyEpisodeText`) was later retired --
+  see the next item.
 - ~~**Studio-defined metadata fields, and multi-module Data Field registration.**~~ The Session
-  tab's Metadata card lets the person running Studio create their own Text/Number values (a
-  campaign name, a countdown), each registered into the same "Data Field" dropdown a connected
-  module's own fields already populate, alongside built-in evergreen fields (today's date/time)
-  and Season/Episode as two live-tracked numbers. A Number field's "+1"/"-1" variant is a real
-  mutation, not a pure read -- selecting it both writes the incremented value and persists it for
-  next time, generalizing what `incrementEpisode` already did for the episode counter to any
-  Number field. Doing this surfaced that `POST /api/automations/fields` wholesale-replaced the
-  entire registered list on every call; fixed to scope replacement per module (a required
-  `module` field in the request body) so a second connected module can't wipe out the first's
-  fields -- a breaking API change, published to the wiki ahead of the Studio-side implementation
-  landing. Full design and what was verified live in
-  `documentation/plans/plan-session-metadata-fields.md`.
+  tab's Metadata card lets the person running Studio create their own Text, Number, or Text+Number
+  values (a campaign name, a countdown, "Chapter 5"), each registered into the same "Data Field"
+  dropdown a connected module's own fields already populate, alongside built-in evergreen fields
+  (today's date/time). A Number field's "+1"/"-1" variant (from a rule-set step, or the Metadata
+  card's own inline buttons for a one-off manual bump) is a real mutation, not a pure read --
+  selecting it both writes the incremented value and persists it for next time. Doing this
+  surfaced that `POST /api/automations/fields` wholesale-replaced the entire registered list on
+  every call; fixed to scope replacement per module (a required `module` field in the request
+  body) so a second connected module can't wipe out the first's fields -- a breaking API change,
+  published to the wiki ahead of the Studio-side implementation landing. Full design and what was
+  verified live in `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated
+  Episode card (season/episode as their own tracked numbers, separate from this system) redundant
+  -- see the item above.
 - **Automated YouTube upload.** Explicitly on hold -- "hold off... until we nail down how that
   will work." What's already known (OBS gives Studio the output file path, YouTube's Data API
   supports resumable uploads) and what's still a real, unmade decision (OAuth flow and token

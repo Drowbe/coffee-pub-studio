@@ -523,29 +523,22 @@ function requireObs() {
   if (!obs.connected) throw new Error('OBS is not connected.');
 }
 
-// Substitutes {season}/{episode} (Studio's own stored session.season/
-// .episode, zero-padded to 2 digits) and {title}/{campaign} (from
-// eventData -- whatever triggered this, e.g. Herald's POST /event data;
-// blank when there is none, such as a manual "Time it" run) into a
-// user-configured template -- these four names are kept as their own
-// fixed aliases for backward compatibility (every template written before
-// Data Fields existed uses them) and because {title}/{campaign} read from
-// eventData directly, not through resolveDataField's fallback-to-eventData
-// branch (same outcome, just not routed through the key-parsing/mutation
-// logic that only makes sense for a Data Field key).
+// Substitutes {title}/{campaign} (from eventData -- whatever triggered
+// this, e.g. Herald's POST /event data; blank when there is none, such as
+// a manual "Time it" run) into a user-configured template -- kept as their
+// own fixed aliases since they read from eventData directly, not through
+// resolveDataField's fallback-to-eventData branch (same outcome, just not
+// routed through the key-parsing/mutation logic that only makes sense for
+// a Data Field key).
 // Any OTHER {name} in the template -- {sessionCampaign}, {sessionDaysLeft
 // +1}, {sessionTime}, anything resolveDataField (below) understands -- is
 // resolved the same way a setText step's Data Field picker would, so a
 // Number field's "+1"/"-1" mutates and persists here exactly as it does
-// from a setText step. Shared by applyEpisodeText and applySessionFilename;
-// anything OBS's own %-style recording macros use is untouched, since this
-// only ever replaces {..}-bracketed names.
+// from a setText step. Used by applySessionFilename; anything OBS's own
+// %-style recording macros use is untouched, since this only ever replaces
+// {..}-bracketed names.
 function formatSessionTemplate(template, eventData) {
-  const s = configStore.get().session;
-  const pad2 = (n) => String(n).padStart(2, '0');
   const legacy = {
-    season: pad2(s.season),
-    episode: pad2(s.episode),
     title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
     campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
   };
@@ -558,30 +551,26 @@ function formatSessionTemplate(template, eventData) {
 // plan-session-metadata-fields.md for the full design:
 //   1. An evergreen field (today's date/time) -- computed fresh, no
 //      storage, a trailing +1/-1 makes no sense here and is ignored.
-//   2. sessionSeasonNumber / sessionEpisodeNumber -- Studio's own tracked
-//      numbers (session.season/.episode).
-//   3. A user-created metadataFields entry, by key -- "text"/"number" as
+//   2. A user-created metadataFields entry, by key -- "text"/"number" as
 //      you'd expect, plus "textNumber"/"numberText": a fixed text segment
 //      glued to a number segment via a typed separator ("Chapter" + "5" ->
 //      "Chapter 5"), the number segment optionally zero-padded. Only that
 //      number segment is ever "+1"/"-1"-capable, same as a plain Number
 //      field; the text segment and separator are fixed at creation.
-//   For (2) and (3), a trailing "+1"/"-1" is NOT a pure read: on a
-//   Number-shaped value (or a textNumber/numberText's number segment) it
-//   computes the new number, PERSISTS it back (configStore.save +
-//   broadcastStatus), and returns the new (composed) value -- confirmed
-//   directly: selecting "sessionDaysLeft + 1" in an automation both writes
-//   "4" to OBS and leaves the stored value at 4 for next time, the same
-//   way incrementEpisode already mutates session.episode, just generalized
-//   to any Number field and folded into resolution itself rather than
-//   needing a dedicated action per field. A delta against a Text-typed
-//   field, or one that doesn't exist, is silently ignored -- same "just
-//   don't crash a rule set over it" posture as the rest of this function.
-//   4. Not a Studio-known key at all -- fall through to eventData[key]
+//   For (2), a trailing "+1"/"-1" is NOT a pure read: on a Number-shaped
+//   value (or a textNumber/numberText's number segment) it computes the
+//   new number, PERSISTS it back (configStore.save + broadcastStatus), and
+//   returns the new (composed) value -- confirmed directly: selecting
+//   "sessionDaysLeft + 1" in an automation both writes "4" to OBS and
+//   leaves the stored value at 4 for next time. A delta against a
+//   Text-typed field, or one that doesn't exist, is silently ignored --
+//   same "just don't crash a rule set over it" posture as the rest of
+//   this function.
+//   3. Not a Studio-known key at all -- fall through to eventData[key]
 //      (whatever the triggering event actually sent), the original and
 //      only behavior before Studio had any fields of its own. A trailing
 //      +1/-1 is meaningless against live event data (there is no "current
-//      value" to increment), so a delta that didn't match (1)-(3) returns
+//      value" to increment), so a delta that didn't match (1)-(2) returns
 //      '' rather than trying eventData with the suffix still attached.
 function resolveDataField(key, eventData) {
   const match = /^(.+)([+-]1)$/.exec(key || '');
@@ -594,18 +583,6 @@ function resolveDataField(key, eventData) {
   if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
   if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
   if (baseKey === 'sessionYear') return String(now.getFullYear());
-
-  const pad2 = (n) => String(n).padStart(2, '0');
-  if (baseKey === 'sessionSeasonNumber' || baseKey === 'sessionEpisodeNumber') {
-    const prop = baseKey === 'sessionSeasonNumber' ? 'season' : 'episode';
-    const current = configStore.get();
-    const value = delta ? current.session[prop] + delta : current.session[prop];
-    if (delta) {
-      configStore.save({ ...current, session: { ...current.session, [prop]: value } });
-      broadcastStatus();
-    }
-    return pad2(value);
-  }
 
   const fields = configStore.get().metadataFields;
   const field = fields.find((f) => f.key === baseKey);
@@ -671,15 +648,14 @@ function resolveTextValue(stepContext, eventData) {
 
 // One step's action -> the OBS or Studio call it makes. `param` is the
 // step's own value: a scene name for sceneSwitch, a source name for
-// sourceShow/sourceHide/sourceToggle/setText/applyEpisodeText, ignored
-// otherwise. `eventData` is whatever triggered this (undefined for a
-// manual "Time it" run or a direct action call with none given);
+// sourceShow/sourceHide/sourceToggle/setText, ignored otherwise.
+// `eventData` is whatever triggered this (undefined for a manual "Time
+// it" run or a direct action call with none given);
 // `stepContext` (only read by setText, via resolveTextValue above) is the
 // rule-set step itself, or undefined for a direct call. OBS actions need
 // OBS connected; Studio actions (everything from wakeAudio down) work
-// regardless -- none of them but syncObs and
-// applySessionFilename/applyEpisodeText touch OBS at all, and
-// incrementEpisode doesn't either.
+// regardless -- none of them but syncObs and applySessionFilename touch
+// OBS at all.
 async function runAutomationAction(action, param, eventData, stepContext) {
   switch (action) {
     case 'sceneSwitch':
@@ -737,17 +713,6 @@ async function runAutomationAction(action, param, eventData, stepContext) {
     case 'syncObs':
       requireObs();
       return syncObs();
-    case 'incrementEpisode': {
-      const current = configStore.get();
-      configStore.save({ ...current, session: { ...current.session, episode: current.session.episode + 1 } });
-      broadcastStatus();
-      return;
-    }
-    case 'applyEpisodeText': {
-      requireObs();
-      if (!param) throw new Error('applyEpisodeText needs a text source name.');
-      return obs.setInputText(param, formatSessionTemplate(configStore.get().session.episodeFormat, eventData));
-    }
     case 'applySessionFilename': {
       requireObs();
       const { filenameFormat, filenameFormatEnabled } = configStore.get().session;

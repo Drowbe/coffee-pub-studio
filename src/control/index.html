@@ -60,34 +60,6 @@
       </div>
 
       <div class="card">
-        <h2>Episode</h2>
-        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong> and <strong>Write season/episode to a text source</strong> use these. <code>{title}</code> and <code>{campaign}</code> in the format below come from whatever triggered the rule set (a Foundry module's event data), not from here -- any Metadata field works too, by its own data field key.</p>
-        <div class="row">
-          <label class="field field-inline">
-            <span>Season</span>
-            <input id="session-season" type="number" min="0" max="999" step="1" size="4">
-          </label>
-          <label class="field field-inline">
-            <span>Episode</span>
-            <input id="session-episode" type="number" min="0" max="9999" step="1" size="4">
-          </label>
-          <button id="session-episode-increment" class="btn btn-small" type="button" title="Bump the episode number by 1, the same as the Studio Control action">+1 episode</button>
-        </div>
-        <div class="row">
-          <label class="field field-inline">
-            <span>Text source</span>
-            <input id="session-episode-source" type="text" spellcheck="false" placeholder="Episode NUMBER">
-          </label>
-          <label class="field field-inline">
-            <span>Format</span>
-            <input id="session-episode-format" type="text" spellcheck="false" placeholder="SEASON {season}              EPISODE {episode}">
-          </label>
-          <button id="session-episode-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
-        </div>
-        <div class="datafield-picker" id="session-episode-fields-panel" hidden></div>
-      </div>
-
-      <div class="card">
         <h2>Metadata</h2>
         <p class="hint">Your own Text, Number, or Text+Number values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. Renaming isn't supported; delete a field and create a new one instead.</p>
         <div id="metadata-fields" class="metadata-fields"></div>
@@ -129,7 +101,7 @@
 
       <div class="card">
         <h2>Recording Filename</h2>
-        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{season}</code>/<code>{episode}</code> come from Episode above, <code>{title}</code>/<code>{campaign}</code> from whatever triggered the rule set, any Metadata field below works too by its own data field key (<code>{sessionCampaign}</code>, <code>{sessionDaysLeft+1}</code>, ...), and OBS's own <code>%</code>-style macros pass through untouched.</p>
+        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{title}</code>/<code>{campaign}</code> come from whatever triggered the rule set, any Metadata field below works too by its own data field key (<code>{sessionCampaign}</code>, <code>{sessionDaysLeft+1}</code>, ...), and OBS's own <code>%</code>-style macros pass through untouched.</p>
         <div class="row">
           <label class="check">
             <input id="session-filename-enabled" type="checkbox">
@@ -139,7 +111,7 @@
         <div class="row">
           <label class="field field-inline field-wide">
             <span>Filename format</span>
-            <input id="session-filename-format" type="text" spellcheck="false" placeholder="Show S{season}E{episode} - {campaign} - %CCYY-%MM-%DD">
+            <input id="session-filename-format" type="text" spellcheck="false" placeholder="{sessionCampaign} - {campaign} - %CCYY-%MM-%DD">
           </label>
           <button id="session-filename-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
         </div>
@@ -715,7 +687,7 @@
           <button class="btn btn-small btn-icon" data-action="add-delay" type="button" title="Add delay" aria-label="Add delay"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></button>
         </div>
         <div class="row ruleset-footer">
-          <button class="btn btn-small" data-action="test-ruleset" type="button" title="Send a test event for this rule set's own event"><i class="fa-solid fa-vial" aria-hidden="true"></i> Test</button>
+          <button class="btn btn-small" data-action="run-ruleset" type="button" title="Runs this rule set now by sending its event"><i class="fa-solid fa-play" aria-hidden="true"></i> Run Automation</button>
           <button class="btn btn-small btn-primary" data-action="save-ruleset" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
           <button class="btn btn-small btn-danger" data-action="delete-ruleset" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Delete</button>
         </div>

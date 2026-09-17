@@ -66,9 +66,9 @@ Content-Type: application/json
   is configured to react to.
 - `data` (object, optional) is shown back in Studio's Recent Events log for a human to read, and
   is also what a `setText` step reads its value from (see the actions table below) and what
-  `applyEpisodeText`/`applySessionFilename`'s `{title}`/`{campaign}` placeholders come from.
-  Sending whatever is cheaply available (a scene name, a combat id) beyond what a rule set
-  actually uses still costs nothing.
+  `applySessionFilename`'s `{title}`/`{campaign}` placeholders come from. Sending whatever is
+  cheaply available (a scene name, a combat id) beyond what a rule set actually uses still costs
+  nothing.
 - The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
   request), 401 (missing or wrong token), or 404 (wrong path or method) otherwise.
 - A 200 means Studio accepted and logged the event, not that a matched rule set's sequence
@@ -221,11 +221,10 @@ Content-Type: application/json
 
 **Reserved keys.** Studio has its own built-in Data Field entries that always exist, plus whatever
 the person running Studio creates themselves on the Session tab -- `sessionTime`, `sessionDate`,
-`sessionDay`, `sessionMonth`, `sessionYear`, `sessionSeasonNumber`, `sessionEpisodeNumber`, and any
-`session<Something>` key a user-created field has claimed. If your module registers a field using
-one of those exact keys, Studio's own field of that name wins in the "Data Field" dropdown --
-yours is not deleted or rejected, just shadowed. Pick a more specific key if this matters to you
-(`heraldSessionYear` rather than `sessionYear`).
+`sessionDay`, `sessionMonth`, `sessionYear`, and any `session<Something>` key a user-created field
+has claimed. If your module registers a field using one of those exact keys, Studio's own field of
+that name wins in the "Data Field" dropdown -- yours is not deleted or rejected, just shadowed.
+Pick a more specific key if this matters to you (`heraldSessionYear` rather than `sessionYear`).
 
 ## GET /ca.crt
 
@@ -276,8 +275,7 @@ genuine no-op.
 ## Studio actions
 
 Off by default -- see the Studio Control card on the Automations tab. Reach into Studio itself,
-not OBS, so (`syncObs`/`applyEpisodeText`/`applySessionFilename` aside) they work even while OBS
-is disconnected:
+not OBS, so (`syncObs`/`applySessionFilename` aside) they work even while OBS is disconnected:
 
 | Action | What it does |
 | --- | --- |
@@ -287,17 +285,13 @@ is disconnected:
 | `dockAll` | Slides every open window into the edge dock |
 | `undockAll` | Brings every docked window back out |
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
-| `incrementEpisode` | Bumps Studio's own stored episode number by 1 (season is untouched -- there is no auto-increment for that) |
-| `applyEpisodeText` | Writes Studio's stored season/episode into the named text source, formatted by the Session tab's **Format** template |
 | `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
 
-Both templates accept `{season}` and `{episode}` (Studio's own stored numbers, Session tab, always
-zero-padded to 2 digits) and `{title}`/`{campaign}` (the triggering event's `data.title`/
-`data.campaign`, blank if absent) -- these four are kept as fixed names for backward compatibility.
-Any *other* `{name}` in either template is resolved the same way a `setText` step's Data Field
-picker would: a Studio-defined Metadata field by its own key (`{sessionCampaign}`), an evergreen
-field (`{sessionTime}`, `{sessionDate}`, ...), or Season/Episode by their Data Field names
-(`{sessionSeasonNumber}`, `{sessionEpisodeNumber}`) -- including their `+1`/`-1` variants
+The template accepts `{title}`/`{campaign}` (the triggering event's `data.title`/`data.campaign`,
+blank if absent) as fixed names, kept for backward compatibility. Any *other* `{name}` in the
+template is resolved the same way a `setText` step's Data Field picker would: a Studio-defined
+Metadata field by its own key (`{sessionCampaign}`) or an evergreen field (`{sessionTime}`,
+`{sessionDate}`, ...) -- including a Metadata Number field's `+1`/`-1` variants
 (`{sessionDaysLeft+1}`), which mutate and persist the field's stored value exactly as selecting
 that variant from a `setText` step's picker would, not just a read. A name that doesn't resolve to
 anything Studio knows about is left as the literal triggering event's `data[name]` if present,
@@ -375,7 +369,7 @@ await fetch(`${url}/api/automations/fields`, {
 
 Then a `session:start` event carrying both, for a rule set with two `setText` steps (each set to
 "Data Field" in Studio's step editor, one picking `title`, one picking `campaign`) plus
-`incrementEpisode`, `applyEpisodeText`, and `applySessionFilename` all AND-grouped into one stage:
+`applySessionFilename` all AND-grouped into one stage:
 
 ```javascript
 await fetch(`${url}/api/automations/event`, {
