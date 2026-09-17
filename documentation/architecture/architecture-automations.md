@@ -128,13 +128,73 @@ were the right calls before committing to the design, not assumed from the proto
 A `dataField` key typed blind is a name guessed against an undocumented contract -- the user has
 no way to know what Herald will actually send without reading Herald's own source. `POST
 /api/automations/fields` (`src/automations.js`) is the fix: a connected module declares its
-fields (`{key, label}` pairs) once, wholesale-replacing whatever was registered before each time
-it's called, stored on `this.registeredFields` and folded into `status()` the same way `events`
-already is. Studio's step editor (`src/control/control.js`) reads `status.automations
-.registeredFields` to build the "Data Field" dropdown -- the same discoverability pattern already
-used for scene/source pickers, just running in the other direction (a caller telling Studio about
-itself, instead of Studio telling a caller about itself). In memory only, same as `events`: reset
-on a Studio restart, repopulated whenever the module reconnects and registers again.
+fields (`{key, label}` pairs), and Studio's step editor (`src/control/control.js`'s
+`dataFieldGroups`) builds the "Data Field" dropdown from them -- the same discoverability pattern
+already used for scene/source pickers, just running in the other direction (a caller telling
+Studio about itself, instead of Studio telling a caller about itself).
+
+Registration is scoped per module, not one flat list: the request body carries a required
+`module` name, and `registeredFieldsByModule` (a `Map<module, fields[]>` on `AutomationsServer`)
+replaces only that module's own previous batch -- a flat wholesale-replace was fine with exactly
+one caller in mind, and breaks the moment a second module registers (each reconnect would wipe the
+other's fields). `registeredFields()` flattens the map for every consumer that wants the merged
+list (`status()`, same as `events` already exposes), tagging each entry with `source: <module>` so
+the dropdown (and Studio's own metadata fields sharing the same list, `source: 'studio'`, see
+below) can tell two similarly-named fields apart. In memory only, same as `events`: reset on a
+Studio restart, repopulated whenever a module reconnects and registers again. A request missing
+`module` is rejected (`400`), a breaking change from the original single-caller design -- see
+`api-automations.md` and `plan-session-metadata-fields.md` for the full reasoning and the module-facing contract.
+
+## Studio's own Data Field entries
+
+Not every value a `setText` step wants comes from a connected module -- the person running Studio
+might want their own campaign name, a countdown, or Season/Episode itself available the same way.
+`config.metadataFields` (`src/config.js`) is a persisted list of `{id, label, key, type, value}`
+the Session tab's Metadata card creates and edits directly -- unlike `registeredFieldsByModule`
+above, this is real config, not in-memory state, since the whole point of a Number field is that
+Studio remembers its last value across restarts. The key freezes at creation
+(`sanitizeMetadataField` never re-derives it from a label): confirmed directly, renaming means
+deleting the field and creating a new one, not editing one in place -- editing the key on every
+label change would be a second, silent way for it to drift out from under a rule set already
+pointing at it, on top of the one an OBS source rename already creates.
+
+`resolveDataField` (`src/main.js:569`) is where a `dataField` key actually resolves, in order:
+an evergreen built-in (`sessionTime`/`Date`/`Day`/`Month`/`Year`, computed fresh, no storage), the
+two Season/Episode aliases (`sessionSeasonNumber`/`sessionEpisodeNumber`, backed by
+`session.season`/`.episode` -- the same numbers the Episode card edits), a `metadataFields` entry
+by key, then falling through to `eventData[key]` -- the original, only behavior before any of this
+existed, still exactly how a module's own registered fields resolve.
+
+**A trailing `+1`/`-1` is not a pure read.** Confirmed directly, with the user's own example: "In
+the automation, they choose 'sessionDaysLeft + 1'... we change the value for 'Days Left' from '3'
+to '4' in the session area." `resolveDataField` parses the suffix off the key, and on a
+Number-shaped result (the two Season/Episode aliases, or a `metadataFields` entry with
+`type: 'number'`) computes the new number, persists it (`configStore.save` + `broadcastStatus`),
+and returns the new value as the resolved text -- so selecting a `+1` variant in a rule-set step
+both writes the incremented number to OBS and leaves it incremented for next time, generalizing
+what `incrementEpisode` already did for the episode counter specifically to any Number field, and
+folded into resolution itself rather than needing a dedicated action per field. A delta against an
+evergreen field, a Text-typed field, or a key that doesn't resolve to anything Studio-known at all
+is silently ignored (evergreen: delta makes no sense against a value with no stored state to
+increment; Text: same; unknown: falls through to `eventData` with no delta parsing at all, since a
+triggering event was never going to send an arithmetic-suffixed key) -- matching `dataField`'s
+existing "an unresolvable key returns `''`, never throws" posture, so a stale reference degrades a
+rule set's output rather than breaking its run.
+
+This reuses the *engine's* existing overlap behavior, not a new risk of its own: nothing dedupes
+or cancels an in-flight rule-set run that matches again mid-sequence (see "Rule sets and dispatch"
+above), so two overlapping runs referencing the same `+1` field would genuinely double-increment
+it, the same way `incrementEpisode` already could. Worth knowing, not a reason this was built
+differently -- it is an existing property of the engine, just more visible now that it can touch a
+value the user is actively watching.
+
+`src/control/control.js`'s `dataFieldGroups()` is the renderer-side merge that actually builds the
+picker: Studio's built-ins and `config.metadataFields` (each Number field contributing its own
+`+1`/`-1` entries alongside the plain key), then one `<optgroup>` per module in
+`status.automations.registeredFields`. `RESERVED_FIELD_KEYS` there is a hand-kept copy of the same
+constant `src/config.js` exports -- small and static enough that duplicating it beats a round trip
+through IPC, the same reasoning `stageNumbers` reimplementing `stagesFor`'s grouping logic already
+established for this file.
 
 ## Migrating an older config
 

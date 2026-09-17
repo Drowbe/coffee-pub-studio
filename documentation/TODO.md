@@ -64,6 +64,19 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   Session-tab card) applied to a text source and to OBS's own recording Filename Formatting via
   two editable templates. Full design and what was verified live (every write captured and
   restored) in `documentation/plans/plan-session-text-and-youtube-upload.md`.
+- ~~**Studio-defined metadata fields, and multi-module Data Field registration.**~~ The Session
+  tab's Metadata card lets the person running Studio create their own Text/Number values (a
+  campaign name, a countdown), each registered into the same "Data Field" dropdown a connected
+  module's own fields already populate, alongside built-in evergreen fields (today's date/time)
+  and Season/Episode as two live-tracked numbers. A Number field's "+1"/"-1" variant is a real
+  mutation, not a pure read -- selecting it both writes the incremented value and persists it for
+  next time, generalizing what `incrementEpisode` already did for the episode counter to any
+  Number field. Doing this surfaced that `POST /api/automations/fields` wholesale-replaced the
+  entire registered list on every call; fixed to scope replacement per module (a required
+  `module` field in the request body) so a second connected module can't wipe out the first's
+  fields -- a breaking API change, published to the wiki ahead of the Studio-side implementation
+  landing. Full design and what was verified live in
+  `documentation/plans/plan-session-metadata-fields.md`.
 - **Automated YouTube upload.** Explicitly on hold -- "hold off... until we nail down how that
   will work." What's already known (OBS gives Studio the output file path, YouTube's Data API
   supports resumable uploads) and what's still a real, unmade decision (OAuth flow and token

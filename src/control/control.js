@@ -35,6 +35,16 @@ const sessionEpisodeFormatEl = $('session-episode-format');
 const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
 const sessionFilenamePreviewEl = $('session-filename-preview');
+const metadataEls = {
+  add: $('metadata-add'),
+  addForm: $('metadata-add-form'),
+  newLabel: $('metadata-new-label'),
+  newType: $('metadata-new-type'),
+  addConfirm: $('metadata-add-confirm'),
+  addCancel: $('metadata-add-cancel'),
+  fields: $('metadata-fields'),
+  fieldsEmpty: $('metadata-fields-empty'),
+};
 
 // A live preview of what applySessionFilename would actually write, mirroring
 // formatSessionTemplate in src/main.js: {season}/{episode} from the Season/
@@ -54,6 +64,104 @@ function updateFilenamePreview() {
     ? `Preview: ${format.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key])}`
     : '';
 }
+
+// Kept in lockstep with sanitizeMetadataField's key generation in
+// src/config.js -- generated once here, client-side, when "Add" is
+// clicked, since the renderer already holds every existing key locally
+// (same reasoning as a rule set's own id, generated the same way).
+// config.js's sanitizer re-validates shape/limits/dedup on save as a
+// backstop, but deliberately never regenerates a key from a label -- the
+// key freezes at creation (see the Metadata card's own hint text); a
+// sanitizer re-deriving it from a since-changed label would be a second,
+// silent way for it to drift out from under a rule set already using it.
+function slugMetadataKey(label) {
+  const words = String(label || '').match(/[A-Za-z0-9]+/g) || [];
+  const pascal = words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join('');
+  return `session${pascal || 'Field'}`;
+}
+
+function uniqueMetadataKey(label) {
+  const taken = new Set([...RESERVED_FIELD_KEYS, ...((config && config.metadataFields) || []).map((f) => f.key)]);
+  const base = slugMetadataKey(label);
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}${n}`)) n += 1;
+  return `${base}${n}`;
+}
+
+function renderMetadataFields() {
+  const fields = (config && config.metadataFields) || [];
+  metadataEls.fields.textContent = '';
+  metadataEls.fieldsEmpty.hidden = fields.length > 0;
+  for (const field of fields) {
+    const row = document.createElement('div');
+    row.className = 'metadata-field-row';
+
+    const label = document.createElement('span');
+    label.className = 'metadata-field-label';
+    label.textContent = `${field.label}:`;
+
+    const valueInput = document.createElement('input');
+    valueInput.type = field.type === 'number' ? 'number' : 'text';
+    valueInput.className = 'metadata-field-value';
+    valueInput.value = field.value;
+    valueInput.spellcheck = false;
+    valueInput.addEventListener('change', () => {
+      config.metadataFields = config.metadataFields.map((f) =>
+        f.id === field.id ? { ...f, value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value } : f
+      );
+      scheduleSave();
+    });
+
+    const key = document.createElement('span');
+    key.className = 'metadata-field-key hint';
+    key.textContent = `(data field: ${field.key})`;
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-small btn-icon btn-danger';
+    remove.title = 'Delete';
+    remove.setAttribute('aria-label', 'Delete');
+    remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    remove.addEventListener('click', () => {
+      config.metadataFields = config.metadataFields.filter((f) => f.id !== field.id);
+      renderMetadataFields();
+      scheduleSave();
+    });
+
+    row.append(label, valueInput, key, remove);
+    metadataEls.fields.appendChild(row);
+  }
+}
+
+metadataEls.add.addEventListener('click', () => {
+  metadataEls.addForm.hidden = false;
+  metadataEls.newLabel.value = '';
+  metadataEls.newType.value = 'text';
+  metadataEls.newLabel.focus();
+});
+metadataEls.addCancel.addEventListener('click', () => {
+  metadataEls.addForm.hidden = true;
+});
+metadataEls.addConfirm.addEventListener('click', () => {
+  const label = metadataEls.newLabel.value.trim();
+  if (!label) {
+    metadataEls.newLabel.focus();
+    return;
+  }
+  const type = metadataEls.newType.value === 'number' ? 'number' : 'text';
+  const field = {
+    id: `field${Date.now().toString(36)}`,
+    label: label.slice(0, 60),
+    key: uniqueMetadataKey(label),
+    type,
+    value: type === 'number' ? 0 : '',
+  };
+  config.metadataFields = [...(config.metadataFields || []), field];
+  metadataEls.addForm.hidden = true;
+  renderMetadataFields();
+  scheduleSave();
+});
 
 let config = null;
 let status = {
@@ -230,6 +338,7 @@ function applyConfig(next) {
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
   sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
   updateFilenamePreview();
+  renderMetadataFields();
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
   if (!sameViews) {
@@ -1755,6 +1864,69 @@ function tintClassFor(step, actions) {
   return 'automation-step-tint-obs';
 }
 
+// Kept in lockstep with RESERVED_FIELD_KEYS in src/config.js -- small and
+// static enough to just duplicate rather than round-trip through IPC for
+// something that never changes at runtime.
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear', 'sessionSeasonNumber', 'sessionEpisodeNumber'];
+
+// Every option a setText step's "Data Field" picker offers, grouped for the
+// <optgroup> markup below -- Studio's own built-ins (always present, no
+// setup needed), then Metadata (config.metadataFields, a "+1"/"-1" pair
+// added for every Number-typed one -- see resolveDataField in main.js for
+// what selecting one of those actually does), then whatever each connected
+// module has registered via POST /api/automations/fields, one group per
+// module so two modules' fields never look like one undifferentiated list.
+function dataFieldGroups() {
+  const groups = [];
+  const withKeys = (pairs) => pairs.map(([key, label]) => ({ key, label: `${label} (${key})` }));
+
+  groups.push({
+    label: 'Date & Time',
+    fields: withKeys([
+      ['sessionTime', 'Current time'],
+      ['sessionDate', 'Current date'],
+      ['sessionDay', 'Day of week'],
+      ['sessionMonth', 'Month'],
+      ['sessionYear', 'Year'],
+    ]),
+  });
+  groups.push({
+    label: 'Season & Episode',
+    fields: withKeys([
+      ['sessionSeasonNumber', 'Season number'],
+      ['sessionSeasonNumber+1', 'Season number + 1'],
+      ['sessionSeasonNumber-1', 'Season number - 1'],
+      ['sessionEpisodeNumber', 'Episode number'],
+      ['sessionEpisodeNumber+1', 'Episode number + 1'],
+      ['sessionEpisodeNumber-1', 'Episode number - 1'],
+    ]),
+  });
+
+  const metadataFields = (config && config.metadataFields) || [];
+  if (metadataFields.length) {
+    const fields = [];
+    for (const f of metadataFields) {
+      fields.push({ key: f.key, label: `${f.label} (${f.key})` });
+      if (f.type === 'number') {
+        fields.push({ key: `${f.key}+1`, label: `${f.label} + 1 (${f.key}+1)` });
+        fields.push({ key: `${f.key}-1`, label: `${f.label} - 1 (${f.key}-1)` });
+      }
+    }
+    groups.push({ label: 'Metadata', fields });
+  }
+
+  const registered = (status.automations && status.automations.registeredFields) || [];
+  const byModule = new Map();
+  for (const f of registered) {
+    const source = f.source || 'module';
+    if (!byModule.has(source)) byModule.set(source, []);
+    byModule.get(source).push({ key: f.key, label: `${f.label} (${f.key})` });
+  }
+  for (const [source, fields] of byModule) groups.push({ label: `From ${source}`, fields });
+
+  return groups;
+}
+
 function buildStepRow(step, index, number, isFirst, timeableActions) {
   const row = document.createElement('div');
   row.className = `automation-step ${tintClassFor(step, availableActions())}`;
@@ -1957,22 +2129,31 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
       } else {
         const fieldSelect = document.createElement('select');
         fieldSelect.dataset.sfield = 'dataField';
-        const registered = (status.automations && status.automations.registeredFields) || [];
         const blank = document.createElement('option');
         blank.value = '';
-        blank.textContent = registered.length ? 'Choose a field…' : 'No fields registered yet';
+        blank.textContent = 'Choose a field…';
         fieldSelect.appendChild(blank);
-        for (const f of registered) {
-          const opt = document.createElement('option');
-          opt.value = f.key;
-          opt.textContent = `${f.label} (${f.key})`;
-          if (f.key === step.dataField) opt.selected = true;
-          fieldSelect.appendChild(opt);
+        const groups = dataFieldGroups();
+        const allKeys = new Set();
+        for (const group of groups) {
+          if (!group.fields.length) continue;
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = group.label;
+          for (const f of group.fields) {
+            allKeys.add(f.key);
+            const opt = document.createElement('option');
+            opt.value = f.key;
+            opt.textContent = f.label;
+            if (f.key === step.dataField) opt.selected = true;
+            optgroup.appendChild(opt);
+          }
+          fieldSelect.appendChild(optgroup);
         }
-        // The saved key might not be (or not yet be) registered -- keep it
-        // selectable rather than silently discarding it, same reasoning as
-        // the scene/source pickers above.
-        if (step.dataField && !registered.some((f) => f.key === step.dataField)) {
+        // The saved key might not exist any more (a metadata field or a
+        // module's registration was deleted/changed) -- keep it selectable
+        // rather than silently discarding it, same reasoning as the
+        // scene/source pickers above.
+        if (step.dataField && !allKeys.has(step.dataField)) {
           const opt = document.createElement('option');
           opt.value = step.dataField;
           opt.textContent = `[!] ${step.dataField} — not registered`;

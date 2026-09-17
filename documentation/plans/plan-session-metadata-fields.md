@@ -1,8 +1,24 @@
-# Session metadata fields and multi-module Data Field registration
+# Session metadata fields and multi-module Data Field registration -- done
 
 **Audience:** whoever picks this work up next (most likely me, next session), and Foundry module
 authors (Herald and any other Coffee Pub module) who want to register their own Data Fields with
 Studio.
+
+Built and verified live against the real running app, including a real HTTP round trip through
+the actual automations server (not a simulated call): a Text field ("Campaign") and a Number field
+("Days Left", seeded at 3) created via config, both appeared correctly in a `setText` step's Data
+Field dropdown -- grouped exactly as designed (Date & Time, Season & Episode, Metadata, one
+`optgroup` per connected module), the Number field additionally offering its `+1`/`-1` variants.
+Firing a real `POST /api/automations/event` against a step reading `sessionDaysLeft+1` moved the
+stored value 3 -> 4 -> 5 across two fires, matching the exact worked example in the design below,
+and the Session tab's own Metadata card updated live to show it -- confirmed via the status
+broadcast, not just the config file. The same mutate-and-persist behavior was separately confirmed
+for `sessionEpisodeNumber+1` (32 -> 33 against the real, already-seeded episode counter). The
+`[!] <name> — not in OBS` treatment (built for stale source/scene references) was exercised for
+free during this: the probe step's target source didn't exist in OBS, and read exactly as
+designed. All test rule sets, test metadata fields, and the bumped episode number were removed
+and restored afterward; a `diff` against a config snapshot taken before testing confirmed nothing
+else changed.
 
 ## Why
 

@@ -542,6 +542,71 @@ function formatSessionTemplate(template, eventData) {
   return template.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key]);
 }
 
+// Resolves one Data Field key to a string, in this order -- see
+// plan-session-metadata-fields.md for the full design:
+//   1. An evergreen field (today's date/time) -- computed fresh, no
+//      storage, a trailing +1/-1 makes no sense here and is ignored.
+//   2. sessionSeasonNumber / sessionEpisodeNumber -- Studio's own tracked
+//      numbers (session.season/.episode).
+//   3. A user-created metadataFields entry, by key.
+//   For (2) and (3), a trailing "+1"/"-1" is NOT a pure read: on a
+//   Number-shaped value it computes the new number, PERSISTS it back
+//   (configStore.save + broadcastStatus), and returns the new value --
+//   confirmed directly: selecting "sessionDaysLeft + 1" in an automation
+//   both writes "4" to OBS and leaves the stored value at 4 for next time,
+//   the same way incrementEpisode already mutates session.episode, just
+//   generalized to any Number field and folded into resolution itself
+//   rather than needing a dedicated action per field. A delta against a
+//   Text-typed field, or one that doesn't exist, is silently ignored --
+//   same "just don't crash a rule set over it" posture as the rest of this
+//   function.
+//   4. Not a Studio-known key at all -- fall through to eventData[key]
+//      (whatever the triggering event actually sent), the original and
+//      only behavior before Studio had any fields of its own. A trailing
+//      +1/-1 is meaningless against live event data (there is no "current
+//      value" to increment), so a delta that didn't match (1)-(3) returns
+//      '' rather than trying eventData with the suffix still attached.
+function resolveDataField(key, eventData) {
+  const match = /^(.+)([+-]1)$/.exec(key || '');
+  const baseKey = match ? match[1] : key;
+  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
+
+  const now = new Date();
+  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
+  if (baseKey === 'sessionDate') return now.toLocaleDateString();
+  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (baseKey === 'sessionYear') return String(now.getFullYear());
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  if (baseKey === 'sessionSeasonNumber' || baseKey === 'sessionEpisodeNumber') {
+    const prop = baseKey === 'sessionSeasonNumber' ? 'season' : 'episode';
+    const current = configStore.get();
+    const value = delta ? current.session[prop] + delta : current.session[prop];
+    if (delta) {
+      configStore.save({ ...current, session: { ...current.session, [prop]: value } });
+      broadcastStatus();
+    }
+    return pad2(value);
+  }
+
+  const fields = configStore.get().metadataFields;
+  const field = fields.find((f) => f.key === baseKey);
+  if (field) {
+    if (field.type === 'number' && delta) {
+      const value = Number(field.value) + delta;
+      const current = configStore.get();
+      configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, value } : f)) });
+      broadcastStatus();
+      return String(value);
+    }
+    return String(field.value);
+  }
+
+  if (delta) return '';
+  return eventData && typeof eventData[baseKey] === 'string' ? eventData[baseKey] : '';
+}
+
 // What a setText step actually writes -- "where it goes" is `param`
 // (the source name), this is "what it is", one of three kinds a user
 // picks explicitly rather than one ambiguous free-text field:
@@ -550,7 +615,9 @@ function formatSessionTemplate(template, eventData) {
 //     (a rule set is still the way to trigger it) or via Herald picking a
 //     rule set from its own menu with no data needed at all.
 //   - "file": a local text file, read fresh every run.
-//   - "dataField": a key into `eventData` -- whatever triggered this run.
+//   - "dataField": a Data Field key -- see resolveDataField above for the
+//     full resolution order (Studio's own built-ins and metadata fields
+//     first, the triggering event's own data as the fallback).
 // `stepContext` is the whole step object for a rule-set-driven run
 // (carrying whichever of value/filePath/dataField its valueType uses), or
 // `undefined` for a direct `POST /api/automations/action` call or a "Time
@@ -569,8 +636,7 @@ function resolveTextValue(stepContext, eventData) {
     }
   }
   if (stepContext.valueType === 'dataField') {
-    const field = stepContext.dataField || 'text';
-    return eventData && typeof eventData[field] === 'string' ? eventData[field] : '';
+    return resolveDataField(stepContext.dataField || 'text', eventData);
   }
   return stepContext.value || ''; // "literal", and the default for anything unrecognised
 }

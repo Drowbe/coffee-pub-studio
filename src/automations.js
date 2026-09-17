@@ -62,13 +62,27 @@ class AutomationsServer extends EventEmitter {
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
     // Data fields a connected module has told us it will send, via
-    // POST /api/automations/fields -- [{key, label}], newest registration
-    // wholesale replacing whatever was there before. In memory only, same
-    // as `events`: reset on restart, repopulated once a module reconnects
-    // and re-registers. Lets a setText step's "Data Field" picker be a
-    // real dropdown of what a module says it provides, instead of a name
-    // typed blind against an undocumented contract.
-    this.registeredFields = [];
+    // POST /api/automations/fields -- Map<module, [{key, label}]>, keyed by
+    // the caller's own `module` name so one module registering never wipes
+    // out another's (a flat wholesale-replace was fine with exactly one
+    // caller in mind; it stopped being fine the moment a second one showed
+    // up -- see plan-session-metadata-fields.md). In memory only, same as
+    // `events`: reset on restart, repopulated once a module reconnects and
+    // re-registers. Lets a setText step's "Data Field" picker be a real
+    // dropdown of what a module says it provides, instead of a name typed
+    // blind against an undocumented contract.
+    this.registeredFieldsByModule = new Map();
+  }
+
+  // The flat, merged view every consumer (status(), the Data Field
+  // dropdown) actually wants -- every module's fields concatenated, each
+  // tagged with which module sent it.
+  registeredFields() {
+    const out = [];
+    for (const [module, fields] of this.registeredFieldsByModule) {
+      for (const f of fields) out.push({ ...f, source: module });
+    }
+    return out;
   }
 
   status() {
@@ -78,7 +92,7 @@ class AutomationsServer extends EventEmitter {
       port: this.port,
       addresses: this.state === 'listening' ? lanAddresses() : [],
       events: this.events,
-      registeredFields: this.registeredFields,
+      registeredFields: this.registeredFields(),
     };
   }
 
@@ -332,10 +346,13 @@ class AutomationsServer extends EventEmitter {
     // Lets a connected module declare what it will actually put in a
     // future POST /event's `data` -- the other half of the discovery
     // GET /capabilities already gives a caller about Studio. Wholesale
-    // replaces whatever was registered before (this is "here is my
-    // current full list", not "add to the list"), so a module can just
-    // call this once at connect time, or again whenever its own fields
-    // change, without needing to track what it registered last time.
+    // replaces whatever that SAME module (by its own declared `module`
+    // name) had registered before -- "here is my current full list", not
+    // "add to the list" -- so a module can just call this once at connect
+    // time, or again whenever its own fields change, without needing to
+    // track what it registered last time. Scoped per module rather than
+    // one flat list: a flat replace was fine with exactly one caller in
+    // mind, and stops being fine the moment a second module registers.
     if (req.method === 'POST' && url === '/api/automations/fields') {
       if (!authed()) return send(401, { error: 'Unauthorized' });
       let size = 0;
@@ -358,8 +375,10 @@ class AutomationsServer extends EventEmitter {
         } catch (err) {
           return send(400, { error: 'Invalid JSON' });
         }
+        const module = typeof body.module === 'string' ? body.module.trim().slice(0, 60) : '';
+        if (!module) return send(400, { error: '"module" is required' });
         const fields = Array.isArray(body.fields) ? body.fields : [];
-        this.registeredFields = fields
+        const sanitized = fields
           .filter((f) => f && typeof f.key === 'string' && f.key.trim())
           .slice(0, 100)
           .map((f) => {
@@ -367,8 +386,9 @@ class AutomationsServer extends EventEmitter {
             const label = typeof f.label === 'string' && f.label.trim() ? f.label.trim().slice(0, 120) : key;
             return { key, label };
           });
+        this.registeredFieldsByModule.set(module, sanitized);
         this.emit('status', this.status());
-        send(200, { ok: true, fields: this.registeredFields });
+        send(200, { ok: true, fields: sanitized });
       });
       return;
     }

@@ -749,6 +749,35 @@ select:focus {
   margin-left: auto;
 }
 
+.metadata-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.metadata-field-label {
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.metadata-field-value {
+  flex: 1;
+  min-width: 120px;
+}
+
+.metadata-field-key {
+  white-space: nowrap;
+}
+
 .tab-panel[hidden] {
   display: none;
 }

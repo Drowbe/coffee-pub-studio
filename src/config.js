@@ -392,6 +392,55 @@ function sanitizeSession(input) {
   };
 }
 
+const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500 };
+
+// Data Field keys Studio itself resolves specially (src/main.js's
+// resolveDataField) -- today's date/time, and the two Season/Episode
+// aliases backed by session.season/.episode above. A user-created
+// metadata field's generated key can never collide with one of these
+// (see uniqueMetadataKey), and a connected module registering one of
+// these exact keys has its field shadowed by Studio's own, not rejected
+// -- see api-automations.md's "Reserved keys" note.
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear', 'sessionSeasonNumber', 'sessionEpisodeNumber'];
+
+function sanitizeMetadataField(input) {
+  const src = input && typeof input === 'object' ? input : {};
+  const type = src.type === 'number' ? 'number' : 'text';
+  const label = typeof src.label === 'string' ? src.label.trim().slice(0, METADATA_FIELD_LIMITS.maxLabelLen) : '';
+  const key = typeof src.key === 'string' ? src.key.trim().slice(0, METADATA_FIELD_LIMITS.maxKeyLen) : '';
+  const value =
+    type === 'number'
+      ? Number.isFinite(Number(src.value))
+        ? Number(src.value)
+        : 0
+      : typeof src.value === 'string'
+        ? src.value.slice(0, METADATA_FIELD_LIMITS.maxValueLen)
+        : '';
+  return { id: sanitizeId(src.id, `field${Date.now().toString(36)}`), label, key, type, value };
+}
+
+// Drops anything with no label/key (never legitimately created that way --
+// see the "New" flow in control.js) and de-duplicates by key, first one
+// wins, since the key is what a rule-set step's Data Field picker actually
+// points at. Does NOT re-generate a key from a label; that only happens
+// once, client-side, when a field is first created (see uniqueMetadataKey)
+// -- the key freezes at creation by design, so a sanitizer re-deriving it
+// from the (possibly since-changed) label would be a second, silent way
+// for it to change out from under a rule set already pointing at it.
+function sanitizeMetadataFields(input) {
+  const list = Array.isArray(input) ? input : [];
+  const seenKeys = new Set();
+  const out = [];
+  for (const raw of list) {
+    if (out.length >= METADATA_FIELD_LIMITS.maxFields) break;
+    const field = sanitizeMetadataField(raw);
+    if (!field.label || !field.key || seenKeys.has(field.key)) continue;
+    seenKeys.add(field.key);
+    out.push(field);
+  }
+  return out;
+}
+
 // Where the control panel was last left; null lets Electron place it.
 function sanitizePanel(input) {
   if (!input || typeof input !== 'object') return null;
@@ -419,6 +468,9 @@ function defaultConfig() {
     tavern: defaultTavern(),
     automations: defaultAutomations(),
     session: defaultSession(),
+    // No metadata fields on a fresh install -- created by hand via "New" on
+    // the Session tab's Metadata card.
+    metadataFields: [],
     // No windows on a fresh install -- the user adds and points each one at
     // whatever they're actually running via the "+" tab.
     views: [],
@@ -526,6 +578,7 @@ function sanitizeConfig(input) {
     tavern: sanitizeTavern(src.tavern),
     automations: sanitizeAutomations(src.automations),
     session: sanitizeSession(src.session),
+    metadataFields: sanitizeMetadataFields(src.metadataFields),
     panel: sanitizePanel(src.panel),
     views,
   };
@@ -644,4 +697,6 @@ module.exports = {
   STUDIO_ACTION_SCHEMA,
   CONFIG_VERSION,
   DEFAULT_GROUP,
+  RESERVED_FIELD_KEYS,
+  METADATA_FIELD_LIMITS,
 };
