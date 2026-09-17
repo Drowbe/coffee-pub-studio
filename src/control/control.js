@@ -40,11 +40,18 @@ const metadataEls = {
   addForm: $('metadata-add-form'),
   newLabel: $('metadata-new-label'),
   newType: $('metadata-new-type'),
+  newSeparatorField: $('metadata-new-separator-field'),
+  newSeparator: $('metadata-new-separator'),
+  newPaddingField: $('metadata-new-padding-field'),
+  newPadding: $('metadata-new-padding'),
   addConfirm: $('metadata-add-confirm'),
   addCancel: $('metadata-add-cancel'),
   fields: $('metadata-fields'),
   fieldsEmpty: $('metadata-fields-empty'),
 };
+const METADATA_COMPOUND_TYPES = ['textNumber', 'numberText'];
+// Kept in lockstep with METADATA_FIELD_TYPES in src/config.js.
+const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES];
 
 // A live preview of what applySessionFilename would actually write, mirroring
 // formatSessionTemplate in src/main.js: {season}/{episode} from the Season/
@@ -77,7 +84,14 @@ function previewDataField(key) {
   if (baseKey === 'sessionEpisodeNumber') return pad2((Number(sessionEpisodeEl.value) || 0) + delta);
 
   const field = ((config && config.metadataFields) || []).find((f) => f.key === baseKey);
-  if (field) return field.type === 'number' && delta ? String(Number(field.value) + delta) : String(field.value);
+  if (field) {
+    if (field.type === 'textNumber' || field.type === 'numberText') {
+      const number = field.number + delta;
+      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+    }
+    return field.type === 'number' && delta ? String(Number(field.value) + delta) : String(field.value);
+  }
 
   return `(${key})`;
 }
@@ -134,18 +148,50 @@ function renderMetadataFields() {
     label.className = 'metadata-field-label';
     label.textContent = `${field.label}:`;
 
-    const valueInput = document.createElement('input');
-    valueInput.type = field.type === 'number' ? 'number' : 'text';
-    valueInput.className = 'metadata-field-value';
-    valueInput.value = field.value;
-    valueInput.spellcheck = false;
-    valueInput.addEventListener('change', () => {
-      config.metadataFields = config.metadataFields.map((f) =>
-        f.id === field.id ? { ...f, value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value } : f
-      );
+    const updateField = (patch) => {
+      config.metadataFields = config.metadataFields.map((f) => (f.id === field.id ? { ...f, ...patch } : f));
       updateFilenamePreview();
       scheduleSave();
-    });
+    };
+
+    const valueEls = [];
+    if (METADATA_COMPOUND_TYPES.includes(field.type)) {
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.className = 'metadata-field-value metadata-field-text';
+      textInput.value = field.text;
+      textInput.spellcheck = false;
+      textInput.addEventListener('change', () => updateField({ text: textInput.value }));
+
+      const numberInput = document.createElement('input');
+      numberInput.type = 'number';
+      numberInput.className = 'metadata-field-value metadata-field-number';
+      numberInput.value = field.number;
+      numberInput.addEventListener('change', () => updateField({ number: Number(numberInput.value) || 0 }));
+
+      // No separator input here -- it's fixed at creation, same as the
+      // order (textNumber vs numberText) and the padding. Shown as plain
+      // text between the two live inputs so the composed shape ("Chapter"
+      // [_] "" [5], reading as "Chapter5") stays visible without being
+      // editable in place.
+      const sep = document.createElement('span');
+      sep.className = 'metadata-field-separator hint';
+      sep.textContent = field.separator || '—'; // em dash: "no separator" still shows as a joint, not a gap
+      sep.title = field.separator ? `Separator: "${field.separator}"` : 'No separator';
+
+      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
+      else valueEls.push(numberInput, sep, textInput);
+    } else {
+      const valueInput = document.createElement('input');
+      valueInput.type = field.type === 'number' ? 'number' : 'text';
+      valueInput.className = 'metadata-field-value';
+      valueInput.value = field.value;
+      valueInput.spellcheck = false;
+      valueInput.addEventListener('change', () =>
+        updateField({ value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value })
+      );
+      valueEls.push(valueInput);
+    }
 
     const key = document.createElement('span');
     key.className = 'metadata-field-key hint';
@@ -164,15 +210,25 @@ function renderMetadataFields() {
       scheduleSave();
     });
 
-    row.append(label, valueInput, key, remove);
+    row.append(label, ...valueEls, key, remove);
     metadataEls.fields.appendChild(row);
   }
 }
+
+function updateMetadataAddFormVisibility() {
+  const compound = METADATA_COMPOUND_TYPES.includes(metadataEls.newType.value);
+  metadataEls.newSeparatorField.hidden = !compound;
+  metadataEls.newPaddingField.hidden = !compound;
+}
+metadataEls.newType.addEventListener('change', updateMetadataAddFormVisibility);
 
 metadataEls.add.addEventListener('click', () => {
   metadataEls.addForm.hidden = false;
   metadataEls.newLabel.value = '';
   metadataEls.newType.value = 'text';
+  metadataEls.newSeparator.value = '';
+  metadataEls.newPadding.value = '0';
+  updateMetadataAddFormVisibility();
   metadataEls.newLabel.focus();
 });
 metadataEls.addCancel.addEventListener('click', () => {
@@ -184,14 +240,11 @@ metadataEls.addConfirm.addEventListener('click', () => {
     metadataEls.newLabel.focus();
     return;
   }
-  const type = metadataEls.newType.value === 'number' ? 'number' : 'text';
-  const field = {
-    id: `field${Date.now().toString(36)}`,
-    label: label.slice(0, 60),
-    key: uniqueMetadataKey(label),
-    type,
-    value: type === 'number' ? 0 : '',
-  };
+  const type = METADATA_FIELD_TYPES.includes(metadataEls.newType.value) ? metadataEls.newType.value : 'text';
+  const base = { id: `field${Date.now().toString(36)}`, label: label.slice(0, 60), key: uniqueMetadataKey(label), type };
+  const field = METADATA_COMPOUND_TYPES.includes(type)
+    ? { ...base, text: '', separator: metadataEls.newSeparator.value.slice(0, 20), number: 0, padding: Number(metadataEls.newPadding.value) || 0 }
+    : { ...base, value: type === 'number' ? 0 : '' };
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
   renderMetadataFields();
@@ -1943,7 +1996,7 @@ function dataFieldGroups() {
     const fields = [];
     for (const f of metadataFields) {
       fields.push({ key: f.key, label: `${f.label} (${f.key})` });
-      if (f.type === 'number') {
+      if (f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)) {
         fields.push({ key: `${f.key}+1`, label: `${f.label} + 1 (${f.key}+1)` });
         fields.push({ key: `${f.key}-1`, label: `${f.label} - 1 (${f.key}-1)` });
       }

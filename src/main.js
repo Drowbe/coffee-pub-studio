@@ -560,18 +560,23 @@ function formatSessionTemplate(template, eventData) {
 //      storage, a trailing +1/-1 makes no sense here and is ignored.
 //   2. sessionSeasonNumber / sessionEpisodeNumber -- Studio's own tracked
 //      numbers (session.season/.episode).
-//   3. A user-created metadataFields entry, by key.
+//   3. A user-created metadataFields entry, by key -- "text"/"number" as
+//      you'd expect, plus "textNumber"/"numberText": a fixed text segment
+//      glued to a number segment via a typed separator ("Chapter" + "5" ->
+//      "Chapter 5"), the number segment optionally zero-padded. Only that
+//      number segment is ever "+1"/"-1"-capable, same as a plain Number
+//      field; the text segment and separator are fixed at creation.
 //   For (2) and (3), a trailing "+1"/"-1" is NOT a pure read: on a
-//   Number-shaped value it computes the new number, PERSISTS it back
-//   (configStore.save + broadcastStatus), and returns the new value --
-//   confirmed directly: selecting "sessionDaysLeft + 1" in an automation
-//   both writes "4" to OBS and leaves the stored value at 4 for next time,
-//   the same way incrementEpisode already mutates session.episode, just
-//   generalized to any Number field and folded into resolution itself
-//   rather than needing a dedicated action per field. A delta against a
-//   Text-typed field, or one that doesn't exist, is silently ignored --
-//   same "just don't crash a rule set over it" posture as the rest of this
-//   function.
+//   Number-shaped value (or a textNumber/numberText's number segment) it
+//   computes the new number, PERSISTS it back (configStore.save +
+//   broadcastStatus), and returns the new (composed) value -- confirmed
+//   directly: selecting "sessionDaysLeft + 1" in an automation both writes
+//   "4" to OBS and leaves the stored value at 4 for next time, the same
+//   way incrementEpisode already mutates session.episode, just generalized
+//   to any Number field and folded into resolution itself rather than
+//   needing a dedicated action per field. A delta against a Text-typed
+//   field, or one that doesn't exist, is silently ignored -- same "just
+//   don't crash a rule set over it" posture as the rest of this function.
 //   4. Not a Studio-known key at all -- fall through to eventData[key]
 //      (whatever the triggering event actually sent), the original and
 //      only behavior before Studio had any fields of its own. A trailing
@@ -605,6 +610,17 @@ function resolveDataField(key, eventData) {
   const fields = configStore.get().metadataFields;
   const field = fields.find((f) => f.key === baseKey);
   if (field) {
+    if (field.type === 'textNumber' || field.type === 'numberText') {
+      let number = field.number;
+      if (delta) {
+        number += delta;
+        const current = configStore.get();
+        configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, number } : f)) });
+        broadcastStatus();
+      }
+      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+    }
     if (field.type === 'number' && delta) {
       const value = Number(field.value) + delta;
       const current = configStore.get();

@@ -20,6 +20,34 @@ designed. All test rule sets, test metadata fields, and the bumped episode numbe
 and restored afterward; a `diff` against a config snapshot taken before testing confirmed nothing
 else changed.
 
+### Addendum: two more field types -- "Text + Number" and "Number + Text"
+
+Raised directly after shipping the above, working from a real example already in production use:
+the user's own `episodeFormat` composes two placeholders into one string ("SEASON 03
+EPISODE 32"), a capability plain Text/Number metadata fields didn't have -- a `setText` step's
+Data Field type is a single key lookup, no template. Rather than build a general `{..}`-template
+engine for arbitrary metadata (more machinery, and the one genuinely multi-number case -- Season
+*and* Episode combined -- already has `episodeFormat` for it), added two narrower field types that
+cover the common "label glued to a counter" pattern directly: **Text + Number** and **Number +
+Text**, a fixed text segment and a number segment joined by a separator typed once at creation
+("Chapter" + `""` + `5` -> "Chapter 5"; `3` + `""` + " Days Left" -> "3 Days Left"), the number
+segment optionally zero-padded (a dropdown: none/2/3/4 digits -- the user's own suggestion, after
+first proposing a separator dropdown and self-correcting to a free-text input for the separator
+itself, "now that I typed all those, maybe it is just an input box"). The number segment gets the
+exact same `+1`/`-1` Data Field treatment a plain Number field's value already has; the text
+segment, separator, and padding are all fixed at creation like the key itself.
+
+Verified live: a `textNumber` field ("Chapter", text `"Chapter "`, number `5`) and a `numberText`
+field ("Days Left 2", number `3`, padding `2`, text `" Days Left"`) both rendered correctly in the
+Metadata card with the composed order right for each type (text-then-number vs. number-then-text,
+separator shown as an em dash when empty rather than an invisible gap) and appeared correctly in a
+`setText` step's Data Field dropdown with their own `+1`/`-1` entries. A real `POST /event` firing
+a step reading `sessionChapter+1` moved the stored number 5 -> 6, confirmed via the same
+activity-log error trail (the probe step's OBS target still didn't exist) as the original addendum
+above. All test data removed and diffed clean afterward, alongside the user's own real fields
+(`sessionCampaign`, `sessionParty`) created independently during this same window and left
+untouched throughout.
+
 ## Why
 
 `setText`'s "Data Field" value type only ever sees whatever a *connected module* has registered via

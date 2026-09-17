@@ -155,21 +155,34 @@ Studio restart, repopulated whenever a module reconnects and registers again. A 
 
 Not every value a `setText` step wants comes from a connected module -- the person running Studio
 might want their own campaign name, a countdown, or Season/Episode itself available the same way.
-`config.metadataFields` (`src/config.js`) is a persisted list of `{id, label, key, type, value}`
-the Session tab's Metadata card creates and edits directly -- unlike `registeredFieldsByModule`
-above, this is real config, not in-memory state, since the whole point of a Number field is that
-Studio remembers its last value across restarts. The key freezes at creation
-(`sanitizeMetadataField` never re-derives it from a label): confirmed directly, renaming means
-deleting the field and creating a new one, not editing one in place -- editing the key on every
-label change would be a second, silent way for it to drift out from under a rule set already
-pointing at it, on top of the one an OBS source rename already creates.
+`config.metadataFields` (`src/config.js`) is a persisted list the Session tab's Metadata card
+creates and edits directly -- unlike `registeredFieldsByModule` above, this is real config, not
+in-memory state, since the whole point of a Number field is that Studio remembers its last value
+across restarts. The key freezes at creation (`sanitizeMetadataField` never re-derives it from a
+label): confirmed directly, renaming means deleting the field and creating a new one, not editing
+one in place -- editing the key on every label change would be a second, silent way for it to
+drift out from under a rule set already pointing at it, on top of the one an OBS source rename
+already creates.
 
-`resolveDataField` (`src/main.js:569`) is where a `dataField` key actually resolves, in order:
+Four field types, all sharing the same `{id, label, key, type, ...}` shape: `"text"`/`"number"`
+carry a single `value`; `"textNumber"`/`"numberText"` carry `text`, `separator`, `number`, and
+`padding` instead -- a fixed text segment glued to a number segment via a typed separator ("Chapter"
++ `""` + `5` -> `"Chapter 5"`), the number segment optionally zero-padded (`padding`, one of
+`0`/`2`/`3`/`4`). Order (which segment comes first), the separator, and the padding are all fixed
+at creation same as the key -- only `text` and `number` (or `value`, for the simple types) are
+ever edited in place afterward. A compound field's number segment is exactly as
+`"+1"`/`"-1"`-capable as a plain Number field's `value` -- `METADATA_COMPOUND_TYPES` in
+`src/control/control.js` (kept in lockstep with `METADATA_FIELD_TYPES` in `src/config.js`) is
+where both the dropdown's derived-variant generation and the "New" form's conditional
+separator/padding fields check for that.
+
+`resolveDataField` (`src/main.js:586`) is where a `dataField` key actually resolves, in order:
 an evergreen built-in (`sessionTime`/`Date`/`Day`/`Month`/`Year`, computed fresh, no storage), the
 two Season/Episode aliases (`sessionSeasonNumber`/`sessionEpisodeNumber`, backed by
 `session.season`/`.episode` -- the same numbers the Episode card edits), a `metadataFields` entry
-by key, then falling through to `eventData[key]` -- the original, only behavior before any of this
-existed, still exactly how a module's own registered fields resolve.
+by key (composing `text`/`separator`/`number` for the two compound types), then falling through to
+`eventData[key]` -- the original, only behavior before any of this existed, still exactly how a
+module's own registered fields resolve.
 
 **A trailing `+1`/`-1` is not a pure read.** Confirmed directly, with the user's own example: "In
 the automation, they choose 'sessionDaysLeft + 1'... we change the value for 'Days Left' from '3'

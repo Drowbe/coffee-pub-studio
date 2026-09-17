@@ -92,7 +92,7 @@
           </div>
           <button id="metadata-add" class="btn btn-small" type="button">New</button>
         </div>
-        <p class="hint">Your own Text or Number values -- a campaign name, a countdown, anything to track -- usable from any automation's "Data Field" picker. Renaming isn't supported; delete a field and create a new one instead.</p>
+        <p class="hint">Your own Text, Number, or Text+Number values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. Renaming isn't supported; delete a field and create a new one instead.</p>
         <div class="row" id="metadata-add-form" hidden>
           <label class="field field-inline">
             <span>Label</span>
@@ -103,6 +103,21 @@
             <select id="metadata-new-type">
               <option value="text">Text</option>
               <option value="number">Number</option>
+              <option value="textNumber">Text + Number</option>
+              <option value="numberText">Number + Text</option>
+            </select>
+          </label>
+          <label class="field field-inline" id="metadata-new-separator-field" hidden>
+            <span>Separator</span>
+            <input id="metadata-new-separator" type="text" spellcheck="false" size="4" placeholder="none">
+          </label>
+          <label class="field field-inline" id="metadata-new-padding-field" hidden>
+            <span>Padding</span>
+            <select id="metadata-new-padding">
+              <option value="0">No padding</option>
+              <option value="2">2 digits (01)</option>
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
             </select>
           </label>
           <button id="metadata-add-confirm" class="btn btn-primary btn-small" type="button">Add</button>

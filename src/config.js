@@ -392,7 +392,9 @@ function sanitizeSession(input) {
   };
 }
 
-const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500 };
+const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500, maxSeparatorLen: 20 };
+const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText'];
+const METADATA_PADDING_OPTIONS = [0, 2, 3, 4];
 
 // Data Field keys Studio itself resolves specially (src/main.js's
 // resolveDataField) -- today's date/time, and the two Season/Episode
@@ -405,9 +407,30 @@ const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessio
 
 function sanitizeMetadataField(input) {
   const src = input && typeof input === 'object' ? input : {};
-  const type = src.type === 'number' ? 'number' : 'text';
+  const type = METADATA_FIELD_TYPES.includes(src.type) ? src.type : 'text';
   const label = typeof src.label === 'string' ? src.label.trim().slice(0, METADATA_FIELD_LIMITS.maxLabelLen) : '';
   const key = typeof src.key === 'string' ? src.key.trim().slice(0, METADATA_FIELD_LIMITS.maxKeyLen) : '';
+  const id = sanitizeId(src.id, `field${Date.now().toString(36)}`);
+
+  // "Text + Number"/"Number + Text": a fixed text segment glued to a
+  // number segment (which alone gets the +1/-1 treatment, same as a plain
+  // Number field) via a typed separator and an optional zero-pad width --
+  // covers "Chapter 5"/"5 Days Left" without needing a real {..} template
+  // engine. Order, separator, and padding are all fixed at creation, same
+  // reasoning as the key: delete and recreate rather than edit in place.
+  if (type === 'textNumber' || type === 'numberText') {
+    return {
+      id,
+      label,
+      key,
+      type,
+      text: typeof src.text === 'string' ? src.text.slice(0, METADATA_FIELD_LIMITS.maxValueLen) : '',
+      separator: typeof src.separator === 'string' ? src.separator.slice(0, METADATA_FIELD_LIMITS.maxSeparatorLen) : '',
+      number: Number.isFinite(Number(src.number)) ? Number(src.number) : 0,
+      padding: METADATA_PADDING_OPTIONS.includes(Number(src.padding)) ? Number(src.padding) : 0,
+    };
+  }
+
   const value =
     type === 'number'
       ? Number.isFinite(Number(src.value))
@@ -416,7 +439,7 @@ function sanitizeMetadataField(input) {
       : typeof src.value === 'string'
         ? src.value.slice(0, METADATA_FIELD_LIMITS.maxValueLen)
         : '';
-  return { id: sanitizeId(src.id, `field${Date.now().toString(36)}`), label, key, type, value };
+  return { id, label, key, type, value };
 }
 
 // Drops anything with no label/key (never legitimately created that way --

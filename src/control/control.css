@@ -774,6 +774,17 @@ select:focus {
   min-width: 120px;
 }
 
+.metadata-field-value.metadata-field-number {
+  flex: none;
+  width: 90px;
+  min-width: 0;
+}
+
+.metadata-field-separator {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 .metadata-field-key {
   white-space: nowrap;
 }
