@@ -656,9 +656,10 @@ async function runAutomationAction(action, param, eventData, stepContext) {
     }
     case 'applySessionFilename': {
       requireObs();
-      const format = configStore.get().session.filenameFormat;
-      if (!format) throw new Error('Set a filename format on the Session tab first.');
-      return obs.setFilenameFormat(formatSessionTemplate(format, eventData));
+      const { filenameFormat, filenameFormatEnabled } = configStore.get().session;
+      if (!filenameFormatEnabled) throw new Error('Filename automation is off. Enable it under Recording Filename on the Session tab first.');
+      if (!filenameFormat) throw new Error('Set a filename format on the Session tab first.');
+      return obs.setFilenameFormat(formatSessionTemplate(filenameFormat, eventData));
     }
     default:
       throw new Error(`Unknown action: ${action}`);

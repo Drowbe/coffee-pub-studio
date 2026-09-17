@@ -272,7 +272,7 @@ is disconnected:
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
 | `incrementEpisode` | Bumps Studio's own stored episode number by 1 (season is untouched -- there is no auto-increment for that) |
 | `applyEpisodeText` | Writes Studio's stored season/episode into the named text source, formatted by the Session tab's **Format** template (`{season}`/`{episode}` only -- `{title}`/`{campaign}` in this same template still come from the triggering event's `data`, same as everywhere else) |
-| `applySessionFilename` | Writes the Session tab's **Recording filename format** template (all four placeholders) into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything if that template is empty -- it is empty by default, deliberately, since this overwrites a real OBS setting |
+| `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template (all four placeholders) into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
 
 Both templates accept the same four placeholders: `{season}` and `{episode}` are Studio's own
 stored numbers (Session tab), always zero-padded to 2 digits; `{title}` and `{campaign}` come from

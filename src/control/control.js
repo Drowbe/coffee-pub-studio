@@ -32,6 +32,7 @@ const sessionEpisodeEl = $('session-episode');
 const sessionEpisodeIncrementEl = $('session-episode-increment');
 const sessionEpisodeSourceEl = $('session-episode-source');
 const sessionEpisodeFormatEl = $('session-episode-format');
+const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
 
 let config = null;
@@ -205,7 +206,9 @@ function applyConfig(next) {
   if (document.activeElement !== sessionEpisodeEl) sessionEpisodeEl.value = String(config.session.episode);
   if (document.activeElement !== sessionEpisodeSourceEl) sessionEpisodeSourceEl.value = config.session.episodeSourceName;
   if (document.activeElement !== sessionEpisodeFormatEl) sessionEpisodeFormatEl.value = config.session.episodeFormat;
+  sessionFilenameEnabledEl.checked = config.session.filenameFormatEnabled;
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
+  sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
   if (!sameViews) {
@@ -808,6 +811,7 @@ async function flushSave() {
       episodeSourceName: sessionEpisodeSourceEl.value,
       episodeFormat: sessionEpisodeFormatEl.value,
       filenameFormat: sessionFilenameFormatEl.value,
+      filenameFormatEnabled: sessionFilenameEnabledEl.checked,
     };
     const saved = await api.saveConfig(config);
     setSaveState('All changes saved');
@@ -832,7 +836,7 @@ arrangeDisplayEl.addEventListener('change', () => {
   config.arrangeDisplayId = Number(arrangeDisplayEl.value);
   scheduleSave();
 });
-for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionSeasonEl, sessionEpisodeEl, sessionEpisodeSourceEl, sessionEpisodeFormatEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
+for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionSeasonEl, sessionEpisodeEl, sessionEpisodeSourceEl, sessionEpisodeFormatEl, sessionFilenameEnabledEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
 });

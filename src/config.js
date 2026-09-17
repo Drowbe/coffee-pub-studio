@@ -369,6 +369,7 @@ function defaultSession() {
     episodeSourceName: '',
     episodeFormat: 'SEASON {season}              EPISODE {episode}',
     filenameFormat: '',
+    filenameFormatEnabled: false,
   };
 }
 
@@ -381,6 +382,7 @@ function sanitizeSession(input) {
     episodeSourceName: typeof src.episodeSourceName === 'string' ? src.episodeSourceName.trim().slice(0, 200) : d.episodeSourceName,
     episodeFormat: typeof src.episodeFormat === 'string' ? src.episodeFormat.slice(0, 300) : d.episodeFormat,
     filenameFormat: typeof src.filenameFormat === 'string' ? src.filenameFormat.slice(0, 300) : d.filenameFormat,
+    filenameFormatEnabled: Boolean(src.filenameFormatEnabled),
   };
 }
 

@@ -61,7 +61,7 @@
 
       <div class="card">
         <h2>Episode</h2>
-        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong>, <strong>Write season/episode to a text source</strong>, and <strong>Apply the session filename format to OBS</strong> use these. <code>{title}</code> and <code>{campaign}</code> in either format below come from whatever triggered the rule set (a Foundry module's event data), not from here.</p>
+        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong> and <strong>Write season/episode to a text source</strong> use these. <code>{title}</code> and <code>{campaign}</code> in the format below come from whatever triggered the rule set (a Foundry module's event data), not from here.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Season</span>
@@ -83,13 +83,23 @@
             <input id="session-episode-format" type="text" spellcheck="false" placeholder="SEASON {season}              EPISODE {episode}">
           </label>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Recording Filename</h2>
+        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{season}</code>/<code>{episode}</code> come from Episode above, <code>{title}</code>/<code>{campaign}</code> from whatever triggered the rule set, and OBS's own <code>%</code>-style macros pass through untouched.</p>
+        <div class="row">
+          <label class="check">
+            <input id="session-filename-enabled" type="checkbox">
+            <span>Enable filename automation</span>
+          </label>
+        </div>
         <div class="row">
           <label class="field field-inline">
-            <span>Recording filename format</span>
+            <span>Filename format</span>
             <input id="session-filename-format" type="text" spellcheck="false" placeholder="Show S{season}E{episode} - {campaign} - %CCYY-%MM-%DD">
           </label>
         </div>
-        <p class="hint">Leave the filename format blank to leave OBS's own Filename Formatting setting alone -- <strong>Apply the session filename format to OBS</strong> refuses to run rather than clearing it.</p>
       </div>
 
       <div class="card">
