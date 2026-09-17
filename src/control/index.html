@@ -61,7 +61,7 @@
 
       <div class="card">
         <h2>Episode</h2>
-        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong> and <strong>Write season/episode to a text source</strong> use these. <code>{title}</code> and <code>{campaign}</code> in the format below come from whatever triggered the rule set (a Foundry module's event data), not from here.</p>
+        <p class="hint">Season and episode number Studio tracks itself -- the Studio Control actions <strong>Increment episode number</strong> and <strong>Write season/episode to a text source</strong> use these. <code>{title}</code> and <code>{campaign}</code> in the format below come from whatever triggered the rule set (a Foundry module's event data), not from here -- any Metadata field works too, by its own data field key.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Season</span>
@@ -114,7 +114,7 @@
 
       <div class="card">
         <h2>Recording Filename</h2>
-        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{season}</code>/<code>{episode}</code> come from Episode above, <code>{title}</code>/<code>{campaign}</code> from whatever triggered the rule set, and OBS's own <code>%</code>-style macros pass through untouched.</p>
+        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{season}</code>/<code>{episode}</code> come from Episode above, <code>{title}</code>/<code>{campaign}</code> from whatever triggered the rule set, any Metadata field below works too by its own data field key (<code>{sessionCampaign}</code>, <code>{sessionDaysLeft+1}</code>, ...), and OBS's own <code>%</code>-style macros pass through untouched.</p>
         <div class="row">
           <label class="check">
             <input id="session-filename-enabled" type="checkbox">

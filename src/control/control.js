@@ -51,9 +51,40 @@ const metadataEls = {
 // Episode fields above (zero-padded, same as the real thing), {title}/
 // {campaign} shown as placeholders since there's no triggering event to read
 // them from here, and OBS's own %-style macros left untouched either way.
+// Mirrors resolveDataField in src/main.js, read-only -- a preview must
+// never actually mutate a Number field or the episode counter just because
+// its format string happens to be visible on screen. {season}/{episode}/
+// {title}/{campaign} keep their own fixed meaning (matching
+// formatSessionTemplate's own legacy aliases); any other {name} is looked
+// up the same way a Data Field picker's options are built (evergreen,
+// Season/Episode, then config.metadataFields), showing (name) when nothing
+// matches -- same spirit as the (title)/(campaign) placeholders below,
+// which truly have no value to show here since there's no triggering event
+// on this tab.
+function previewDataField(key) {
+  const match = /^(.+)([+-]1)$/.exec(key);
+  const baseKey = match ? match[1] : key;
+  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
+  const pad2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
+
+  const now = new Date();
+  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
+  if (baseKey === 'sessionDate') return now.toLocaleDateString();
+  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (baseKey === 'sessionYear') return String(now.getFullYear());
+  if (baseKey === 'sessionSeasonNumber') return pad2((Number(sessionSeasonEl.value) || 0) + delta);
+  if (baseKey === 'sessionEpisodeNumber') return pad2((Number(sessionEpisodeEl.value) || 0) + delta);
+
+  const field = ((config && config.metadataFields) || []).find((f) => f.key === baseKey);
+  if (field) return field.type === 'number' && delta ? String(Number(field.value) + delta) : String(field.value);
+
+  return `(${key})`;
+}
+
 function updateFilenamePreview() {
   const pad2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
-  const vars = {
+  const legacy = {
     season: pad2(sessionSeasonEl.value),
     episode: pad2(sessionEpisodeEl.value),
     title: '(title)',
@@ -61,7 +92,9 @@ function updateFilenamePreview() {
   };
   const format = sessionFilenameFormatEl.value;
   sessionFilenamePreviewEl.textContent = format
-    ? `Preview: ${format.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key])}`
+    ? `Preview: ${format.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
+        Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key)
+      )}`
     : '';
 }
 
@@ -110,6 +143,7 @@ function renderMetadataFields() {
       config.metadataFields = config.metadataFields.map((f) =>
         f.id === field.id ? { ...f, value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value } : f
       );
+      updateFilenamePreview();
       scheduleSave();
     });
 
@@ -126,6 +160,7 @@ function renderMetadataFields() {
     remove.addEventListener('click', () => {
       config.metadataFields = config.metadataFields.filter((f) => f.id !== field.id);
       renderMetadataFields();
+      updateFilenamePreview();
       scheduleSave();
     });
 
@@ -160,6 +195,7 @@ metadataEls.addConfirm.addEventListener('click', () => {
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
   renderMetadataFields();
+  updateFilenamePreview();
   scheduleSave();
 });
 

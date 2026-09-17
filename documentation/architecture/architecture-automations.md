@@ -113,15 +113,21 @@ three call sites as before: `runAutomationRuleSets` (`src/main.js:675`) passes `
 on a `"literal"`/`"file"` setText step now actually works (it never could before, since it always
 ran with no data at all to read from).
 
-`formatSessionTemplate` (`src/main.js:490`) is the other consumer of `eventData`: `applyEpisodeText`
-and `applySessionFilename` both call it to substitute `{season}`/`{episode}` (from
-`session.season`/`.episode`, read fresh from `configStore` and zero-padded) and
-`{title}`/`{campaign}` (from `eventData`, blank if absent) into a user-configured template,
-leaving anything else in the string -- OBS's own `%CCYY`-style recording macros, in
-`applySessionFilename`'s case -- untouched. Both were verified against the real OBS instance this
-was built against: reading the actual live `FilenameFormatting` value and the actual live
-text-source settings before writing anything, confirming `SetProfileParameter`/`SetInputSettings`
-were the right calls before committing to the design, not assumed from the protocol docs alone.
+`formatSessionTemplate` (`src/main.js:533`) is the other consumer of `eventData`: `applyEpisodeText`
+and `applySessionFilename` both call it to substitute a user-configured template. `{season}`,
+`{episode}`, `{title}`, and `{campaign}` are kept as their own fixed `legacy` aliases (every
+template written before Data Fields existed uses them, and `{title}`/`{campaign}` read `eventData`
+directly rather than through `resolveDataField`'s fallback-to-`eventData` branch -- same outcome,
+skipping the key-parsing that only makes sense for an actual Data Field key). Any *other* `{name}`
+found in the template is resolved through `resolveDataField` -- the exact same function a
+`setText` step's `dataField` goes through -- so `{sessionCampaign}` or `{sessionDaysLeft+1}` work
+in a filename or episode-text template exactly as they would from a `setText` step, including a
+`+1`/`-1` variant's mutate-and-persist behavior. Anything left in the string that isn't a
+`{...}`-bracketed name -- OBS's own `%CCYY`-style recording macros, in `applySessionFilename`'s
+case -- is untouched either way. Both actions were verified against the real OBS instance this was
+built against: reading the actual live `FilenameFormatting` value and the actual live text-source
+settings before writing anything, confirming `SetProfileParameter`/`SetInputSettings` were the
+right calls before committing to the design, not assumed from the protocol docs alone.
 
 ## Field registration: making "Data Field" a real dropdown
 

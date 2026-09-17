@@ -527,19 +527,31 @@ function requireObs() {
 // .episode, zero-padded to 2 digits) and {title}/{campaign} (from
 // eventData -- whatever triggered this, e.g. Herald's POST /event data;
 // blank when there is none, such as a manual "Time it" run) into a
-// user-configured template. Shared by applyEpisodeText and
-// applySessionFilename; anything OBS's own %-style recording macros use is
-// untouched, since this only ever replaces the four {..} placeholders.
+// user-configured template -- these four names are kept as their own
+// fixed aliases for backward compatibility (every template written before
+// Data Fields existed uses them) and because {title}/{campaign} read from
+// eventData directly, not through resolveDataField's fallback-to-eventData
+// branch (same outcome, just not routed through the key-parsing/mutation
+// logic that only makes sense for a Data Field key).
+// Any OTHER {name} in the template -- {sessionCampaign}, {sessionDaysLeft
+// +1}, {sessionTime}, anything resolveDataField (below) understands -- is
+// resolved the same way a setText step's Data Field picker would, so a
+// Number field's "+1"/"-1" mutates and persists here exactly as it does
+// from a setText step. Shared by applyEpisodeText and applySessionFilename;
+// anything OBS's own %-style recording macros use is untouched, since this
+// only ever replaces {..}-bracketed names.
 function formatSessionTemplate(template, eventData) {
   const s = configStore.get().session;
   const pad2 = (n) => String(n).padStart(2, '0');
-  const vars = {
+  const legacy = {
     season: pad2(s.season),
     episode: pad2(s.episode),
     title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
     campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
   };
-  return template.replace(/\{(season|episode|title|campaign)\}/g, (_match, key) => vars[key]);
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
+    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData)
+  );
 }
 
 // Resolves one Data Field key to a string, in this order -- see

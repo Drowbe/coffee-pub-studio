@@ -288,14 +288,21 @@ is disconnected:
 | `undockAll` | Brings every docked window back out |
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
 | `incrementEpisode` | Bumps Studio's own stored episode number by 1 (season is untouched -- there is no auto-increment for that) |
-| `applyEpisodeText` | Writes Studio's stored season/episode into the named text source, formatted by the Session tab's **Format** template (`{season}`/`{episode}` only -- `{title}`/`{campaign}` in this same template still come from the triggering event's `data`, same as everywhere else) |
-| `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template (all four placeholders) into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
+| `applyEpisodeText` | Writes Studio's stored season/episode into the named text source, formatted by the Session tab's **Format** template |
+| `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
 
-Both templates accept the same four placeholders: `{season}` and `{episode}` are Studio's own
-stored numbers (Session tab), always zero-padded to 2 digits; `{title}` and `{campaign}` come from
-the triggering event's `data.title`/`data.campaign`, blank if absent. Anything else in either
-template -- including OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the
-filename format -- passes through untouched; only the four `{...}` placeholders are substituted.
+Both templates accept `{season}` and `{episode}` (Studio's own stored numbers, Session tab, always
+zero-padded to 2 digits) and `{title}`/`{campaign}` (the triggering event's `data.title`/
+`data.campaign`, blank if absent) -- these four are kept as fixed names for backward compatibility.
+Any *other* `{name}` in either template is resolved the same way a `setText` step's Data Field
+picker would: a Studio-defined Metadata field by its own key (`{sessionCampaign}`), an evergreen
+field (`{sessionTime}`, `{sessionDate}`, ...), or Season/Episode by their Data Field names
+(`{sessionSeasonNumber}`, `{sessionEpisodeNumber}`) -- including their `+1`/`-1` variants
+(`{sessionDaysLeft+1}`), which mutate and persist the field's stored value exactly as selecting
+that variant from a `setText` step's picker would, not just a read. A name that doesn't resolve to
+anything Studio knows about is left as the literal triggering event's `data[name]` if present,
+blank otherwise. OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the filename
+format pass through untouched either way -- only `{...}`-bracketed names are ever substituted.
 
 ## Sequences, delays, and running steps together
 
