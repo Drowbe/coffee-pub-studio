@@ -78,6 +78,19 @@ its number segment. Same mutate-and-persist path `resolveDataField` already uses
 a click in `src/control/control.js` (`config` mutated locally, `renderMetadataFields()` +
 `scheduleSave()`) instead of a rule-set run.
 
+### Addendum: the +1/-1 buttons are gone -- read/edit toggle instead
+
+Removed again, this time on purpose rather than by oversight: their presence on every row implied a
+human needs to click one each time, when the entire point of a `+1`/`-1` Data Field variant is that
+a rule set does the bumping with nobody touching the card at all -- raised directly by the person
+who owns the feature, watching the buttons and realizing the UI was implying work that automation
+already made unnecessary. Rows are now read-only by default (the composed value, same string
+`resolveDataField` would produce); a pencil "Edit" button swaps a single row into its editable
+input(s) plus a "Save" checkmark. A manual bump, when still wanted, is just typing the new number in
+edit mode -- no dedicated increment control. A freshly-created field opens straight into edit mode
+since it has nothing worth reading yet; see `architecture-automations.md` for the implementation
+(`editingMetadataFieldId`, `composeMetadataFieldValue`).
+
 ## Why
 
 `setText`'s "Data Field" value type only ever sees whatever a *connected module* has registered via

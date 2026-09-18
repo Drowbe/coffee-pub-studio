@@ -792,7 +792,7 @@ select:focus {
 
 .metadata-field-label {
   font-weight: 600;
-  min-width: 100px;
+  flex: 0 0 160px;
 }
 
 .metadata-field-value {
@@ -804,6 +804,16 @@ select:focus {
   flex: none;
   width: 90px;
   min-width: 0;
+}
+
+.metadata-field-value-display {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .metadata-field-separator {

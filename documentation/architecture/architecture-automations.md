@@ -205,10 +205,16 @@ This reuses the *engine's* existing overlap behavior, not a new risk of its own:
 or cancels an in-flight rule-set run that matches again mid-sequence (see "Rule sets and dispatch"
 above), so two overlapping runs referencing the same `+1` field would genuinely double-increment
 it. Worth knowing, not a reason this was built differently -- it is an existing property of the
-engine, just more visible now that it can touch a value the user is actively watching. The Metadata
-card's own inline `+1`/`-1` buttons (next to a Number or compound field's number segment) go
-through the same mutate-and-persist path, just triggered by a click instead of a rule-set run --
-the manual counterpart, for a one-off bump that doesn't need an automation.
+engine, just more visible now that it can touch a value the user is actively watching.
+
+The Metadata card itself has no inline `+1`/`-1` buttons -- removed deliberately, since their
+presence implied a human needs to click one every time, when the entire point of a `+1`/`-1` Data
+Field variant is that a rule set does the bumping with nobody touching the card at all. Each row is
+read-only by default (`composeMetadataFieldValue` renders the same string `resolveDataField` would);
+a pencil-icon "Edit" button (`editingMetadataFieldId` in `src/control/control.js`, only one row at a
+time) swaps it for its editable input(s) and a "Save" checkmark, so a value only ever changes when
+someone deliberately opens a row, types, and commits -- glancing at the card can't mutate it. A
+freshly-created field starts in edit mode (nothing worth reading yet), everything else starts read.
 
 `src/control/control.js`'s `dataFieldGroups()` is the renderer-side merge that actually builds the
 picker: Studio's built-ins and `config.metadataFields` (each Number field contributing its own
@@ -228,6 +234,17 @@ field only *resolves* correctly here if whatever triggered the rule set that run
 `applySessionFilename` actually sent that key in its event `data` -- registering a field only
 makes it discoverable and offers it as a template placeholder, it does not give Studio a value for
 it outside of an actual triggering event.
+
+That caveat is exactly what `run-ruleset`'s test-data prompt exists for, and exactly why it must
+not fire more often than that. `isStudioOwnedDataField` (`src/control/control.js`) checks, for each
+`setText` step's Data Field key, whether it's an evergreen built-in or a `metadataFields` entry --
+either resolves straight from Studio's own config with no `eventData` at all, same as a real trigger
+would resolve it. Only a key that fails both checks (a module's registered field) actually depends
+on whatever triggered the run, so only those go into the prompt's JSON skeleton; a rule set built
+entirely from Studio-owned keys (the common case) now runs with no prompt at all. Confirmed live:
+prompting unconditionally for *any* Data Field step, regardless of where its value actually came
+from, was a bug wearing the shape of a feature -- caught only because a user asked why a button
+they clicked was popping up a dialog meant for something else entirely.
 
 ## `window.prompt()` does not exist in this renderer
 

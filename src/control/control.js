@@ -39,6 +39,7 @@ const metadataEls = {
   newType: $('metadata-new-type'),
   newSeparatorField: $('metadata-new-separator-field'),
   newSeparator: $('metadata-new-separator'),
+  newSeparatorHint: $('metadata-new-separator-hint'),
   newPaddingField: $('metadata-new-padding-field'),
   newPadding: $('metadata-new-padding'),
   addConfirm: $('metadata-add-confirm'),
@@ -228,6 +229,26 @@ function uniqueMetadataKey(label) {
   return `${base}${n}`;
 }
 
+function whitespaceSeparatorHint(separator) {
+  return `(${separator.length} space${separator.length === 1 ? '' : 's'})`;
+}
+
+// Composes the same string resolveDataField would produce for this field
+// -- what the read-mode row displays, and what actually goes out to OBS.
+function composeMetadataFieldValue(field) {
+  if (METADATA_COMPOUND_TYPES.includes(field.type)) {
+    const numberText = field.padding ? String(field.number).padStart(field.padding, '0') : String(field.number);
+    return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+  }
+  return String(field.value);
+}
+
+// Which field (if any) is showing its editable inputs right now -- every
+// other row is read-only display, so a value never changes just because
+// someone glanced at the Metadata card. A freshly-added field starts here
+// (see metadataEls.addConfirm below) since it has nothing worth reading yet.
+let editingMetadataFieldId = null;
+
 function renderMetadataFields() {
   const fields = (config && config.metadataFields) || [];
   metadataEls.fields.textContent = '';
@@ -246,40 +267,31 @@ function renderMetadataFields() {
       scheduleSave();
     };
 
-    // A Number field's own "+1"/"-1" -- the manual counterpart to selecting
-    // the same variant from a Data Field picker (mutate + persist, no
-    // automation needed for a one-off manual bump). Re-renders the whole
-    // list afterward since nothing else updates the input's displayed
-    // value for a button-driven change the way typing already does.
-    const bumpButtons = () =>
-      [-1, 1].map((sign) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn btn-small';
-        btn.textContent = sign > 0 ? '+1' : '-1';
-        btn.title = sign > 0 ? 'Add 1' : 'Subtract 1';
-        btn.addEventListener('click', () => {
-          if (field.type === 'number') updateField({ value: Number(field.value) + sign });
-          else updateField({ number: field.number + sign });
-          renderMetadataFields();
-        });
-        return btn;
-      });
-
+    const isEditing = field.id === editingMetadataFieldId;
     const valueEls = [];
-    if (METADATA_COMPOUND_TYPES.includes(field.type)) {
-      const textInput = document.createElement('input');
+    let textInput;
+    let numberInput;
+    let valueInput;
+
+    if (!isEditing) {
+      const display = document.createElement('span');
+      display.className = 'metadata-field-value-display';
+      display.textContent = composeMetadataFieldValue(field);
+      if (METADATA_COMPOUND_TYPES.includes(field.type) && field.separator && field.separator.trim() === '') {
+        display.title = `Separator: "${field.separator}" -- ${whitespaceSeparatorHint(field.separator)}`;
+      }
+      valueEls.push(display);
+    } else if (METADATA_COMPOUND_TYPES.includes(field.type)) {
+      textInput = document.createElement('input');
       textInput.type = 'text';
       textInput.className = 'metadata-field-value metadata-field-text';
       textInput.value = field.text;
       textInput.spellcheck = false;
-      textInput.addEventListener('change', () => updateField({ text: textInput.value }));
 
-      const numberInput = document.createElement('input');
+      numberInput = document.createElement('input');
       numberInput.type = 'number';
       numberInput.className = 'metadata-field-value metadata-field-number';
       numberInput.value = field.number;
-      numberInput.addEventListener('change', () => updateField({ number: Number(numberInput.value) || 0 }));
 
       // No separator input here -- it's fixed at creation, same as the
       // order (textNumber vs numberText) and the padding. Rendered exactly
@@ -288,27 +300,49 @@ function renderMetadataFields() {
       // "Chapter5", not "Chapter—5").
       const sep = document.createElement('span');
       sep.className = 'metadata-field-separator hint';
-      sep.textContent = field.separator;
+      sep.textContent =
+        field.separator && field.separator.trim() === '' ? whitespaceSeparatorHint(field.separator) : field.separator;
       sep.title = field.separator ? `Separator: "${field.separator}"` : 'No separator';
 
-      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput, ...bumpButtons());
-      else valueEls.push(numberInput, ...bumpButtons(), sep, textInput);
+      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
+      else valueEls.push(numberInput, sep, textInput);
     } else {
-      const valueInput = document.createElement('input');
+      valueInput = document.createElement('input');
       valueInput.type = field.type === 'number' ? 'number' : 'text';
       valueInput.className = 'metadata-field-value';
       valueInput.value = field.value;
       valueInput.spellcheck = false;
-      valueInput.addEventListener('change', () =>
-        updateField({ value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value })
-      );
       valueEls.push(valueInput);
-      if (field.type === 'number') valueEls.push(...bumpButtons());
     }
 
     const key = document.createElement('span');
     key.className = 'metadata-field-key hint';
     key.textContent = `(data field: ${field.key})`;
+
+    const editSave = document.createElement('button');
+    editSave.type = 'button';
+    editSave.className = 'btn btn-small btn-icon';
+    if (isEditing) {
+      editSave.title = 'Save';
+      editSave.setAttribute('aria-label', 'Save');
+      editSave.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i>';
+      editSave.addEventListener('click', () => {
+        const patch = METADATA_COMPOUND_TYPES.includes(field.type)
+          ? { text: textInput.value, number: Number(numberInput.value) || 0 }
+          : { value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value };
+        updateField(patch);
+        editingMetadataFieldId = null;
+        renderMetadataFields();
+      });
+    } else {
+      editSave.title = 'Edit';
+      editSave.setAttribute('aria-label', 'Edit');
+      editSave.innerHTML = '<i class="fa-solid fa-pen" aria-hidden="true"></i>';
+      editSave.addEventListener('click', () => {
+        editingMetadataFieldId = field.id;
+        renderMetadataFields();
+      });
+    }
 
     // Display order only -- reordering has no effect on resolution (a
     // Data Field is always looked up by key), it just lets the list on
@@ -355,7 +389,7 @@ function renderMetadataFields() {
       scheduleSave();
     });
 
-    row.append(label, ...valueEls, key, moveUp, moveDown, remove);
+    row.append(label, ...valueEls, key, editSave, moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
   });
 }
@@ -367,11 +401,17 @@ function updateMetadataAddFormVisibility() {
 }
 metadataEls.newType.addEventListener('change', updateMetadataAddFormVisibility);
 
+metadataEls.newSeparator.addEventListener('input', () => {
+  const value = metadataEls.newSeparator.value;
+  metadataEls.newSeparatorHint.textContent = value && value.trim() === '' ? whitespaceSeparatorHint(value) : '';
+});
+
 metadataEls.add.addEventListener('click', () => {
   metadataEls.addForm.hidden = false;
   metadataEls.newLabel.value = '';
   metadataEls.newType.value = 'text';
   metadataEls.newSeparator.value = '';
+  metadataEls.newSeparatorHint.textContent = '';
   metadataEls.newPadding.value = '0';
   updateMetadataAddFormVisibility();
   metadataEls.newLabel.focus();
@@ -392,6 +432,7 @@ metadataEls.addConfirm.addEventListener('click', () => {
     : { ...base, value: type === 'number' ? 0 : '' };
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
+  editingMetadataFieldId = field.id;
   renderMetadataFields();
   updateFilenamePreview();
   scheduleSave();
@@ -2088,6 +2129,17 @@ function tintClassFor(step, actions) {
 // something that never changes at runtime.
 const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear'];
 
+// True when resolveDataField (src/main.js) can answer this key entirely
+// from Studio's own state -- an evergreen built-in or a Metadata field --
+// with no eventData at all. False means it can only come from whatever
+// triggered the run (a registered field from Herald/Tavern/etc.), which is
+// exactly the case "Run Automation" needs to ask about below.
+function isStudioOwnedDataField(key) {
+  const baseKey = key.replace(/[+-]1$/, '');
+  if (RESERVED_FIELD_KEYS.includes(baseKey)) return true;
+  return ((config && config.metadataFields) || []).some((f) => f.key === baseKey);
+}
+
 // Every option a setText step's "Data Field" picker offers, grouped for the
 // <optgroup> markup below -- Studio's own built-ins (always present, no
 // setup needed), then Metadata (config.metadataFields, a "+1"/"-1" pair
@@ -2508,14 +2560,13 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       reportError(new Error('Set this rule set\'s event before running it.'));
       return;
     }
-    // Only a "Data Field" setText step genuinely needs external data --
-    // "Free Text" and "File" are self-contained and already run correctly
-    // with none. Running with no data at all for a Data Field step (what
-    // this used to always send, unconditionally) means it reads nothing
-    // and writes blank text no matter what it's configured with. Ask for
-    // real data, pre-filled with every such step's own dataField as an
-    // empty skeleton, so there's something to actually fill in rather than
-    // silently running blank.
+    // A "Data Field" setText step reading one of Studio's own keys (an
+    // evergreen built-in or a Metadata field) needs no outside input at
+    // all -- resolveDataField answers it straight from config, same as a
+    // real trigger would. Only a step reading a key some other module
+    // registers (Herald, Tavern, ...) genuinely depends on whatever
+    // triggered the run, and that's the only case worth asking about here;
+    // "Free Text" and "File" steps are self-contained regardless.
     let data = {};
     const fields = [
       ...new Set(
@@ -2524,11 +2575,12 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
           .map((s) => s.dataField || 'text')
       ),
     ];
-    if (fields.length) {
+    const externalFields = fields.filter((f) => !isStudioOwnedDataField(f));
+    if (externalFields.length) {
       const skeleton = {};
-      for (const f of fields) skeleton[f] = '';
+      for (const f of externalFields) skeleton[f] = '';
       const input = await promptModal(
-        'This rule set has a step reading a Data Field. Enter data as JSON:',
+        'This rule set has a step reading a Data Field that only a live trigger would supply. Enter test data as JSON:',
         JSON.stringify(skeleton)
       );
       if (input === null) return; // cancelled
