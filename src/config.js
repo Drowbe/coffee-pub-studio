@@ -57,8 +57,14 @@ function defaultView(index) {
   };
 }
 
-// A free-form session group name; empty means the default group.
-function sanitizeSession(value) {
+// A free-form session GROUP name (windows sharing cookies/storage); empty
+// means the default group. Named distinctly from the season/episode
+// sanitizeSession below -- a second `function sanitizeSession` declared
+// later in this same module would silently win at every call site,
+// including this one's, above it in the file (a real bug caught live: it
+// had been overwriting every view's group name with a season/episode
+// object on each save).
+function sanitizeSessionGroup(value) {
   if (value === undefined || value === null) return DEFAULT_GROUP;
   const text = String(value).trim().slice(0, 40);
   return text || DEFAULT_GROUP;
@@ -145,7 +151,7 @@ const AUTOMATIONS_LIMITS = {
   maxDelaySeconds: 3600,
 };
 const AUTOMATIONS_ACTIONS = [
-  'sceneSwitch', 'sourceShow', 'sourceHide', 'sourceToggle',
+  'sceneSwitch', 'sourceShow', 'sourceHide', 'sourceToggle', 'setText',
   'startRecording', 'pauseRecording', 'resumeRecording', 'stopRecording',
   'startStreaming', 'stopStreaming',
 ];
@@ -163,6 +169,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
   { action: 'sourceShow', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'sourceHide', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'sourceToggle', param: 'source name', paramType: 'source', group: 'Sources' },
+  { action: 'setText', param: 'source name', paramType: 'source', group: 'Sources' },
   { action: 'startRecording', param: null, paramType: 'none', group: 'Controls' },
   { action: 'pauseRecording', param: null, paramType: 'none', group: 'Controls' },
   { action: 'resumeRecording', param: null, paramType: 'none', group: 'Controls' },
@@ -174,7 +181,10 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 // for most of these the way there is for the OBS actions). Every one is off
 // by default and only reaches capabilities / the rule-set step list once
 // ticked on in automations.studioActions -- see the note above.
-const STUDIO_ACTIONS = ['wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs'];
+const STUDIO_ACTIONS = [
+  'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
+  'applySessionFilename',
+];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'startAll', label: 'Start all windows', param: null, paramType: 'none', group: 'Studio Control' },
@@ -182,6 +192,7 @@ const STUDIO_ACTION_SCHEMA = [
   { action: 'dockAll', label: 'Dock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'undockAll', label: 'Undock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'syncObs', label: 'Sync OBS', param: null, paramType: 'none', group: 'Studio Control' },
+  { action: 'applySessionFilename', label: 'Apply the session filename format to OBS', param: null, paramType: 'none', group: 'Studio Control' },
 ];
 
 function defaultAutomations() {
@@ -217,6 +228,22 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
     and: Boolean(src.and),
+    // Only meaningful for setText -- "where it goes" is `param` above;
+    // these four are "what it is", one of three kinds a user picks
+    // explicitly rather than there being one ambiguous free-text field
+    // that's sometimes a literal value and sometimes a lookup key:
+    //   - "literal": `value`, typed once, always the same when this step
+    //     runs -- a fixed text preset, no external caller involved at all.
+    //   - "file": `filePath`, a local text file Studio reads fresh every
+    //     time this step runs.
+    //   - "dataField": `dataField`, a key into the triggering event's own
+    //     `data` -- picked from whatever fields a connected module has
+    //     actually registered (POST /api/automations/fields), not typed
+    //     blind against an undocumented contract.
+    valueType: ['literal', 'file', 'dataField'].includes(src.valueType) ? src.valueType : 'literal',
+    value: typeof src.value === 'string' ? src.value.slice(0, 500) : '',
+    filePath: typeof src.filePath === 'string' ? src.filePath.trim().slice(0, 500) : '',
+    dataField: typeof src.dataField === 'string' ? src.dataField.trim().slice(0, 60) : '',
   };
 }
 
@@ -331,6 +358,100 @@ function sanitizeTavern(input) {
   };
 }
 
+// A template Studio writes into OBS's own recording Filename Formatting
+// setting instead of it being hand-typed before every session -- see
+// applySessionFilename in src/main.js. Season/episode numbering used to
+// live here too (a dedicated Studio-tracked pair with their own card),
+// retired once Metadata fields could do the same job without a second,
+// parallel system -- confirmed unused in practice ("too confusing") before
+// removal.
+function defaultSession() {
+  return {
+    filenameFormat: '',
+    filenameFormatEnabled: false,
+  };
+}
+
+function sanitizeSession(input) {
+  const d = defaultSession();
+  const src = input && typeof input === 'object' ? input : {};
+  return {
+    filenameFormat: typeof src.filenameFormat === 'string' ? src.filenameFormat.slice(0, 300) : d.filenameFormat,
+    filenameFormatEnabled: Boolean(src.filenameFormatEnabled),
+  };
+}
+
+const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500, maxSeparatorLen: 20 };
+const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText'];
+const METADATA_PADDING_OPTIONS = [0, 2, 3, 4];
+
+// Data Field keys Studio itself resolves specially (src/main.js's
+// resolveDataField) -- today's date/time. A user-created metadata field's
+// generated key can never collide with one of these (see
+// uniqueMetadataKey), and a connected module registering one of these
+// exact keys has its field shadowed by Studio's own, not rejected -- see
+// api-automations.md's "Reserved keys" note.
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear'];
+
+function sanitizeMetadataField(input) {
+  const src = input && typeof input === 'object' ? input : {};
+  const type = METADATA_FIELD_TYPES.includes(src.type) ? src.type : 'text';
+  const label = typeof src.label === 'string' ? src.label.trim().slice(0, METADATA_FIELD_LIMITS.maxLabelLen) : '';
+  const key = typeof src.key === 'string' ? src.key.trim().slice(0, METADATA_FIELD_LIMITS.maxKeyLen) : '';
+  const id = sanitizeId(src.id, `field${Date.now().toString(36)}`);
+
+  // "Text + Number"/"Number + Text": a fixed text segment glued to a
+  // number segment (which alone gets the +1/-1 treatment, same as a plain
+  // Number field) via a typed separator and an optional zero-pad width --
+  // covers "Chapter 5"/"5 Days Left" without needing a real {..} template
+  // engine. Order, separator, and padding are all fixed at creation, same
+  // reasoning as the key: delete and recreate rather than edit in place.
+  if (type === 'textNumber' || type === 'numberText') {
+    return {
+      id,
+      label,
+      key,
+      type,
+      text: typeof src.text === 'string' ? src.text.slice(0, METADATA_FIELD_LIMITS.maxValueLen) : '',
+      separator: typeof src.separator === 'string' ? src.separator.slice(0, METADATA_FIELD_LIMITS.maxSeparatorLen) : '',
+      number: Number.isFinite(Number(src.number)) ? Number(src.number) : 0,
+      padding: METADATA_PADDING_OPTIONS.includes(Number(src.padding)) ? Number(src.padding) : 0,
+    };
+  }
+
+  const value =
+    type === 'number'
+      ? Number.isFinite(Number(src.value))
+        ? Number(src.value)
+        : 0
+      : typeof src.value === 'string'
+        ? src.value.slice(0, METADATA_FIELD_LIMITS.maxValueLen)
+        : '';
+  return { id, label, key, type, value };
+}
+
+// Drops anything with no label/key (never legitimately created that way --
+// see the "New" flow in control.js) and de-duplicates by key, first one
+// wins, since the key is what a rule-set step's Data Field picker actually
+// points at. Does NOT re-generate a key from a label; that only happens
+// once, client-side, when a field is first created (see uniqueMetadataKey)
+// -- the key freezes at creation by design, so a sanitizer re-deriving it
+// from the (possibly since-changed) label would be a second, silent way
+// for it to change out from under a rule set already pointing at it.
+function sanitizeMetadataFields(input) {
+  const list = Array.isArray(input) ? input : [];
+  const seenKeys = new Set();
+  const out = [];
+  for (const raw of list) {
+    if (out.length >= METADATA_FIELD_LIMITS.maxFields) break;
+    const field = sanitizeMetadataField(raw);
+    if (!field.label || !field.key || seenKeys.has(field.key)) continue;
+    seenKeys.add(field.key);
+    out.push(field);
+  }
+  return out;
+}
+
 // Where the control panel was last left; null lets Electron place it.
 function sanitizePanel(input) {
   if (!input || typeof input !== 'object') return null;
@@ -357,6 +478,10 @@ function defaultConfig() {
     obs: defaultObs(),
     tavern: defaultTavern(),
     automations: defaultAutomations(),
+    session: defaultSession(),
+    // No metadata fields on a fresh install -- created by hand via "New" on
+    // the Session tab's Metadata card.
+    metadataFields: [],
     // No windows on a fresh install -- the user adds and points each one at
     // whatever they're actually running via the "+" tab.
     views: [],
@@ -408,7 +533,7 @@ function sanitizeView(input, index) {
     enabled: src.enabled === undefined ? fallback.enabled : Boolean(src.enabled),
     dockOnLaunch: src.dockOnLaunch === undefined ? fallback.dockOnLaunch : Boolean(src.dockOnLaunch),
     wakeAudio: src.wakeAudio === undefined ? fallback.wakeAudio : Boolean(src.wakeAudio),
-    session: sanitizeSession(src.session),
+    session: sanitizeSessionGroup(src.session),
     windowSource: sanitizeWindowSource(src.windowSource, label, fallback),
     regions: sanitizeRegions(src.regions),
   };
@@ -463,6 +588,8 @@ function sanitizeConfig(input) {
     obs: sanitizeObs(src.obs),
     tavern: sanitizeTavern(src.tavern),
     automations: sanitizeAutomations(src.automations),
+    session: sanitizeSession(src.session),
+    metadataFields: sanitizeMetadataFields(src.metadataFields),
     panel: sanitizePanel(src.panel),
     views,
   };
@@ -581,4 +708,6 @@ module.exports = {
   STUDIO_ACTION_SCHEMA,
   CONFIG_VERSION,
   DEFAULT_GROUP,
+  RESERVED_FIELD_KEYS,
+  METADATA_FIELD_LIMITS,
 };

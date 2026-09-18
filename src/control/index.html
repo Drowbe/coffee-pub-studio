@@ -53,6 +53,71 @@
             <span class="connection-state hint"></span>
           </div>
         </div>
+        <div class="activity-log-box">
+          <div id="connections-activity" class="activity-log"></div>
+          <p class="hint" id="connections-activity-empty">No activity yet.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Metadata</h2>
+        <p class="hint">Your own Text, Number, or Text+Number values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. Renaming isn't supported; delete a field and create a new one instead.</p>
+        <div id="metadata-fields" class="metadata-fields"></div>
+        <p class="hint" id="metadata-fields-empty">No metadata fields yet.</p>
+        <div class="row" id="metadata-add-form" hidden>
+          <label class="field field-inline">
+            <span>Label</span>
+            <input id="metadata-new-label" type="text" spellcheck="false" placeholder="Campaign">
+          </label>
+          <label class="field field-inline">
+            <span>Type</span>
+            <select id="metadata-new-type">
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="textNumber">Text + Number</option>
+              <option value="numberText">Number + Text</option>
+            </select>
+          </label>
+          <label class="field field-inline" id="metadata-new-separator-field" hidden>
+            <span>Separator</span>
+            <input id="metadata-new-separator" type="text" spellcheck="false" size="4" placeholder="none">
+            <span id="metadata-new-separator-hint" class="hint"></span>
+          </label>
+          <label class="field field-inline" id="metadata-new-padding-field" hidden>
+            <span>Padding</span>
+            <select id="metadata-new-padding">
+              <option value="0">No padding</option>
+              <option value="2">2 digits (01)</option>
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
+            </select>
+          </label>
+          <button id="metadata-add-confirm" class="btn btn-primary btn-small" type="button">Add</button>
+          <button id="metadata-add-cancel" class="btn btn-small" type="button">Cancel</button>
+        </div>
+        <div class="row">
+          <button id="metadata-add" class="btn btn-small" type="button">New</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recording Filename</h2>
+        <p class="hint">Off by default. When on, the Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting -- <code>{title}</code>/<code>{campaign}</code> come from whatever triggered the rule set, any Metadata field below works too by its own data field key (<code>{sessionCampaign}</code>, <code>{sessionDaysLeft+1}</code>, ...), and OBS's own <code>%</code>-style macros pass through untouched.</p>
+        <div class="row">
+          <label class="check">
+            <input id="session-filename-enabled" type="checkbox">
+            <span>Enable filename automation</span>
+          </label>
+        </div>
+        <div class="row">
+          <label class="field field-inline field-wide">
+            <span>Filename format</span>
+            <input id="session-filename-format" type="text" spellcheck="false" placeholder="{sessionCampaign} - {campaign} - %CCYY-%MM-%DD">
+          </label>
+          <button id="session-filename-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
+        </div>
+        <div class="datafield-picker" id="session-filename-fields-panel" hidden></div>
+        <p class="hint filename-preview" id="session-filename-preview"></p>
       </div>
 
       <div class="card">
@@ -415,10 +480,10 @@
       <div class="card">
         <div class="view-head">
           <div class="view-head-left">
-            <h2>Test &amp; Recent Events</h2>
+            <h2>Test Events</h2>
           </div>
         </div>
-        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule set.</p>
+        <p class="hint">Smoke test one of the events above to simulate the end-to-end connection. Recent activity, including this, shows in Connections on the Session tab.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Event</span>
@@ -426,8 +491,6 @@
           </label>
           <button id="automations-send-test" class="btn" type="button">Send test event</button>
         </div>
-        <div id="automations-events" class="automations-events"></div>
-        <p class="hint" id="automations-events-empty">No events received yet.</p>
       </div>
     </section>
 
@@ -625,7 +688,7 @@
           <button class="btn btn-small btn-icon" data-action="add-delay" type="button" title="Add delay" aria-label="Add delay"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></button>
         </div>
         <div class="row ruleset-footer">
-          <button class="btn btn-small" data-action="test-ruleset" type="button" title="Send a test event for this rule set's own event"><i class="fa-solid fa-vial" aria-hidden="true"></i> Test</button>
+          <button class="btn btn-small" data-action="run-ruleset" type="button" title="Runs this rule set now by sending its event"><i class="fa-solid fa-play" aria-hidden="true"></i> Run Automation</button>
           <button class="btn btn-small btn-primary" data-action="save-ruleset" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
           <button class="btn btn-small btn-danger" data-action="delete-ruleset" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Delete</button>
         </div>
@@ -661,6 +724,17 @@
             <button id="picker-save" class="btn btn-primary" type="button">Save region</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="prompt-modal-overlay" hidden>
+    <div class="modal">
+      <p class="modal-message" id="prompt-modal-message"></p>
+      <textarea id="prompt-modal-input" class="modal-textarea" spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button id="prompt-modal-cancel" class="btn btn-small" type="button">Cancel</button>
+        <button id="prompt-modal-ok" class="btn btn-primary btn-small" type="button">OK</button>
       </div>
     </div>
   </div>

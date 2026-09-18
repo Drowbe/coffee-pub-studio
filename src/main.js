@@ -157,11 +157,34 @@ function writeSecret(file, secret) {
 const readObsPassword = () => readSecret(OBS_SECRET_PATH);
 const writeObsPassword = (password) => writeSecret(OBS_SECRET_PATH, password);
 
+// ---------------------------------------------------------------------------
+// Activity log (Connections card, Session tab) -- a shared, in-memory record
+// of state transitions and errors from OBS, Tavern, and Automations, so
+// troubleshooting a bad connection doesn't mean reading main-process console
+// output. Not persisted -- resets on restart.
+// ---------------------------------------------------------------------------
+const ACTIVITY_LOG_LIMIT = 100;
+let activityLog = []; // newest first: {at, source, event, level}
+
+function logActivity(source, event, level = 'info') {
+  activityLog.unshift({ at: Date.now(), source, event, level });
+  activityLog.length = Math.min(activityLog.length, ACTIVITY_LOG_LIMIT);
+  broadcastStatus();
+}
+
 const obs = new ObsBridge({
   getSettings: () => configStore.get().obs,
   getPassword: readObsPassword,
 });
-obs.on('status', () => broadcastStatus());
+let lastObsState = null;
+obs.on('status', (s) => {
+  if (s.state !== lastObsState) {
+    lastObsState = s.state;
+    logActivity('OBS', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 obs.on('connected', () => {
   syncObs().catch(() => {});
   syncTavern().catch(() => {});
@@ -177,7 +200,15 @@ const tavern = new TavernBridge({
 });
 // What the last sync found in OBS, shown on the Tavern tab.
 let tavernSync = { at: 0, inputs: [], created: [], updated: [], renamed: [], missing: [], note: '' };
-tavern.on('status', () => broadcastStatus());
+let lastTavernState = null;
+tavern.on('status', (s) => {
+  if (s.state !== lastTavernState) {
+    lastTavernState = s.state;
+    logActivity('Tavern', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 tavern.on('connected', () => syncTavern().catch(() => {}));
 tavern.on('party', () => syncTavern().catch(() => {}));
 
@@ -471,21 +502,161 @@ async function unpublishPlayer(key, removeFromObs = true) {
 // ---------------------------------------------------------------------------
 
 const automations = new AutomationsServer();
-automations.on('status', () => broadcastStatus());
+let lastAutomationsState = null;
+automations.on('status', (s) => {
+  if (s.state !== lastAutomationsState) {
+    lastAutomationsState = s.state;
+    logActivity('Automations', s.message || s.state, s.state === 'error' ? 'error' : 'info');
+  } else {
+    broadcastStatus();
+  }
+});
 automations.on('event', (entry) => {
-  runAutomationRuleSets(entry).catch((err) => console.warn(`[automations] rule set dispatch failed: ${err.message}`));
+  logActivity('Automations', `Event received: ${entry.event}`, 'info');
+  runAutomationRuleSets(entry).catch((err) => {
+    console.warn(`[automations] rule set dispatch failed: ${err.message}`);
+    logActivity('Automations', `Rule set dispatch failed: ${err.message}`, 'error');
+  });
 });
 
 function requireObs() {
   if (!obs.connected) throw new Error('OBS is not connected.');
 }
 
+// Substitutes {title}/{campaign} (from eventData -- whatever triggered
+// this, e.g. Herald's POST /event data; blank when there is none, such as
+// a manual "Time it" run) into a user-configured template -- kept as their
+// own fixed aliases since they read from eventData directly, not through
+// resolveDataField's fallback-to-eventData branch (same outcome, just not
+// routed through the key-parsing/mutation logic that only makes sense for
+// a Data Field key).
+// Any OTHER {name} in the template -- {sessionCampaign}, {sessionDaysLeft
+// +1}, {sessionTime}, anything resolveDataField (below) understands -- is
+// resolved the same way a setText step's Data Field picker would, so a
+// Number field's "+1"/"-1" mutates and persists here exactly as it does
+// from a setText step. Used by applySessionFilename; anything OBS's own
+// %-style recording macros use is untouched, since this only ever replaces
+// {..}-bracketed names.
+function formatSessionTemplate(template, eventData) {
+  const legacy = {
+    title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
+    campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
+  };
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
+    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData)
+  );
+}
+
+// Resolves one Data Field key to a string, in this order -- see
+// plan-session-metadata-fields.md for the full design:
+//   1. An evergreen field (today's date/time) -- computed fresh, no
+//      storage, a trailing +1/-1 makes no sense here and is ignored.
+//   2. A user-created metadataFields entry, by key -- "text"/"number" as
+//      you'd expect, plus "textNumber"/"numberText": a fixed text segment
+//      glued to a number segment via a typed separator ("Chapter" + "5" ->
+//      "Chapter 5"), the number segment optionally zero-padded. Only that
+//      number segment is ever "+1"/"-1"-capable, same as a plain Number
+//      field; the text segment and separator are fixed at creation.
+//   For (2), a trailing "+1"/"-1" is NOT a pure read: on a Number-shaped
+//   value (or a textNumber/numberText's number segment) it computes the
+//   new number, PERSISTS it back (configStore.save + broadcastStatus), and
+//   returns the new (composed) value -- confirmed directly: selecting
+//   "sessionDaysLeft + 1" in an automation both writes "4" to OBS and
+//   leaves the stored value at 4 for next time. A delta against a
+//   Text-typed field, or one that doesn't exist, is silently ignored --
+//   same "just don't crash a rule set over it" posture as the rest of
+//   this function.
+//   3. Not a Studio-known key at all -- fall through to eventData[key]
+//      (whatever the triggering event actually sent), the original and
+//      only behavior before Studio had any fields of its own. A trailing
+//      +1/-1 is meaningless against live event data (there is no "current
+//      value" to increment), so a delta that didn't match (1)-(2) returns
+//      '' rather than trying eventData with the suffix still attached.
+function resolveDataField(key, eventData) {
+  const match = /^(.+)([+-]1)$/.exec(key || '');
+  const baseKey = match ? match[1] : key;
+  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
+
+  const now = new Date();
+  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
+  if (baseKey === 'sessionDate') return now.toLocaleDateString();
+  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (baseKey === 'sessionYear') return String(now.getFullYear());
+
+  const fields = configStore.get().metadataFields;
+  const field = fields.find((f) => f.key === baseKey);
+  if (field) {
+    if (field.type === 'textNumber' || field.type === 'numberText') {
+      let number = field.number;
+      if (delta) {
+        number += delta;
+        const current = configStore.get();
+        configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, number } : f)) });
+        broadcastStatus();
+      }
+      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+    }
+    if (field.type === 'number' && delta) {
+      const value = Number(field.value) + delta;
+      const current = configStore.get();
+      configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, value } : f)) });
+      broadcastStatus();
+      return String(value);
+    }
+    return String(field.value);
+  }
+
+  if (delta) return '';
+  return eventData && typeof eventData[baseKey] === 'string' ? eventData[baseKey] : '';
+}
+
+// What a setText step actually writes -- "where it goes" is `param`
+// (the source name), this is "what it is", one of three kinds a user
+// picks explicitly rather than one ambiguous free-text field:
+//   - "literal": a fixed value, typed once, the same every run -- no
+//     external caller involved, for a preset the user swaps in by hand
+//     (a rule set is still the way to trigger it) or via Herald picking a
+//     rule set from its own menu with no data needed at all.
+//   - "file": a local text file, read fresh every run.
+//   - "dataField": a Data Field key -- see resolveDataField above for the
+//     full resolution order (Studio's own built-ins and metadata fields
+//     first, the triggering event's own data as the fallback).
+// `stepContext` is the whole step object for a rule-set-driven run
+// (carrying whichever of value/filePath/dataField its valueType uses), or
+// `undefined` for a direct `POST /api/automations/action` call or a "Time
+// it" step -- undefined keeps the original convention of reading
+// `eventData.text` literally, since a direct caller already fully
+// controls what it sends and has no step config to consult.
+function resolveTextValue(stepContext, eventData) {
+  if (!stepContext) {
+    return eventData && typeof eventData.text === 'string' ? eventData.text : '';
+  }
+  if (stepContext.valueType === 'file') {
+    try {
+      return fs.readFileSync(stepContext.filePath, 'utf8').trim();
+    } catch (err) {
+      throw new Error(`Could not read text file "${stepContext.filePath}": ${err.message}`);
+    }
+  }
+  if (stepContext.valueType === 'dataField') {
+    return resolveDataField(stepContext.dataField || 'text', eventData);
+  }
+  return stepContext.value || ''; // "literal", and the default for anything unrecognised
+}
+
 // One step's action -> the OBS or Studio call it makes. `param` is the
 // step's own value: a scene name for sceneSwitch, a source name for
-// sourceShow/sourceHide/sourceToggle, ignored otherwise. OBS actions need
+// sourceShow/sourceHide/sourceToggle/setText, ignored otherwise.
+// `eventData` is whatever triggered this (undefined for a manual "Time
+// it" run or a direct action call with none given);
+// `stepContext` (only read by setText, via resolveTextValue above) is the
+// rule-set step itself, or undefined for a direct call. OBS actions need
 // OBS connected; Studio actions (everything from wakeAudio down) work
-// regardless -- none of them but syncObs touches OBS at all.
-async function runAutomationAction(action, param) {
+// regardless -- none of them but syncObs and applySessionFilename touch
+// OBS at all.
+async function runAutomationAction(action, param, eventData, stepContext) {
   switch (action) {
     case 'sceneSwitch':
       requireObs();
@@ -503,6 +674,11 @@ async function runAutomationAction(action, param) {
       requireObs();
       if (!param) throw new Error('sourceToggle needs a source name.');
       return obs.toggleSourceVisible(param);
+    case 'setText': {
+      requireObs();
+      if (!param) throw new Error('setText needs a source name.');
+      return obs.setInputText(param, resolveTextValue(stepContext, eventData));
+    }
     case 'startRecording':
       requireObs();
       return obs.startRecording();
@@ -537,6 +713,13 @@ async function runAutomationAction(action, param) {
     case 'syncObs':
       requireObs();
       return syncObs();
+    case 'applySessionFilename': {
+      requireObs();
+      const { filenameFormat, filenameFormatEnabled } = configStore.get().session;
+      if (!filenameFormatEnabled) throw new Error('Filename automation is off. Enable it under Recording Filename on the Session tab first.');
+      if (!filenameFormat) throw new Error('Set a filename format on the Session tab first.');
+      return obs.setFilenameFormat(formatSessionTemplate(filenameFormat, eventData));
+    }
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -571,7 +754,7 @@ function sleep(ms) {
 // plain timers Studio keeps itself, not a wait for OBS to confirm anything.
 // One step failing (OBS not connected, a scene that doesn't exist) does not
 // stop the rest of its stage or the stages after it.
-async function runRuleSet(ruleSet) {
+async function runRuleSet(ruleSet, eventData) {
   for (const stage of stagesFor(ruleSet.steps)) {
     if (stage.kind === 'delay') {
       await sleep(stage.seconds * 1000);
@@ -579,8 +762,10 @@ async function runRuleSet(ruleSet) {
     }
     await Promise.all(
       stage.steps.map((step) =>
-        runAutomationAction(step.action, step.param).catch((err) => {
-          console.warn(`[automations] rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`);
+        runAutomationAction(step.action, step.param, eventData, step).catch((err) => {
+          const message = `Rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`;
+          console.warn(`[automations] ${message}`);
+          logActivity('Automations', message, 'error');
         })
       )
     );
@@ -596,7 +781,11 @@ async function runAutomationRuleSets(entry) {
   const { ruleSets } = configStore.get().automations;
   const matched = ruleSets.filter((r) => r.enabled && r.event === entry.event);
   for (const ruleSet of matched) {
-    runRuleSet(ruleSet).catch((err) => console.warn(`[automations] rule set "${ruleSet.name}" failed: ${err.message}`));
+    runRuleSet(ruleSet, entry.data).catch((err) => {
+      const message = `Rule set "${ruleSet.name}" failed: ${err.message}`;
+      console.warn(`[automations] ${message}`);
+      logActivity('Automations', message, 'error');
+    });
   }
 }
 
@@ -613,7 +802,7 @@ async function syncAutomationsServer() {
       getToken: () => configStore.get().automations.token,
       getRuleSets: () => configStore.get().automations.ruleSets,
       actions: [...AUTOMATIONS_ACTION_SCHEMA, ...studioActions],
-      runAction: (action, param) => runAutomationAction(action, param),
+      runAction: (action, param, data) => runAutomationAction(action, param, data),
       getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
       getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
       getObsStatus: () => {
@@ -774,6 +963,7 @@ function fullStatus() {
     obs: { ...obs.status(), hasPassword: readObsPassword() !== '' },
     tavern: { ...tavern.status(), hasPassword: readSecret(TAVERN_SECRET_PATH) !== '', sync: tavernSync },
     automations: automations.status(),
+    activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
   };
@@ -1965,7 +2155,25 @@ function registerIpc() {
   // there is a person at the control panel waiting to see whether it worked.
   ipcMain.handle('automations:runSteps', async (_event, steps) => {
     const list = Array.isArray(steps) ? steps : [];
-    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param)));
+    // No real triggering event during a manual test -- a timed setText
+    // step set to "literal" or "file" still runs correctly (neither needs
+    // one), only "dataField" reads blank, since there is genuinely no
+    // live data to pull from outside a real trigger.
+    await Promise.all(list.map((s) => runAutomationAction(s && s.action, s && s.param, undefined, s)));
+  });
+  // A setText step's "File" value type: browse for the local text file
+  // Studio will re-read every time that step runs. Returns the picked
+  // path, or null if the user cancelled.
+  ipcMain.handle('automations:pickTextFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(controlWindow, {
+      title: 'Choose a text file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Text files', extensions: ['txt', 'md', 'log'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    return canceled || !filePaths.length ? null : filePaths[0];
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {

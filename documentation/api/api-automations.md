@@ -64,9 +64,11 @@ Content-Type: application/json
   calling module's side. This is also how a caller triggers a rule set on demand, by name, from a
   menu built from `GET /api/automations/capabilities` below: just POST the same event a rule set
   is configured to react to.
-- `data` (object, optional) is shown back in Studio's Recent Events log for a human to read. No
-  action currently reads any field from it; sending whatever is cheaply available (a scene name, a
-  combat id) costs nothing and may be used by a future rule type.
+- `data` (object, optional) is shown back in Studio's Recent Events log for a human to read, and
+  is also what a `setText` step reads its value from (see the actions table below) and what
+  `applySessionFilename`'s `{title}`/`{campaign}` placeholders come from. Sending whatever is
+  cheaply available (a scene name, a combat id) beyond what a rule set actually uses still costs
+  nothing.
 - The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
   request), 401 (missing or wrong token), or 404 (wrong path or method) otherwise.
 - A 200 means Studio accepted and logged the event, not that a matched rule set's sequence
@@ -173,6 +175,56 @@ Content-Type: application/json
   succeeded, not just whether Studio accepted the request. `200 {"ok": true}` means it ran;
   otherwise `400` (bad request) or `500` (the action itself failed -- OBS not connected, a scene
   that doesn't exist) with `{"error": "..."}` explaining why.
+- `data` (object, optional): for `setText`, an alternative to `param` alone -- reads `data.text`
+  as the literal value to write. There is no way to pick a different key from a direct call the
+  way a saved rule-set step's own `dataField` can; that only matters once a rule set is involved.
+
+## POST /api/automations/fields
+
+Declares which fields a caller will actually put in a future `POST /event`'s `data` -- the other
+half of the discovery `GET /capabilities` already gives a caller about Studio. Without this, a
+`setText` step's "Data Field" option has nothing to offer but a blind free-text box, guessing
+against an undocumented contract; with it, that becomes a real dropdown of what a connected module
+says it provides, the same way scene/source pickers work from live OBS data.
+
+```
+POST https://<studio-host>:<port>/api/automations/fields
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "module": "herald",
+  "fields": [
+    {"key": "title", "label": "Episode Title"},
+    {"key": "campaign", "label": "Campaign Name"}
+  ]
+}
+```
+
+- `module` (string, required) -- a short, stable name identifying *your* module (`"herald"`, not
+  `"Herald v2.3"` -- pick one name and keep calling with that same name). **Required as of this
+  version**; a request without it gets `400 {"error": "\"module\" is required"}`. This exists
+  because registration is scoped per module (see below) -- Studio needs to know whose list it's
+  replacing.
+- `fields` (array, required) -- each entry needs a `key` (string; what actually appears in a
+  future `data` object) and may include a human-readable `label` (defaults to `key` if omitted or
+  blank).
+- This call is **wholesale replacement of your own module's fields only**, not additive and not
+  global -- send your full current list every time, not just what changed, and it will not affect
+  what any other module has registered. Call it once when connecting, and again whenever the set of
+  fields you provide changes; there's no need to track what was registered last time.
+- Kept in memory only, like the recent-events log -- reset on a Studio restart, gone until your
+  module reconnects and registers again. There is nothing to read back over HTTP; this is
+  Studio-UI-facing state (the "Data Field" dropdown), not something a caller queries.
+- Response: `200 {"ok": true, "fields": [...]}` (the sanitized list actually stored for *your*
+  module) or `400` for a malformed body or a missing `module`.
+
+**Reserved keys.** Studio has its own built-in Data Field entries that always exist, plus whatever
+the person running Studio creates themselves on the Session tab -- `sessionTime`, `sessionDate`,
+`sessionDay`, `sessionMonth`, `sessionYear`, and any `session<Something>` key a user-created field
+has claimed. If your module registers a field using one of those exact keys, Studio's own field of
+that name wins in the "Data Field" dropdown -- yours is not deleted or rejected, just shadowed.
+Pick a more specific key if this matters to you (`heraldSessionYear` rather than `sessionYear`).
 
 ## GET /ca.crt
 
@@ -187,6 +239,7 @@ under HTTPS.
 | `sourceShow` | Sources | Makes a source visible in every scene it is used in | the exact OBS source name |
 | `sourceHide` | Sources | Hides a source in every scene it is used in | the exact OBS source name |
 | `sourceToggle` | Sources | Flips a source's current visibility -- one event both shows and hides, so a caller does not need to track state itself or send two different events | the exact OBS source name |
+| `setText` | Sources | Overwrites a text source's displayed text | the exact OBS source name |
 | `startRecording` | Controls | Starts OBS recording | not used |
 | `pauseRecording` | Controls | Pauses OBS recording (recording must already be running) | not used |
 | `resumeRecording` | Controls | Resumes a paused OBS recording | not used |
@@ -194,8 +247,23 @@ under HTTPS.
 | `startStreaming` | Controls | Starts OBS streaming | not used |
 | `stopStreaming` | Controls | Stops OBS streaming | not used |
 
-All ten reuse the same OBS WebSocket connection Studio already keeps for everything else; there is
-no separate connection or credential for Automations to reach OBS, and all ten need it connected.
+All eleven reuse the same OBS WebSocket connection Studio already keeps for everything else; there
+is no separate connection or credential for Automations to reach OBS, and all eleven need it
+connected.
+
+`setText`'s actual text does not come from `param` (that names which source to write to) -- a
+rule-set step picks one of three sources for it, entirely Studio's own business, not part of this
+API's contract: a fixed value typed once, a local file Studio re-reads every run, or a key read
+from the triggering event's own `data`. Only that last kind involves a caller at all -- and only
+a key that's actually been declared via `POST /api/automations/fields` shows up as a choice in
+Studio's own step editor, rather than being typed blind. A direct `POST /api/automations/action`
+call is simpler: it always just reads `data.text` literally (see above), no per-request key choice
+the way a saved step's own field selection gives it.
+
+So `{"event": "session:start", "data": {"title": "Darn Skarn", "campaign": "The Burden of
+Knowledge"}}`, after registering `title` and `campaign` via `POST /api/automations/fields`, can
+drive two different `setText` steps in one rule set -- one reading `title`, one reading
+`campaign` -- each writing a different source.
 
 `sceneSwitch` restarts the scene if it is already the active one, rather than the no-op OBS itself
 makes of "switch to the scene already showing" -- otherwise nothing in that scene (a media source,
@@ -207,7 +275,7 @@ genuine no-op.
 ## Studio actions
 
 Off by default -- see the Studio Control card on the Automations tab. Reach into Studio itself,
-not OBS, so (`syncObs` aside) they work even while OBS is disconnected:
+not OBS, so (`syncObs`/`applySessionFilename` aside) they work even while OBS is disconnected:
 
 | Action | What it does |
 | --- | --- |
@@ -217,6 +285,18 @@ not OBS, so (`syncObs` aside) they work even while OBS is disconnected:
 | `dockAll` | Slides every open window into the edge dock |
 | `undockAll` | Brings every docked window back out |
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
+| `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
+
+The template accepts `{title}`/`{campaign}` (the triggering event's `data.title`/`data.campaign`,
+blank if absent) as fixed names, kept for backward compatibility. Any *other* `{name}` in the
+template is resolved the same way a `setText` step's Data Field picker would: a Studio-defined
+Metadata field by its own key (`{sessionCampaign}`) or an evergreen field (`{sessionTime}`,
+`{sessionDate}`, ...) -- including a Metadata Number field's `+1`/`-1` variants
+(`{sessionDaysLeft+1}`), which mutate and persist the field's stored value exactly as selecting
+that variant from a `setText` step's picker would, not just a read. A name that doesn't resolve to
+anything Studio knows about is left as the literal triggering event's `data[name]` if present,
+blank otherwise. OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the filename
+format pass through untouched either way -- only `{...}`-bracketed names are ever substituted.
 
 ## Sequences, delays, and running steps together
 
@@ -267,3 +347,41 @@ and the 16 KB/JSON-shape check on Studio's side means a malformed or oversized b
 event; `canvasReady` fires on every scene change (`data: {sceneId: canvas.scene?.id}`) for a
 `scene:change` event. None of the three are specific to Herald -- any module could report them
 the same way.
+
+## Example: session start with title and campaign
+
+Register the fields once (at connect time is fine), so Studio's own rule-set editor can offer them
+as a real dropdown instead of someone typing `title`/`campaign` blind:
+
+```javascript
+await fetch(`${url}/api/automations/fields`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    module: 'herald',
+    fields: [
+      { key: 'title', label: 'Episode Title' },
+      { key: 'campaign', label: 'Campaign Name' },
+    ],
+  }),
+});
+```
+
+Then a `session:start` event carrying both, for a rule set with two `setText` steps (each set to
+"Data Field" in Studio's step editor, one picking `title`, one picking `campaign`) plus
+`applySessionFilename` all AND-grouped into one stage:
+
+```javascript
+await fetch(`${url}/api/automations/event`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    event: 'session:start',
+    data: { title: 'Darn Skarn', campaign: 'The Burden of Knowledge' },
+  }),
+});
+```
+
+Everything on Studio's side -- which sources get `title`/`campaign`, whether the episode number
+increments, whether the filename format gets touched at all -- is entirely the rule set's own
+configuration; this call looks identical regardless of what Studio does with it.

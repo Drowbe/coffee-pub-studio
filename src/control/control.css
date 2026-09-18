@@ -232,6 +232,47 @@ main {
   letter-spacing: 0;
 }
 
+.field-wide {
+  flex: 1;
+  min-width: 320px;
+}
+
+.field-wide input {
+  flex: 1;
+  width: 100%;
+}
+
+.filename-preview {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  margin-top: 2px;
+}
+
+.datafield-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  padding: 10px;
+  margin-top: -2px;
+  margin-bottom: 8px;
+}
+
+.datafield-picker-group-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.datafield-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .field input,
 .field select,
 select {
@@ -734,6 +775,56 @@ select:focus {
   margin-left: auto;
 }
 
+.metadata-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.metadata-field-label {
+  font-weight: 600;
+  flex: 0 0 160px;
+}
+
+.metadata-field-value {
+  flex: 1;
+  min-width: 120px;
+}
+
+.metadata-field-value.metadata-field-number {
+  flex: none;
+  width: 90px;
+  min-width: 0;
+}
+
+.metadata-field-value-display {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.metadata-field-separator {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.metadata-field-key {
+  white-space: nowrap;
+}
+
 .tab-panel[hidden] {
   display: none;
 }
@@ -1089,19 +1180,33 @@ select:focus {
 }
 
 .ruleset-group,
-.automation-step-seconds {
+.automation-step-seconds,
+.automation-step-value,
+.automation-step-filepath,
+.metadata-field-value {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
   padding: 7px 9px;
   font: inherit;
+}
+
+.ruleset-group,
+.automation-step-seconds,
+.automation-step-value,
+.automation-step-filepath {
+  /* .metadata-field-value keeps its own min-width (120px, set above,
+     with .metadata-field-number narrowing it further) -- this group
+     wants 0 so it can shrink inside a flex row instead. */
   min-width: 0;
 }
 
 .ruleset-name:focus,
 .ruleset-group:focus,
-.automation-step-seconds:focus {
+.automation-step-seconds:focus,
+.automation-step-value:focus,
+.automation-step-filepath:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1212,37 +1317,95 @@ select:focus {
   width: 64px;
 }
 
+.automation-step-value {
+  min-width: 160px;
+  flex: 1;
+}
+
+.automation-step-filepath {
+  min-width: 200px;
+  flex: 1;
+}
+
 .automation-step select {
   min-width: 130px;
   flex: 1;
 }
 
-.automations-events {
+select.automation-step-valuetype {
+  flex: none;
+  min-width: 110px;
+}
+
+/* A step's source/scene/data-field picker still pointing at a name that no
+   longer exists (renamed or deleted in OBS, or a field never registered) --
+   a red border so it reads as wrong even collapsed, since a closed <select>
+   only shows the start of its selected option's own [!]-prefixed label. */
+select.automation-step-param-missing {
+  border-color: var(--danger);
+}
+
+.activity-log-box {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  margin-top: 10px;
+  user-select: text;
+}
+
+.activity-log-box .hint {
+  margin: 0;
+}
+
+.activity-log {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
 }
 
-.automations-event-row {
+.activity-row {
   display: flex;
   gap: 10px;
   align-items: baseline;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
-.automations-event-time {
+.activity-row + .activity-row {
+  border-top: 1px solid var(--border);
+}
+
+.activity-time {
   color: var(--text-dim);
   min-width: 72px;
+  flex: none;
 }
 
-.automations-event-name {
+.activity-source {
   font-weight: 600;
+  min-width: 84px;
+  flex: none;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
 }
 
-.automations-event-data {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.activity-event {
+  flex: 1;
+}
+
+.activity-row.level-error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.activity-row.level-error .activity-event,
+.activity-row.level-error .activity-source {
+  color: var(--danger);
 }
 
 .cert-trust-help {
@@ -1272,4 +1435,64 @@ select:focus {
 
 .cert-trust-help li + li {
   margin-top: 4px;
+}
+
+/* A minimal replacement for window.prompt(), which Electron's renderer
+   does not support at all (confirmed live: it throws "prompt() is not
+   supported" and silently aborts whatever called it -- the rule set
+   "Run Automation" button's own JSON-test-data prompt, in this case,
+   meaning the event it was building never got sent). Everywhere else this
+   app already avoids native dialogs in favor of inline UI; this is the
+   one place that still needed an actual blocking prompt substitute. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  width: 420px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-message {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0;
+}
+
+.modal-textarea {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 9px;
+  font: inherit;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  min-height: 110px;
+  resize: vertical;
+}
+
+.modal-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

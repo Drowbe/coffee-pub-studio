@@ -54,13 +54,35 @@ class AutomationsServer extends EventEmitter {
     this.getToken = null;
     this.getRuleSets = null; // () => the currently configured rule sets -- see GET /api/automations/capabilities
     this.actions = []; // the static action vocabulary Studio supports, same endpoint
-    this.runAction = null; // (action, param) => Promise -- see POST /api/automations/action
+    this.runAction = null; // (action, param, data) => Promise -- see POST /api/automations/action
     this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
     this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
     this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
+    // Data fields a connected module has told us it will send, via
+    // POST /api/automations/fields -- Map<module, [{key, label}]>, keyed by
+    // the caller's own `module` name so one module registering never wipes
+    // out another's (a flat wholesale-replace was fine with exactly one
+    // caller in mind; it stopped being fine the moment a second one showed
+    // up -- see plan-session-metadata-fields.md). In memory only, same as
+    // `events`: reset on restart, repopulated once a module reconnects and
+    // re-registers. Lets a setText step's "Data Field" picker be a real
+    // dropdown of what a module says it provides, instead of a name typed
+    // blind against an undocumented contract.
+    this.registeredFieldsByModule = new Map();
+  }
+
+  // The flat, merged view every consumer (status(), the Data Field
+  // dropdown) actually wants -- every module's fields concatenated, each
+  // tagged with which module sent it.
+  registeredFields() {
+    const out = [];
+    for (const [module, fields] of this.registeredFieldsByModule) {
+      for (const f of fields) out.push({ ...f, source: module });
+    }
+    return out;
   }
 
   status() {
@@ -70,6 +92,7 @@ class AutomationsServer extends EventEmitter {
       port: this.port,
       addresses: this.state === 'listening' ? lanAddresses() : [],
       events: this.events,
+      registeredFields: this.registeredFields(),
     };
   }
 
@@ -304,13 +327,68 @@ class AutomationsServer extends EventEmitter {
           return send(400, { error: `Unknown or currently disabled action: ${action}` });
         }
         const param = typeof body.param === 'string' ? body.param.trim().slice(0, 200) : '';
+        // Optional, for an action like setText that needs a value beyond
+        // param -- mirrors /event's own {event, data} shape. setText reads
+        // data.text by default (there's no per-request field-name override
+        // here the way a saved rule-set step's own dataField gives it).
+        const data = body.data && typeof body.data === 'object' ? body.data : undefined;
         if (!this.runAction) return send(500, { error: 'Studio is not ready to run actions.' });
         try {
-          await this.runAction(action, param);
+          await this.runAction(action, param, data);
           send(200, { ok: true });
         } catch (err) {
           send(500, { error: describeError(err) });
         }
+      });
+      return;
+    }
+
+    // Lets a connected module declare what it will actually put in a
+    // future POST /event's `data` -- the other half of the discovery
+    // GET /capabilities already gives a caller about Studio. Wholesale
+    // replaces whatever that SAME module (by its own declared `module`
+    // name) had registered before -- "here is my current full list", not
+    // "add to the list" -- so a module can just call this once at connect
+    // time, or again whenever its own fields change, without needing to
+    // track what it registered last time. Scoped per module rather than
+    // one flat list: a flat replace was fine with exactly one caller in
+    // mind, and stops being fine the moment a second module registers.
+    if (req.method === 'POST' && url === '/api/automations/fields') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      let size = 0;
+      const chunks = [];
+      let tooBig = false;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > MAX_BODY_BYTES) {
+          tooBig = true;
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', () => {
+        if (tooBig) return;
+        let body;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        } catch (err) {
+          return send(400, { error: 'Invalid JSON' });
+        }
+        const module = typeof body.module === 'string' ? body.module.trim().slice(0, 60) : '';
+        if (!module) return send(400, { error: '"module" is required' });
+        const fields = Array.isArray(body.fields) ? body.fields : [];
+        const sanitized = fields
+          .filter((f) => f && typeof f.key === 'string' && f.key.trim())
+          .slice(0, 100)
+          .map((f) => {
+            const key = f.key.trim().slice(0, 60);
+            const label = typeof f.label === 'string' && f.label.trim() ? f.label.trim().slice(0, 120) : key;
+            return { key, label };
+          });
+        this.registeredFieldsByModule.set(module, sanitized);
+        this.emit('status', this.status());
+        send(200, { ok: true, fields: sanitized });
       });
       return;
     }

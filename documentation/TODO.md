@@ -44,20 +44,47 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   (`/api/automations/event`, token-authed), matched against user-configured, named and grouped
   rule sets, each a numbered sequence of OBS and Studio actions and delays (steps marked AND run
   together instead of waiting) -- verified live end to end, including a real OBS WebSocket round
-  trip. The Automations tab also works as a plain manual OBS remote with no Foundry module
-  involved, and a Studio Control card exposes Studio's own commands (wake audio, start/stop/dock
-  all windows, sync OBS) opt-in per command. Full HTTP contract and a worked Herald example
-  (`combatStart` via Blacksmith's `HookManager`) are on the wiki, at `api-automations`. What's
-  still open: nothing on Herald's side actually calls this yet -- that's a real feature to build
-  in `coffee-pub-herald`, not just a settings toggle, and the hook names in that example are a
-  suggested starting point, not verified against a live v14 client the way the rest of Herald's
-  own wiki insists on. Also open here: only `event`/`data` are read today, no Studio -> Foundry
-  direction exists (not needed for the stated goals: "Herald tells Studio" and "Studio drives OBS
-  directly" both only need this one direction), and there is no conditional ("if/then") trigger --
-  a rule set matches on the event name alone, never on a field inside `data` (e.g. "if the event's
-  `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching, not
-  just a delay-then-hide step sequence, and nothing sends payload data structured enough to match
-  against yet, so it stays an idea, not a build, until a real use case does.
+  trip, and against a real Herald build: Herald now calls `/capabilities` and `/event`, hit and
+  helped fix the `rules` -> `ruleSets` rename, and 4 real rule sets are configured and firing.
+  The Automations tab also works as a plain manual OBS remote with no Foundry module involved,
+  and a Studio Control card exposes Studio's own commands (wake audio, start/stop/dock all
+  windows, sync OBS, plus season/episode text and filename actions -- see below) opt-in per
+  command. Full HTTP contract and a worked Herald example (`combatStart` via Blacksmith's
+  `HookManager`) are on the wiki, at `api-automations`. Still open: a bare action (`sceneSwitch`,
+  `setText`, and so on) is only reachable via a matching rule set or a direct
+  `POST /api/automations/action` call -- there is still no conditional ("if/then") trigger, where
+  a rule set would match on a field inside an event's `data`, not just the event name alone (e.g.
+  "if `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching,
+  not just a delay-then-hide step sequence, and stays an idea, not a build, until a real use case
+  needs it.
+- ~~**Herald-driven text sources, and Studio-managed season/episode.**~~ `setText` writes a value
+  from an event's own `data` into a named OBS text source (which key of `data` is configurable
+  per step, so one event can drive two different sources); `applySessionFilename` applies a
+  template to OBS's own recording Filename Formatting. Full design and what was verified live
+  (every write captured and restored) in
+  `documentation/plans/plan-session-text-and-youtube-upload.md`. The season/episode-tracking half
+  of this (a dedicated Episode card, `incrementEpisode`, `applyEpisodeText`) was later retired --
+  see the next item.
+- ~~**Studio-defined metadata fields, and multi-module Data Field registration.**~~ The Session
+  tab's Metadata card lets the person running Studio create their own Text, Number, or Text+Number
+  values (a campaign name, a countdown, "Chapter 5"), each registered into the same "Data Field"
+  dropdown a connected module's own fields already populate, alongside built-in evergreen fields
+  (today's date/time). A Number field's "+1"/"-1" variant (from a rule-set step, or the Metadata
+  card's own inline buttons for a one-off manual bump) is a real mutation, not a pure read --
+  selecting it both writes the incremented value and persists it for next time. Doing this
+  surfaced that `POST /api/automations/fields` wholesale-replaced the entire registered list on
+  every call; fixed to scope replacement per module (a required `module` field in the request
+  body) so a second connected module can't wipe out the first's fields -- a breaking API change,
+  published to the wiki ahead of the Studio-side implementation landing. Full design and what was
+  verified live in `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated
+  Episode card (season/episode as their own tracked numbers, separate from this system) redundant
+  -- see the item above.
+- **Automated YouTube upload.** Explicitly on hold -- "hold off... until we nail down how that
+  will work." What's already known (OBS gives Studio the output file path, YouTube's Data API
+  supports resumable uploads) and what's still a real, unmade decision (OAuth flow and token
+  storage, upload trigger, privacy default, progress/failure handling, quota) are both in
+  `documentation/plans/plan-session-text-and-youtube-upload.md`. Needs its own short design pass
+  before any code.
 - **Unify the control panel's design system.** Fixing the CP Tavern tab's layout surfaced a
   pattern: styling for the same kind of thing (a sub-section heading partway down a card, a
   divider row, spacing around a title) kept getting re-declared per instance instead of shared,

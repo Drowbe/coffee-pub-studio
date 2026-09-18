@@ -27,6 +27,416 @@ const collapseEl = $('collapse');
 const dockEnabledEl = $('dock-enabled');
 const dockSideEl = $('dock-side');
 const dockOverlapEl = $('dock-overlap');
+const sessionFilenameEnabledEl = $('session-filename-enabled');
+const sessionFilenameFormatEl = $('session-filename-format');
+const sessionFilenamePreviewEl = $('session-filename-preview');
+const sessionFilenameFieldsToggleEl = $('session-filename-fields-toggle');
+const sessionFilenameFieldsPanelEl = $('session-filename-fields-panel');
+const metadataEls = {
+  add: $('metadata-add'),
+  addForm: $('metadata-add-form'),
+  newLabel: $('metadata-new-label'),
+  newType: $('metadata-new-type'),
+  newSeparatorField: $('metadata-new-separator-field'),
+  newSeparator: $('metadata-new-separator'),
+  newSeparatorHint: $('metadata-new-separator-hint'),
+  newPaddingField: $('metadata-new-padding-field'),
+  newPadding: $('metadata-new-padding'),
+  addConfirm: $('metadata-add-confirm'),
+  addCancel: $('metadata-add-cancel'),
+  fields: $('metadata-fields'),
+  fieldsEmpty: $('metadata-fields-empty'),
+};
+const METADATA_COMPOUND_TYPES = ['textNumber', 'numberText'];
+// Kept in lockstep with METADATA_FIELD_TYPES in src/config.js.
+const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES];
+
+// Mirrors resolveDataField in src/main.js, read-only -- a preview must
+// never actually mutate a Number field just because its format string
+// happens to be visible on screen. {title}/{campaign} keep their own
+// fixed meaning (matching formatSessionTemplate's own legacy aliases);
+// any other {name} is looked up the same way a Data Field picker's
+// options are built (evergreen, then config.metadataFields), showing
+// (name) when nothing matches -- same spirit as the (title)/(campaign)
+// placeholders below, which truly have no value to show here since
+// there's no triggering event on this tab.
+function previewDataField(key) {
+  const match = /^(.+)([+-]1)$/.exec(key);
+  const baseKey = match ? match[1] : key;
+  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
+
+  const now = new Date();
+  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
+  if (baseKey === 'sessionDate') return now.toLocaleDateString();
+  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (baseKey === 'sessionYear') return String(now.getFullYear());
+
+  const field = ((config && config.metadataFields) || []).find((f) => f.key === baseKey);
+  if (field) {
+    if (field.type === 'textNumber' || field.type === 'numberText') {
+      const number = field.number + delta;
+      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+    }
+    return field.type === 'number' && delta ? String(Number(field.value) + delta) : String(field.value);
+  }
+
+  return `(${key})`;
+}
+
+// A live preview of what applySessionFilename would actually write --
+// {title}/{campaign} shown as placeholders since there's no triggering
+// event to read them from here, and OBS's own %-style macros left
+// untouched either way.
+function updateFilenamePreview() {
+  const legacy = {
+    title: '(title)',
+    campaign: '(campaign)',
+  };
+  const format = sessionFilenameFormatEl.value;
+  sessionFilenamePreviewEl.textContent = format
+    ? `Preview: ${format.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
+        Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key)
+      )}`
+    : '';
+}
+
+// Inserts at the cursor (replacing any current selection) rather than
+// appending, so clicking a field while partway through typing a template
+// lands it exactly where the cursor is, not at the end.
+function insertAtCursor(input, text) {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + text + input.value.slice(end);
+  const pos = start + text.length;
+  input.focus();
+  input.setSelectionRange(pos, pos);
+}
+
+// window.prompt() is not implemented by Electron's renderer at all --
+// confirmed live: calling it throws "Error: prompt() is not supported"
+// and aborts whatever called it, silently, since nothing here was
+// catching it. Everywhere else in this app already avoids native dialogs
+// in favor of inline UI; this fills the one remaining spot that still
+// needed an actual blocking prompt (a rule set's "Run Automation" button
+// asking for JSON test data before sending a Data Field step's event).
+// Returns the typed text, or null if cancelled -- same contract
+// window.prompt() had, so its one call site needed no other changes.
+function promptModal(message, defaultValue) {
+  return new Promise((resolve) => {
+    const overlay = $('prompt-modal-overlay');
+    const input = $('prompt-modal-input');
+    $('prompt-modal-message').textContent = message;
+    input.value = defaultValue || '';
+    overlay.hidden = false;
+    input.focus();
+    input.select();
+
+    const cleanup = (value) => {
+      overlay.hidden = true;
+      $('prompt-modal-ok').removeEventListener('click', onOk);
+      $('prompt-modal-cancel').removeEventListener('click', onCancel);
+      overlay.removeEventListener('mousedown', onOverlayClick);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(value);
+    };
+    const onOk = () => cleanup(input.value);
+    const onCancel = () => cleanup(null);
+    const onOverlayClick = (event) => {
+      if (event.target === overlay) cleanup(null);
+    };
+    const onKeydown = (event) => {
+      if (event.key === 'Escape') cleanup(null);
+      else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) cleanup(input.value);
+    };
+    $('prompt-modal-ok').addEventListener('click', onOk);
+    $('prompt-modal-cancel').addEventListener('click', onCancel);
+    overlay.addEventListener('mousedown', onOverlayClick);
+    document.addEventListener('keydown', onKeydown);
+  });
+}
+
+// The "insert a Data Field" panel next to the Filename format input --
+// built from the exact same dataFieldGroups() a setText step's own Data
+// Field dropdown uses (defined further down, alongside buildStepRow), so
+// a registered module's fields, Studio's own Metadata fields, and the
+// evergreen built-ins are all discoverable here too, not just from an
+// automation step.
+function renderDataFieldPicker(panelEl, inputEl) {
+  panelEl.textContent = '';
+  const groups = dataFieldGroups().filter((g) => g.fields.length);
+  if (!groups.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No Data Fields available yet.';
+    panelEl.appendChild(empty);
+    return;
+  }
+  for (const group of groups) {
+    const wrap = document.createElement('div');
+    const label = document.createElement('div');
+    label.className = 'datafield-picker-group-label';
+    label.textContent = group.label;
+    const chips = document.createElement('div');
+    chips.className = 'datafield-picker-chips';
+    for (const f of group.fields) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'btn btn-small';
+      chip.textContent = f.label;
+      chip.addEventListener('click', () => {
+        insertAtCursor(inputEl, `{${f.key}}`);
+        panelEl.hidden = true;
+        if (inputEl === sessionFilenameFormatEl) updateFilenamePreview();
+        scheduleSave();
+      });
+      chips.appendChild(chip);
+    }
+    wrap.append(label, chips);
+    panelEl.appendChild(wrap);
+  }
+}
+
+function toggleDataFieldPicker(panelEl, inputEl) {
+  panelEl.hidden = !panelEl.hidden;
+  if (!panelEl.hidden) renderDataFieldPicker(panelEl, inputEl);
+}
+
+sessionFilenameFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionFilenameFieldsPanelEl, sessionFilenameFormatEl));
+
+// Kept in lockstep with sanitizeMetadataField's key generation in
+// src/config.js -- generated once here, client-side, when "Add" is
+// clicked, since the renderer already holds every existing key locally
+// (same reasoning as a rule set's own id, generated the same way).
+// config.js's sanitizer re-validates shape/limits/dedup on save as a
+// backstop, but deliberately never regenerates a key from a label -- the
+// key freezes at creation (see the Metadata card's own hint text); a
+// sanitizer re-deriving it from a since-changed label would be a second,
+// silent way for it to drift out from under a rule set already using it.
+function slugMetadataKey(label) {
+  const words = String(label || '').match(/[A-Za-z0-9]+/g) || [];
+  const pascal = words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join('');
+  return `session${pascal || 'Field'}`;
+}
+
+function uniqueMetadataKey(label) {
+  const taken = new Set([...RESERVED_FIELD_KEYS, ...((config && config.metadataFields) || []).map((f) => f.key)]);
+  const base = slugMetadataKey(label);
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}${n}`)) n += 1;
+  return `${base}${n}`;
+}
+
+function whitespaceSeparatorHint(separator) {
+  return `(${separator.length} space${separator.length === 1 ? '' : 's'})`;
+}
+
+// Composes the same string resolveDataField would produce for this field
+// -- what the read-mode row displays, and what actually goes out to OBS.
+function composeMetadataFieldValue(field) {
+  if (METADATA_COMPOUND_TYPES.includes(field.type)) {
+    const numberText = field.padding ? String(field.number).padStart(field.padding, '0') : String(field.number);
+    return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
+  }
+  return String(field.value);
+}
+
+// Which field (if any) is showing its editable inputs right now -- every
+// other row is read-only display, so a value never changes just because
+// someone glanced at the Metadata card. A freshly-added field starts here
+// (see metadataEls.addConfirm below) since it has nothing worth reading yet.
+let editingMetadataFieldId = null;
+
+function renderMetadataFields() {
+  const fields = (config && config.metadataFields) || [];
+  metadataEls.fields.textContent = '';
+  metadataEls.fieldsEmpty.hidden = fields.length > 0;
+  fields.forEach((field, index) => {
+    const row = document.createElement('div');
+    row.className = 'metadata-field-row';
+
+    const label = document.createElement('span');
+    label.className = 'metadata-field-label';
+    label.textContent = `${field.label}:`;
+
+    const updateField = (patch) => {
+      config.metadataFields = config.metadataFields.map((f) => (f.id === field.id ? { ...f, ...patch } : f));
+      updateFilenamePreview();
+      scheduleSave();
+    };
+
+    const isEditing = field.id === editingMetadataFieldId;
+    const valueEls = [];
+    let textInput;
+    let numberInput;
+    let valueInput;
+
+    if (!isEditing) {
+      const display = document.createElement('span');
+      display.className = 'metadata-field-value-display';
+      display.textContent = composeMetadataFieldValue(field);
+      if (METADATA_COMPOUND_TYPES.includes(field.type) && field.separator && field.separator.trim() === '') {
+        display.title = `Separator: "${field.separator}" -- ${whitespaceSeparatorHint(field.separator)}`;
+      }
+      valueEls.push(display);
+    } else if (METADATA_COMPOUND_TYPES.includes(field.type)) {
+      textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.className = 'metadata-field-value metadata-field-text';
+      textInput.value = field.text;
+      textInput.spellcheck = false;
+
+      numberInput = document.createElement('input');
+      numberInput.type = 'number';
+      numberInput.className = 'metadata-field-value metadata-field-number';
+      numberInput.value = field.number;
+
+      // No separator input here -- it's fixed at creation, same as the
+      // order (textNumber vs numberText) and the padding. Rendered exactly
+      // as typed, including empty -- any filler character here reads as a
+      // divider the user didn't ask for ("Chapter" + "" + "5" must show as
+      // "Chapter5", not "Chapter—5").
+      const sep = document.createElement('span');
+      sep.className = 'metadata-field-separator hint';
+      sep.textContent =
+        field.separator && field.separator.trim() === '' ? whitespaceSeparatorHint(field.separator) : field.separator;
+      sep.title = field.separator ? `Separator: "${field.separator}"` : 'No separator';
+
+      if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
+      else valueEls.push(numberInput, sep, textInput);
+    } else {
+      valueInput = document.createElement('input');
+      valueInput.type = field.type === 'number' ? 'number' : 'text';
+      valueInput.className = 'metadata-field-value';
+      valueInput.value = field.value;
+      valueInput.spellcheck = false;
+      valueEls.push(valueInput);
+    }
+
+    const key = document.createElement('span');
+    key.className = 'metadata-field-key hint';
+    key.textContent = `(data field: ${field.key})`;
+
+    const editSave = document.createElement('button');
+    editSave.type = 'button';
+    editSave.className = 'btn btn-small btn-icon';
+    if (isEditing) {
+      editSave.title = 'Save';
+      editSave.setAttribute('aria-label', 'Save');
+      editSave.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i>';
+      editSave.addEventListener('click', () => {
+        const patch = METADATA_COMPOUND_TYPES.includes(field.type)
+          ? { text: textInput.value, number: Number(numberInput.value) || 0 }
+          : { value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value };
+        updateField(patch);
+        editingMetadataFieldId = null;
+        renderMetadataFields();
+      });
+    } else {
+      editSave.title = 'Edit';
+      editSave.setAttribute('aria-label', 'Edit');
+      editSave.innerHTML = '<i class="fa-solid fa-pen" aria-hidden="true"></i>';
+      editSave.addEventListener('click', () => {
+        editingMetadataFieldId = field.id;
+        renderMetadataFields();
+      });
+    }
+
+    // Display order only -- reordering has no effect on resolution (a
+    // Data Field is always looked up by key), it just lets the list on
+    // screen match whatever hierarchy or grouping makes sense to whoever
+    // is reading it.
+    const reorder = (from, to) => {
+      const next = [...config.metadataFields];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      config.metadataFields = next;
+      renderMetadataFields();
+      updateFilenamePreview();
+      scheduleSave();
+    };
+
+    const moveUp = document.createElement('button');
+    moveUp.type = 'button';
+    moveUp.className = 'btn btn-small btn-icon';
+    moveUp.title = 'Move up';
+    moveUp.setAttribute('aria-label', 'Move up');
+    moveUp.innerHTML = '<i class="fa-solid fa-arrow-up" aria-hidden="true"></i>';
+    moveUp.disabled = index === 0;
+    moveUp.addEventListener('click', () => reorder(index, index - 1));
+
+    const moveDown = document.createElement('button');
+    moveDown.type = 'button';
+    moveDown.className = 'btn btn-small btn-icon';
+    moveDown.title = 'Move down';
+    moveDown.setAttribute('aria-label', 'Move down');
+    moveDown.innerHTML = '<i class="fa-solid fa-arrow-down" aria-hidden="true"></i>';
+    moveDown.disabled = index === fields.length - 1;
+    moveDown.addEventListener('click', () => reorder(index, index + 1));
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-small btn-icon btn-danger';
+    remove.title = 'Delete';
+    remove.setAttribute('aria-label', 'Delete');
+    remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    remove.addEventListener('click', () => {
+      config.metadataFields = config.metadataFields.filter((f) => f.id !== field.id);
+      renderMetadataFields();
+      updateFilenamePreview();
+      scheduleSave();
+    });
+
+    row.append(label, ...valueEls, key, editSave, moveUp, moveDown, remove);
+    metadataEls.fields.appendChild(row);
+  });
+}
+
+function updateMetadataAddFormVisibility() {
+  const compound = METADATA_COMPOUND_TYPES.includes(metadataEls.newType.value);
+  metadataEls.newSeparatorField.hidden = !compound;
+  metadataEls.newPaddingField.hidden = !compound;
+}
+metadataEls.newType.addEventListener('change', updateMetadataAddFormVisibility);
+
+metadataEls.newSeparator.addEventListener('input', () => {
+  const value = metadataEls.newSeparator.value;
+  metadataEls.newSeparatorHint.textContent = value && value.trim() === '' ? whitespaceSeparatorHint(value) : '';
+});
+
+metadataEls.add.addEventListener('click', () => {
+  metadataEls.addForm.hidden = false;
+  metadataEls.newLabel.value = '';
+  metadataEls.newType.value = 'text';
+  metadataEls.newSeparator.value = '';
+  metadataEls.newSeparatorHint.textContent = '';
+  metadataEls.newPadding.value = '0';
+  updateMetadataAddFormVisibility();
+  metadataEls.newLabel.focus();
+});
+metadataEls.addCancel.addEventListener('click', () => {
+  metadataEls.addForm.hidden = true;
+});
+metadataEls.addConfirm.addEventListener('click', () => {
+  const label = metadataEls.newLabel.value.trim();
+  if (!label) {
+    metadataEls.newLabel.focus();
+    return;
+  }
+  const type = METADATA_FIELD_TYPES.includes(metadataEls.newType.value) ? metadataEls.newType.value : 'text';
+  const base = { id: `field${Date.now().toString(36)}`, label: label.slice(0, 60), key: uniqueMetadataKey(label), type };
+  const field = METADATA_COMPOUND_TYPES.includes(type)
+    ? { ...base, text: '', separator: metadataEls.newSeparator.value.slice(0, 20), number: 0, padding: Number(metadataEls.newPadding.value) || 0 }
+    : { ...base, value: type === 'number' ? 0 : '' };
+  config.metadataFields = [...(config.metadataFields || []), field];
+  metadataEls.addForm.hidden = true;
+  editingMetadataFieldId = field.id;
+  renderMetadataFields();
+  updateFilenamePreview();
+  scheduleSave();
+});
 
 let config = null;
 let status = {
@@ -195,6 +605,11 @@ function applyConfig(next) {
   obsAutoEl.checked = config.obs.autoConnect;
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
+  sessionFilenameEnabledEl.checked = config.session.filenameFormatEnabled;
+  if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
+  sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
+  updateFilenamePreview();
+  renderMetadataFields();
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
   if (!sameViews) {
@@ -321,6 +736,33 @@ function renderConnectionsBoard() {
     dot.classList.remove('on', 'connecting', 'error');
     if (cls) dot.classList.add(cls);
     chip.querySelector('.connection-state').textContent = label;
+  }
+  renderActivityLog(status.activity || []);
+}
+
+// The Connections card's log: state changes and errors from OBS, Tavern,
+// and Automations, plus every automation event received -- one shared feed
+// for troubleshooting a bad connection, fed by src/main.js's logActivity().
+function renderActivityLog(events) {
+  const list = $('connections-activity');
+  const empty = $('connections-activity-empty');
+  list.textContent = '';
+  empty.hidden = events.length > 0;
+  for (const e of events.slice(0, 50)) {
+    const row = document.createElement('div');
+    row.className = 'activity-row';
+    if (e.level === 'error') row.classList.add('level-error');
+    const time = document.createElement('span');
+    time.className = 'activity-time';
+    time.textContent = new Date(e.at).toLocaleTimeString();
+    const source = document.createElement('span');
+    source.className = 'activity-source';
+    source.textContent = e.source;
+    const text = document.createElement('span');
+    text.className = 'activity-event';
+    text.textContent = e.event;
+    row.append(time, source, text);
+    list.appendChild(row);
   }
 }
 
@@ -764,6 +1206,10 @@ async function flushSave() {
     config.wakeAudioDelay = Number(wakeDelayEl.value);
     config.dock = { enabled: dockEnabledEl.checked, side: dockSideEl.value === 'left' ? 'left' : 'right', overlap: Number(dockOverlapEl.value) };
     if (arrangeDisplayEl.value) config.arrangeDisplayId = Number(arrangeDisplayEl.value);
+    config.session = {
+      filenameFormat: sessionFilenameFormatEl.value,
+      filenameFormatEnabled: sessionFilenameEnabledEl.checked,
+    };
     const saved = await api.saveConfig(config);
     setSaveState('All changes saved');
     applyConfig(saved);
@@ -787,10 +1233,11 @@ arrangeDisplayEl.addEventListener('change', () => {
   config.arrangeDisplayId = Number(arrangeDisplayEl.value);
   scheduleSave();
 });
-for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl]) el.addEventListener('change', scheduleSave);
+for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionFilenameEnabledEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
 });
+sessionFilenameFormatEl.addEventListener('input', updateFilenamePreview);
 $('clear-session').addEventListener('click', () => api.clearSession());
 $('reveal-config').addEventListener('click', () => api.revealConfig());
 $('reset-config').addEventListener('click', async () => {
@@ -1341,8 +1788,6 @@ const automationsEls = {
   addRuleset: $('automations-add-ruleset'),
   testEvent: $('automations-test-event'),
   sendTest: $('automations-send-test'),
-  events: $('automations-events'),
-  eventsEmpty: $('automations-events-empty'),
 };
 
 // What each OBS action means, what kind of thing its `param` holds
@@ -1355,6 +1800,7 @@ const AUTOMATION_ACTIONS = [
   { value: 'sourceShow', label: 'Show source', paramType: 'source', group: 'Sources' },
   { value: 'sourceHide', label: 'Hide source', paramType: 'source', group: 'Sources' },
   { value: 'sourceToggle', label: 'Toggle source', paramType: 'source', group: 'Sources' },
+  { value: 'setText', label: 'Set text on source', paramType: 'source', group: 'Sources' },
   { value: 'startRecording', label: 'Start recording', paramType: 'none', group: 'Controls' },
   { value: 'pauseRecording', label: 'Pause recording', paramType: 'none', group: 'Controls' },
   { value: 'resumeRecording', label: 'Resume recording', paramType: 'none', group: 'Controls' },
@@ -1372,6 +1818,7 @@ const STUDIO_ACTIONS = [
   { value: 'dockAll', label: 'Dock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'undockAll', label: 'Undock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'syncObs', label: 'Sync OBS', paramType: 'none', group: 'Studio Control' },
+  { value: 'applySessionFilename', label: 'Apply the session filename format to OBS', paramType: 'none', group: 'Studio Control' },
 ];
 
 // Live OBS scene/source names, refreshed by refreshAutomationsScenes() below
@@ -1522,27 +1969,6 @@ function renderAutomationsStatus() {
   const labels = { stopped: 'Not enabled.', listening: a.message, error: a.message || 'Could not start.' };
   automationsEls.status.textContent = labels[a.state] || '';
   automationsEls.status.classList.toggle('hint-error', a.state === 'error');
-  renderAutomationsEvents(a.events || []);
-}
-
-function renderAutomationsEvents(events) {
-  automationsEls.events.textContent = '';
-  automationsEls.eventsEmpty.hidden = events.length > 0;
-  for (const e of events.slice(0, 20)) {
-    const row = document.createElement('div');
-    row.className = 'automations-event-row';
-    const time = document.createElement('span');
-    time.className = 'automations-event-time';
-    time.textContent = new Date(e.at).toLocaleTimeString();
-    const name = document.createElement('span');
-    name.className = 'automations-event-name';
-    name.textContent = e.event;
-    const data = document.createElement('span');
-    data.className = 'automations-event-data hint';
-    data.textContent = e.data && Object.keys(e.data).length ? JSON.stringify(e.data) : '';
-    row.append(time, name, data);
-    automationsEls.events.appendChild(row);
-  }
 }
 
 // Recording/streaming/paused state and which scene button is current, from
@@ -1698,6 +2124,68 @@ function tintClassFor(step, actions) {
   return 'automation-step-tint-obs';
 }
 
+// Kept in lockstep with RESERVED_FIELD_KEYS in src/config.js -- small and
+// static enough to just duplicate rather than round-trip through IPC for
+// something that never changes at runtime.
+const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessionMonth', 'sessionYear'];
+
+// True when resolveDataField (src/main.js) can answer this key entirely
+// from Studio's own state -- an evergreen built-in or a Metadata field --
+// with no eventData at all. False means it can only come from whatever
+// triggered the run (a registered field from Herald/Tavern/etc.), which is
+// exactly the case "Run Automation" needs to ask about below.
+function isStudioOwnedDataField(key) {
+  const baseKey = key.replace(/[+-]1$/, '');
+  if (RESERVED_FIELD_KEYS.includes(baseKey)) return true;
+  return ((config && config.metadataFields) || []).some((f) => f.key === baseKey);
+}
+
+// Every option a setText step's "Data Field" picker offers, grouped for the
+// <optgroup> markup below -- Studio's own built-ins (always present, no
+// setup needed), then Metadata (config.metadataFields, a "+1"/"-1" pair
+// added for every Number-typed one -- see resolveDataField in main.js for
+// what selecting one of those actually does), then whatever each connected
+// module has registered via POST /api/automations/fields, one group per
+// module so two modules' fields never look like one undifferentiated list.
+function dataFieldGroups() {
+  const groups = [];
+  const withKeys = (pairs) => pairs.map(([key, label]) => ({ key, label: `${label} (${key})` }));
+
+  groups.push({
+    label: 'Date & Time',
+    fields: withKeys([
+      ['sessionTime', 'Current time'],
+      ['sessionDate', 'Current date'],
+      ['sessionDay', 'Day of week'],
+      ['sessionMonth', 'Month'],
+      ['sessionYear', 'Year'],
+    ]),
+  });
+  const metadataFields = (config && config.metadataFields) || [];
+  if (metadataFields.length) {
+    const fields = [];
+    for (const f of metadataFields) {
+      fields.push({ key: f.key, label: `${f.label} (${f.key})` });
+      if (f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)) {
+        fields.push({ key: `${f.key}+1`, label: `${f.label} + 1 (${f.key}+1)` });
+        fields.push({ key: `${f.key}-1`, label: `${f.label} - 1 (${f.key}-1)` });
+      }
+    }
+    groups.push({ label: 'Metadata', fields });
+  }
+
+  const registered = (status.automations && status.automations.registeredFields) || [];
+  const byModule = new Map();
+  for (const f of registered) {
+    const source = f.source || 'module';
+    if (!byModule.has(source)) byModule.set(source, []);
+    byModule.get(source).push({ key: f.key, label: `${f.label} (${f.key})` });
+  }
+  for (const [source, fields] of byModule) groups.push({ label: `From ${source}`, fields });
+
+  return groups;
+}
+
 function buildStepRow(step, index, number, isFirst, timeableActions) {
   const row = document.createElement('div');
   row.className = `automation-step ${tintClassFor(step, availableActions())}`;
@@ -1753,7 +2241,12 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
           return;
         }
         try {
-          await api.automationsRunSteps(timeableActions.map((s) => ({ action: s.action, param: s.param })));
+          // The whole step, not just {action, param} -- a setText step needs
+          // its valueType/value/filePath/dataField to resolve to anything at
+          // all (see resolveTextValue in main.js); sending only action/param
+          // used to make a timed "File" or "Data Field" step write blank
+          // text every time, since there was nothing left to read from.
+          await api.automationsRunSteps(timeableActions.map((s) => ({ ...s })));
         } catch (err) {
           reportError(err);
           return;
@@ -1827,14 +2320,109 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
       // The saved value might not be in the live list (OBS not connected,
       // or the scene/source was since renamed or removed) -- keep it
       // selectable rather than silently discarding it on the next save.
+      // The warning goes at the FRONT of the label, not the end: a closed
+      // <select> only ever shows the start of its selected option's text,
+      // so an "(not currently in OBS)" suffix was invisible until the user
+      // actually opened the dropdown.
       if (step.param && !options.includes(step.param)) {
         const opt = document.createElement('option');
         opt.value = step.param;
-        opt.textContent = `${step.param} (not currently in OBS)`;
+        opt.textContent = `[!] ${step.param} — not in OBS`;
+        opt.style.color = 'var(--danger)';
         opt.selected = true;
         paramSelect.appendChild(opt);
+        paramSelect.classList.add('automation-step-param-missing');
       }
       row.appendChild(paramSelect);
+    }
+
+    // setText's value is one of three explicit kinds -- "where it goes" is
+    // param above, this picks "what it is": a fixed preset typed once
+    // (no external caller involved at all), a local file Studio re-reads
+    // every run, or a field a connected module has actually registered
+    // (never a name typed blind against an undocumented contract).
+    if (step.action === 'setText') {
+      const valueTypeSelect = document.createElement('select');
+      valueTypeSelect.className = 'automation-step-valuetype';
+      valueTypeSelect.dataset.sfield = 'valueType';
+      for (const [v, label] of [['literal', 'Free Text'], ['file', 'File'], ['dataField', 'Data Field']]) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = label;
+        if ((step.valueType || 'literal') === v) opt.selected = true;
+        valueTypeSelect.appendChild(opt);
+      }
+      row.appendChild(valueTypeSelect);
+
+      const valueType = step.valueType || 'literal';
+      if (valueType === 'literal') {
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.className = 'automation-step-value';
+        valueInput.placeholder = 'Text to set';
+        valueInput.value = step.value || '';
+        valueInput.dataset.sfield = 'value';
+        row.appendChild(valueInput);
+      } else if (valueType === 'file') {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'text';
+        fileInput.className = 'automation-step-filepath';
+        fileInput.spellcheck = false;
+        fileInput.placeholder = '/path/to/file.txt';
+        fileInput.value = step.filePath || '';
+        fileInput.dataset.sfield = 'filePath';
+        row.appendChild(fileInput);
+
+        const browseBtn = document.createElement('button');
+        browseBtn.type = 'button';
+        browseBtn.className = 'btn btn-small';
+        browseBtn.textContent = 'Browse';
+        browseBtn.addEventListener('click', async () => {
+          const picked = await api.automationsPickTextFile();
+          if (!picked) return;
+          fileInput.value = picked;
+          step.filePath = picked;
+          saveAutomationsRuleSets();
+        });
+        row.appendChild(browseBtn);
+      } else {
+        const fieldSelect = document.createElement('select');
+        fieldSelect.dataset.sfield = 'dataField';
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = 'Choose a field…';
+        fieldSelect.appendChild(blank);
+        const groups = dataFieldGroups();
+        const allKeys = new Set();
+        for (const group of groups) {
+          if (!group.fields.length) continue;
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = group.label;
+          for (const f of group.fields) {
+            allKeys.add(f.key);
+            const opt = document.createElement('option');
+            opt.value = f.key;
+            opt.textContent = f.label;
+            if (f.key === step.dataField) opt.selected = true;
+            optgroup.appendChild(opt);
+          }
+          fieldSelect.appendChild(optgroup);
+        }
+        // The saved key might not exist any more (a metadata field or a
+        // module's registration was deleted/changed) -- keep it selectable
+        // rather than silently discarding it, same reasoning as the
+        // scene/source pickers above.
+        if (step.dataField && !allKeys.has(step.dataField)) {
+          const opt = document.createElement('option');
+          opt.value = step.dataField;
+          opt.textContent = `[!] ${step.dataField} — not registered`;
+          opt.style.color = 'var(--danger)';
+          opt.selected = true;
+          fieldSelect.appendChild(opt);
+          fieldSelect.classList.add('automation-step-param-missing');
+        }
+        row.appendChild(fieldSelect);
+      }
     }
   }
 
@@ -1967,15 +2555,46 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
     saveAutomationsRuleSets();
     return;
   }
-  if (action === 'test-ruleset') {
+  if (action === 'run-ruleset') {
     if (!ruleSet.event) {
-      reportError(new Error('Set this rule set\'s event before testing it.'));
+      reportError(new Error('Set this rule set\'s event before running it.'));
       return;
     }
+    // A "Data Field" setText step reading one of Studio's own keys (an
+    // evergreen built-in or a Metadata field) needs no outside input at
+    // all -- resolveDataField answers it straight from config, same as a
+    // real trigger would. Only a step reading a key some other module
+    // registers (Herald, Tavern, ...) genuinely depends on whatever
+    // triggered the run, and that's the only case worth asking about here;
+    // "Free Text" and "File" steps are self-contained regardless.
+    let data = {};
+    const fields = [
+      ...new Set(
+        ruleSet.steps
+          .filter((s) => s.type === 'action' && s.action === 'setText' && s.valueType === 'dataField')
+          .map((s) => s.dataField || 'text')
+      ),
+    ];
+    const externalFields = fields.filter((f) => !isStudioOwnedDataField(f));
+    if (externalFields.length) {
+      const skeleton = {};
+      for (const f of externalFields) skeleton[f] = '';
+      const input = await promptModal(
+        'This rule set has a step reading a Data Field that only a live trigger would supply. Enter test data as JSON:',
+        JSON.stringify(skeleton)
+      );
+      if (input === null) return; // cancelled
+      try {
+        data = JSON.parse(input);
+      } catch (err) {
+        reportError(new Error('That was not valid JSON -- run cancelled.'));
+        return;
+      }
+    }
     try {
-      status.automations = await api.automationsTestEvent(ruleSet.event, {});
+      status.automations = await api.automationsTestEvent(ruleSet.event, data);
       renderAutomationsStatus();
-      setSaveState(`Test event "${ruleSet.event}" sent`);
+      setSaveState(`Ran "${ruleSet.event}"`);
     } catch (err) {
       reportError(err);
     }

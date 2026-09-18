@@ -77,13 +77,196 @@ during development) purely to compute the numbers shown next to each step -- it 
 execution.
 
 `runAutomationAction`'s switch covers two families: OBS actions (`sceneSwitch`, `sourceShow`,
-`sourceHide`, `sourceToggle`, and the recording/streaming controls) all require `obs.connected`
-and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio actions
-(`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`) reach into Studio's own
-window management instead and need no OBS connection at all, except `syncObs` itself. Which Studio
-actions are even reachable is gated by `automations.studioActions` (config.js) -- off by default,
-since they reach further than an OBS action does -- and `syncAutomationsServer` folds only the
-currently-enabled ones into the `actions` list `GET /api/automations/capabilities` returns.
+`sourceHide`, `sourceToggle`, `setText`, and the recording/streaming controls) all require
+`obs.connected` and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio
+actions (`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`,
+`applySessionFilename`) reach into Studio's own state instead and need no OBS connection at all,
+except `syncObs`/`applySessionFilename`. Which Studio actions are even reachable is gated by
+`automations.studioActions` (config.js) -- off by default, since they reach further than an OBS
+action does -- and `syncAutomationsServer` folds only the currently-enabled ones into the
+`actions` list `GET /api/automations/capabilities` returns.
+
+## Where setText's value actually comes from
+
+Every other action's `param` is fixed at edit time (a scene name, a source name) -- `setText`
+needs an actual value nobody necessarily types into a step at all, and there are three genuinely
+different sources for it, not one: a fixed value typed once (no external caller involved), a
+local file Studio re-reads on every run, or a key read from whatever triggered this. Conflating
+these into one free-text field was tried first and rejected live: it made a user type a literal
+test value into a box that was actually a lookup key, and testing it sent no data at all to look
+the key up against regardless, so every test wrote blank text no matter what was typed -- both
+confirmed by reproducing them against the real app before redesigning.
+
+`resolveTextValue` (`src/main.js:517`) is the single place that decides: given `stepContext` (a
+rule-set step, or `undefined` for a direct `POST /action` call or a "Time it" run with no step to
+consult) and `eventData` (whatever triggered this -- `entry.data` from a real `POST /event`, a
+direct call's own `data`, or `undefined`), it returns `stepContext.value` for `"literal"`, reads
+`stepContext.filePath` off disk for `"file"`, or indexes `eventData[stepContext.dataField]` for
+`"dataField"` -- falling back to the original `eventData.text` convention when there's no
+`stepContext` at all, since a direct caller already fully controls what it sends. Getting the
+whole step (not just a resolved value) to `runAutomationAction` (`src/main.js:546`) cost the same
+three call sites as before: `runAutomationRuleSets` (`src/main.js:675`) passes `entry.data` into
+`runRuleSet` (`src/main.js:654`), which now passes the step object itself (not just its
+`dataField`) into every
+`runAutomationAction` call; the "Time it" IPC handler does the same, which is also why "Time it"
+on a `"literal"`/`"file"` setText step now actually works (it never could before, since it always
+ran with no data at all to read from).
+
+`formatSessionTemplate` (`src/main.js:533`) is the other consumer of `eventData`: `applySessionFilename`
+calls it to substitute a user-configured template. `{title}` and `{campaign}` are kept as their own
+fixed `legacy` aliases, reading `eventData` directly rather than through `resolveDataField`'s
+fallback-to-`eventData` branch (same outcome, skipping the key-parsing that only makes sense for an
+actual Data Field key). Any *other* `{name}` found in the template is resolved through
+`resolveDataField` -- the exact same function a `setText` step's `dataField` goes through -- so
+`{sessionCampaign}` or `{sessionDaysLeft+1}` work in a filename template exactly as they would from
+a `setText` step, including a `+1`/`-1` variant's mutate-and-persist behavior. Anything left in the
+string that isn't a `{...}`-bracketed name -- OBS's own `%CCYY`-style recording macros -- is
+untouched either way. Verified against the real OBS instance this was built against: reading the
+actual live `FilenameFormatting` value before writing anything, confirming `SetProfileParameter`
+was the right call before committing to the design, not assumed from the protocol docs alone.
+
+`formatSessionTemplate` used to also carry `{season}`/`{episode}` as fixed aliases, backing a
+dedicated Episode card (Studio-tracked season/episode numbers, a `applyEpisodeText` action writing
+them to a text source, an `incrementEpisode` action bumping the counter). Retired once Metadata
+fields made the same job possible without a second, parallel system for tracking a number --
+confirmed unused in practice before removal, including by the person who owned the feature: the
+card's own season/episode counter had already drifted out of sync with equivalent Metadata fields
+they'd started maintaining by hand instead.
+
+## Field registration: making "Data Field" a real dropdown
+
+A `dataField` key typed blind is a name guessed against an undocumented contract -- the user has
+no way to know what Herald will actually send without reading Herald's own source. `POST
+/api/automations/fields` (`src/automations.js`) is the fix: a connected module declares its
+fields (`{key, label}` pairs), and Studio's step editor (`src/control/control.js`'s
+`dataFieldGroups`) builds the "Data Field" dropdown from them -- the same discoverability pattern
+already used for scene/source pickers, just running in the other direction (a caller telling
+Studio about itself, instead of Studio telling a caller about itself).
+
+Registration is scoped per module, not one flat list: the request body carries a required
+`module` name, and `registeredFieldsByModule` (a `Map<module, fields[]>` on `AutomationsServer`)
+replaces only that module's own previous batch -- a flat wholesale-replace was fine with exactly
+one caller in mind, and breaks the moment a second module registers (each reconnect would wipe the
+other's fields). `registeredFields()` flattens the map for every consumer that wants the merged
+list (`status()`, same as `events` already exposes), tagging each entry with `source: <module>` so
+the dropdown (and Studio's own metadata fields sharing the same list, `source: 'studio'`, see
+below) can tell two similarly-named fields apart. In memory only, same as `events`: reset on a
+Studio restart, repopulated whenever a module reconnects and registers again. A request missing
+`module` is rejected (`400`), a breaking change from the original single-caller design -- see
+`api-automations.md` and `plan-session-metadata-fields.md` for the full reasoning and the module-facing contract.
+
+## Studio's own Data Field entries
+
+Not every value a `setText` step wants comes from a connected module -- the person running Studio
+might want their own campaign name, a countdown, or anything else available the same way.
+`config.metadataFields` (`src/config.js`) is a persisted list the Session tab's Metadata card
+creates and edits directly -- unlike `registeredFieldsByModule` above, this is real config, not
+in-memory state, since the whole point of a Number field is that Studio remembers its last value
+across restarts. The key freezes at creation (`sanitizeMetadataField` never re-derives it from a
+label): confirmed directly, renaming means deleting the field and creating a new one, not editing
+one in place -- editing the key on every label change would be a second, silent way for it to
+drift out from under a rule set already pointing at it, on top of the one an OBS source rename
+already creates.
+
+Four field types, all sharing the same `{id, label, key, type, ...}` shape: `"text"`/`"number"`
+carry a single `value`; `"textNumber"`/`"numberText"` carry `text`, `separator`, `number`, and
+`padding` instead -- a fixed text segment glued to a number segment via a typed separator ("Chapter"
++ `""` + `5` -> `"Chapter 5"`), the number segment optionally zero-padded (`padding`, one of
+`0`/`2`/`3`/`4`). Order (which segment comes first), the separator, and the padding are all fixed
+at creation same as the key -- only `text` and `number` (or `value`, for the simple types) are
+ever edited in place afterward. A compound field's number segment is exactly as
+`"+1"`/`"-1"`-capable as a plain Number field's `value` -- `METADATA_COMPOUND_TYPES` in
+`src/control/control.js` (kept in lockstep with `METADATA_FIELD_TYPES` in `src/config.js`) is
+where both the dropdown's derived-variant generation and the "New" form's conditional
+separator/padding fields check for that.
+
+`resolveDataField` (`src/main.js:586`) is where a `dataField` key actually resolves, in order:
+an evergreen built-in (`sessionTime`/`Date`/`Day`/`Month`/`Year`, computed fresh, no storage), a
+`metadataFields` entry by key (composing `text`/`separator`/`number` for the two compound types),
+then falling through to `eventData[key]` -- the original, only behavior before any of this existed,
+still exactly how a module's own registered fields resolve.
+
+**A trailing `+1`/`-1` is not a pure read.** Confirmed directly, with the user's own example: "In
+the automation, they choose 'sessionDaysLeft + 1'... we change the value for 'Days Left' from '3'
+to '4' in the session area." `resolveDataField` parses the suffix off the key, and on a
+Number-shaped result (a `metadataFields` entry with `type: 'number'`, or a compound field's number
+segment) computes the new number, persists it (`configStore.save` + `broadcastStatus`), and returns
+the new value as the resolved text -- so selecting a `+1` variant in a rule-set step both writes the
+incremented number to OBS and leaves it incremented for next time, folded into resolution itself
+rather than needing a dedicated action per field. A delta against an evergreen field, a Text-typed
+field, or a key that doesn't resolve to anything Studio-known at all is silently ignored (evergreen:
+delta makes no sense against a value with no stored state to increment; Text: same; unknown: falls
+through to `eventData` with no delta parsing at all, since a triggering event was never going to
+send an arithmetic-suffixed key) -- matching `dataField`'s existing "an unresolvable key returns
+`''`, never throws" posture, so a stale reference degrades a rule set's output rather than breaking
+its run.
+
+This reuses the *engine's* existing overlap behavior, not a new risk of its own: nothing dedupes
+or cancels an in-flight rule-set run that matches again mid-sequence (see "Rule sets and dispatch"
+above), so two overlapping runs referencing the same `+1` field would genuinely double-increment
+it. Worth knowing, not a reason this was built differently -- it is an existing property of the
+engine, just more visible now that it can touch a value the user is actively watching.
+
+The Metadata card itself has no inline `+1`/`-1` buttons -- removed deliberately, since their
+presence implied a human needs to click one every time, when the entire point of a `+1`/`-1` Data
+Field variant is that a rule set does the bumping with nobody touching the card at all. Each row is
+read-only by default (`composeMetadataFieldValue` renders the same string `resolveDataField` would);
+a pencil-icon "Edit" button (`editingMetadataFieldId` in `src/control/control.js`, only one row at a
+time) swaps it for its editable input(s) and a "Save" checkmark, so a value only ever changes when
+someone deliberately opens a row, types, and commits -- glancing at the card can't mutate it. A
+freshly-created field starts in edit mode (nothing worth reading yet), everything else starts read.
+
+`src/control/control.js`'s `dataFieldGroups()` is the renderer-side merge that actually builds the
+picker: Studio's built-ins and `config.metadataFields` (each Number field contributing its own
+`+1`/`-1` entries alongside the plain key), then one `<optgroup>` per module in
+`status.automations.registeredFields`. `RESERVED_FIELD_KEYS` there is a hand-kept copy of the same
+constant `src/config.js` exports -- small and static enough that duplicating it beats a round trip
+through IPC, the same reasoning `stageNumbers` reimplementing `stagesFor`'s grouping logic already
+established for this file.
+
+`dataFieldGroups()` has a second caller besides the `setText` step editor: the small "insert a
+Data Field" panel next to the Filename format input (`renderDataFieldPicker`, toggled by the info
+button beside it), so the same registered/Metadata/built-in fields `formatSessionTemplate` can
+already resolve by name are also discoverable without knowing the key by heart -- clicking one
+inserts `{key}` at the input's current cursor position (`insertAtCursor`), not just appended, so
+it works mid-edit. A module's own registered fields show up here too, one caveat worth knowing: a
+field only *resolves* correctly here if whatever triggered the rule set that runs
+`applySessionFilename` actually sent that key in its event `data` -- registering a field only
+makes it discoverable and offers it as a template placeholder, it does not give Studio a value for
+it outside of an actual triggering event.
+
+That caveat is exactly what `run-ruleset`'s test-data prompt exists for, and exactly why it must
+not fire more often than that. `isStudioOwnedDataField` (`src/control/control.js`) checks, for each
+`setText` step's Data Field key, whether it's an evergreen built-in or a `metadataFields` entry --
+either resolves straight from Studio's own config with no `eventData` at all, same as a real trigger
+would resolve it. Only a key that fails both checks (a module's registered field) actually depends
+on whatever triggered the run, so only those go into the prompt's JSON skeleton; a rule set built
+entirely from Studio-owned keys (the common case) now runs with no prompt at all. Confirmed live:
+prompting unconditionally for *any* Data Field step, regardless of where its value actually came
+from, was a bug wearing the shape of a feature -- caught only because a user asked why a button
+they clicked was popping up a dialog meant for something else entirely.
+
+## `window.prompt()` does not exist in this renderer
+
+Found live, the hard way: Electron's renderer does not implement `window.prompt()` at all --
+calling it throws `Error: prompt() is not supported`, synchronously, which meant the "Run
+Automation" button's own "this rule set has a Data Field step, enter test data as JSON" prompt
+(`automationsEls.rulesets`'s `run-ruleset` handler, `src/control/control.js`) threw before ever
+reaching the `api.automationsTestEvent(...)` call beneath it -- so clicking the button on a rule
+set with any Data Field `setText` step did nothing at all: no event sent, nothing in the activity
+log, no error surfaced anywhere a user would see it, because the throw happened inside an `async`
+click handler with nothing awaiting or catching it. `window.confirm()` is used in several places
+elsewhere in this file and does work (Chromium's blocking `confirm`/`alert` are supported here;
+only `prompt`, which needs a text-input dialog, is not) -- this is not a reason to suspect those.
+
+`promptModal` (`src/control/control.js`, next to `insertAtCursor`) replaces it: a real overlay
+(`#prompt-modal-overlay` in `index.html`, hidden by default) with a textarea, OK/Cancel, Escape and
+Cmd/Ctrl+Enter, resolving a Promise with the typed text or `null` -- the same contract
+`window.prompt()` had, so its one call site needed nothing else changed beyond `await`ing it.
+Everywhere else in this app already avoided native dialogs in favor of inline UI for other reasons
+(consistency, not needing a text-input prompt at all); this was the one place that still did, and
+it turned out `window.prompt()` was never going to work in the first place -- worth remembering
+before reaching for it again anywhere in this codebase.
 
 ## Migrating an older config
 
@@ -99,5 +282,22 @@ shape; nothing writes it again once migrated.
 The token is read fresh on every request (`getToken`, passed into `start`) rather than captured
 once, so rotating it in settings takes effect without restarting the server. Comparison is
 timing-safe (`timingSafeEqualStr`). The last 50 received events are kept in memory
-(`EVENT_LOG_LIMIT`) for the control panel's own log; nothing is persisted to disk beyond the
-certificate files and the configured rule sets.
+(`EVENT_LOG_LIMIT`) for `automations.js`'s own `status().events`; nothing is persisted to disk
+beyond the certificate files and the configured rule sets.
+
+## The Connections activity log
+
+A separate, smaller log than `automations.js`'s own `events` -- `activityLog`
+(`src/main.js:167`, capped at `ACTIVITY_LOG_LIMIT` = 100) exists so the Connections card on the
+Session tab can answer "what just happened" across all three services at a glance, not just
+Automations' own. `logActivity(source, event, level)` (`src/main.js:169`) pushes an entry and
+broadcasts; fed from four places: OBS's and Tavern's `'status'` listeners
+(`src/main.js:180`/`204`) only log when `state` itself changed (not every status ping -- OBS/Tavern
+emit `'status'` on routine polling too, e.g. input or output list refreshes, which would otherwise
+spam the log on a timer), Automations' own `'status'` listener the same way (`src/main.js:506`),
+and its `'event'` listener logging every event received (`src/main.js:515`) plus every rule-set
+step or dispatch failure as a `level: 'error'` entry (`src/main.js:518`, `:708`, `:727`) -- the one
+place those failures were previously only a `console.warn`, invisible outside the main process's
+own stdout. The Automations tab's rule-set "Run Automation" button and the "Time it" button both
+still work exactly as before; their effects just show up here instead of (or now, in addition to)
+the tab they were run from. Not persisted, same as `automations.js`'s own log -- resets on restart.
