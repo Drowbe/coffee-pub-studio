@@ -27,7 +27,6 @@ const collapseEl = $('collapse');
 const dockEnabledEl = $('dock-enabled');
 const dockSideEl = $('dock-side');
 const dockOverlapEl = $('dock-overlap');
-const sessionFilenameEnabledEl = $('session-filename-enabled');
 const sessionFilenameFormatEl = $('session-filename-format');
 const sessionFilenamePreviewEl = $('session-filename-preview');
 const sessionFilenameFieldsToggleEl = $('session-filename-fields-toggle');
@@ -36,6 +35,7 @@ const metadataEls = {
   add: $('metadata-add'),
   addForm: $('metadata-add-form'),
   newLabel: $('metadata-new-label'),
+  newCategory: $('metadata-new-category'),
   newType: $('metadata-new-type'),
   newSeparatorField: $('metadata-new-separator-field'),
   newSeparator: $('metadata-new-separator'),
@@ -46,10 +46,11 @@ const metadataEls = {
   addCancel: $('metadata-add-cancel'),
   fields: $('metadata-fields'),
   fieldsEmpty: $('metadata-fields-empty'),
+  quickAdd: $('metadata-quick-add'),
 };
 const METADATA_COMPOUND_TYPES = ['textNumber', 'numberText'];
 // Kept in lockstep with METADATA_FIELD_TYPES in src/config.js.
-const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES];
+const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES, 'checkbox'];
 
 // Mirrors resolveDataField in src/main.js, read-only -- a preview must
 // never actually mutate a Number field just because its format string
@@ -60,46 +61,51 @@ const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES];
 // (name) when nothing matches -- same spirit as the (title)/(campaign)
 // placeholders below, which truly have no value to show here since
 // there's no triggering event on this tab.
-function previewDataField(key) {
-  const match = /^(.+)([+-]1)$/.exec(key);
-  const baseKey = match ? match[1] : key;
-  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
-
+function previewDataField(key, chain = new Set()) {
   const now = new Date();
-  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
-  if (baseKey === 'sessionDate') return now.toLocaleDateString();
-  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
-  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
-  if (baseKey === 'sessionYear') return String(now.getFullYear());
+  if (key === 'sessionTime') return now.toLocaleTimeString();
+  if (key === 'sessionDate') return now.toLocaleDateString();
+  if (key === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (key === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (key === 'sessionYear') return String(now.getFullYear());
 
-  const field = ((config && config.metadataFields) || []).find((f) => f.key === baseKey);
+  const field = ((config && config.metadataFields) || []).find((f) => f.key === key);
   if (field) {
     if (field.type === 'textNumber' || field.type === 'numberText') {
-      const number = field.number + delta;
-      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      const numberText = field.padding ? String(field.number).padStart(field.padding, '0') : String(field.number);
       return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
     }
-    return field.type === 'number' && delta ? String(Number(field.value) + delta) : String(field.value);
+    if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
+    if (field.type === 'text') {
+      if (chain.has(key)) return '';
+      return expandTemplatePreview(String(field.value), new Set(chain).add(key));
+    }
+    return String(field.value);
   }
 
   return `(${key})`;
 }
 
-// A live preview of what applySessionFilename would actually write --
-// {title}/{campaign} shown as placeholders since there's no triggering
-// event to read them from here, and OBS's own %-style macros left
-// untouched either way.
-function updateFilenamePreview() {
+// Mirrors formatSessionTemplate in src/main.js -- {title}/{campaign} shown
+// as placeholders since there's no triggering event to read them from on
+// this tab, any other {name} resolved through previewDataField, and OBS's
+// own %-style macros left untouched either way. Shared by the Filename
+// format preview below and a Text Metadata field's own read-mode display
+// (composeMetadataFieldValue).
+function expandTemplatePreview(template, chain = new Set()) {
   const legacy = {
     title: '(title)',
     campaign: '(campaign)',
   };
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) =>
+    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key, chain)
+  );
+}
+
+// A live preview of what applySessionFilename would actually write.
+function updateFilenamePreview() {
   const format = sessionFilenameFormatEl.value;
-  sessionFilenamePreviewEl.textContent = format
-    ? `Preview: ${format.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
-        Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key)
-      )}`
-    : '';
+  sessionFilenamePreviewEl.textContent = format ? `Preview: ${expandTemplatePreview(format)}` : '';
 }
 
 // Inserts at the cursor (replacing any current selection) rather than
@@ -163,7 +169,12 @@ function promptModal(message, defaultValue) {
 // a registered module's fields, Studio's own Metadata fields, and the
 // evergreen built-ins are all discoverable here too, not just from an
 // automation step.
-function renderDataFieldPicker(panelEl, inputEl) {
+// onInsert is called after a chip is clicked and the token is already in
+// the input -- the Filename format field uses it to refresh its preview and
+// save immediately; a Text Metadata field's own picker (renderMetadataFields)
+// passes nothing, since that input only commits when its row's own Save
+// (checkmark) button is clicked, same as every other field type's edit mode.
+function renderDataFieldPicker(panelEl, inputEl, onInsert) {
   panelEl.textContent = '';
   const groups = dataFieldGroups().filter((g) => g.fields.length);
   if (!groups.length) {
@@ -188,8 +199,7 @@ function renderDataFieldPicker(panelEl, inputEl) {
       chip.addEventListener('click', () => {
         insertAtCursor(inputEl, `{${f.key}}`);
         panelEl.hidden = true;
-        if (inputEl === sessionFilenameFormatEl) updateFilenamePreview();
-        scheduleSave();
+        if (onInsert) onInsert();
       });
       chips.appendChild(chip);
     }
@@ -198,12 +208,17 @@ function renderDataFieldPicker(panelEl, inputEl) {
   }
 }
 
-function toggleDataFieldPicker(panelEl, inputEl) {
+function toggleDataFieldPicker(panelEl, inputEl, onInsert) {
   panelEl.hidden = !panelEl.hidden;
-  if (!panelEl.hidden) renderDataFieldPicker(panelEl, inputEl);
+  if (!panelEl.hidden) renderDataFieldPicker(panelEl, inputEl, onInsert);
 }
 
-sessionFilenameFieldsToggleEl.addEventListener('click', () => toggleDataFieldPicker(sessionFilenameFieldsPanelEl, sessionFilenameFormatEl));
+sessionFilenameFieldsToggleEl.addEventListener('click', () =>
+  toggleDataFieldPicker(sessionFilenameFieldsPanelEl, sessionFilenameFormatEl, () => {
+    updateFilenamePreview();
+    scheduleSave();
+  })
+);
 
 // Kept in lockstep with sanitizeMetadataField's key generation in
 // src/config.js -- generated once here, client-side, when "Add" is
@@ -214,15 +229,23 @@ sessionFilenameFieldsToggleEl.addEventListener('click', () => toggleDataFieldPic
 // key freezes at creation (see the Metadata card's own hint text); a
 // sanitizer re-deriving it from a since-changed label would be a second,
 // silent way for it to drift out from under a rule set already using it.
-function slugMetadataKey(label) {
+// `category` is the New field form's own "Category" selector -- "session"
+// (the default, for data reused across filenames/overlays/anything else)
+// or "youtube" (for a field that only ever means something to the YouTube
+// upload step, like "Made For Kids"). Same reasoning Quick Add used to
+// justify bypassing this function for its own two fields, now available
+// from the regular "New" flow instead -- see the Quick Add note in
+// architecture-automations.md for why that distinction exists at all.
+function slugMetadataKey(label, category) {
   const words = String(label || '').match(/[A-Za-z0-9]+/g) || [];
   const pascal = words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join('');
-  return `session${pascal || 'Field'}`;
+  const prefix = category === 'youtube' ? 'youtube' : 'session';
+  return `${prefix}${pascal || 'Field'}`;
 }
 
-function uniqueMetadataKey(label) {
+function uniqueMetadataKey(label, category) {
   const taken = new Set([...RESERVED_FIELD_KEYS, ...((config && config.metadataFields) || []).map((f) => f.key)]);
-  const base = slugMetadataKey(label);
+  const base = slugMetadataKey(label, category);
   if (!taken.has(base)) return base;
   let n = 2;
   while (taken.has(`${base}${n}`)) n += 1;
@@ -240,6 +263,8 @@ function composeMetadataFieldValue(field) {
     const numberText = field.padding ? String(field.number).padStart(field.padding, '0') : String(field.number);
     return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
   }
+  if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
+  if (field.type === 'text') return expandTemplatePreview(String(field.value), new Set([field.key]));
   return String(field.value);
 }
 
@@ -306,9 +331,42 @@ function renderMetadataFields() {
 
       if (field.type === 'textNumber') valueEls.push(textInput, sep, numberInput);
       else valueEls.push(numberInput, sep, textInput);
-    } else {
+    } else if (field.type === 'checkbox') {
       valueInput = document.createElement('input');
-      valueInput.type = field.type === 'number' ? 'number' : 'text';
+      valueInput.type = 'checkbox';
+      valueInput.className = 'metadata-field-value metadata-field-checkbox';
+      valueInput.checked = Boolean(field.value);
+      valueEls.push(valueInput);
+    } else if (field.type === 'text') {
+      // Every Text field can compose other fields via {token} (resolveDataField,
+      // src/main.js) -- not opt-in, since a plain literal value with no {..}
+      // in it just passes through unchanged. The picker is here so that's
+      // discoverable without typing a key blind, same as the Filename
+      // format field's own.
+      valueInput = document.createElement('input');
+      valueInput.type = 'text';
+      valueInput.className = 'metadata-field-value';
+      valueInput.value = field.value;
+      valueInput.spellcheck = false;
+      valueInput.placeholder = 'Plain text, or {sessionCampaign} to compose from other fields';
+
+      const pickerToggle = document.createElement('button');
+      pickerToggle.type = 'button';
+      pickerToggle.className = 'btn btn-small btn-icon';
+      pickerToggle.title = 'Insert a Data Field';
+      pickerToggle.setAttribute('aria-label', 'Insert a Data Field');
+      pickerToggle.innerHTML = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>';
+
+      const pickerPanel = document.createElement('div');
+      pickerPanel.className = 'datafield-picker';
+      pickerPanel.hidden = true;
+      pickerToggle.addEventListener('click', () => toggleDataFieldPicker(pickerPanel, valueInput));
+
+      valueEls.push(valueInput, pickerToggle, pickerPanel);
+    } else {
+      // Number only, by elimination -- every other type is handled above.
+      valueInput = document.createElement('input');
+      valueInput.type = 'number';
       valueInput.className = 'metadata-field-value';
       valueInput.value = field.value;
       valueInput.spellcheck = false;
@@ -317,7 +375,8 @@ function renderMetadataFields() {
 
     const key = document.createElement('span');
     key.className = 'metadata-field-key hint';
-    key.textContent = `(data field: ${field.key})`;
+    key.textContent = `(${field.key})`;
+    key.title = `Data Field key: ${field.key}`;
 
     const editSave = document.createElement('button');
     editSave.type = 'button';
@@ -329,7 +388,7 @@ function renderMetadataFields() {
       editSave.addEventListener('click', () => {
         const patch = METADATA_COMPOUND_TYPES.includes(field.type)
           ? { text: textInput.value, number: Number(numberInput.value) || 0 }
-          : { value: field.type === 'number' ? Number(valueInput.value) || 0 : valueInput.value };
+          : { value: field.type === 'number' ? Number(valueInput.value) || 0 : field.type === 'checkbox' ? valueInput.checked : valueInput.value };
         updateField(patch);
         editingMetadataFieldId = null;
         renderMetadataFields();
@@ -392,6 +451,79 @@ function renderMetadataFields() {
     row.append(label, ...valueEls, key, editSave, moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
   });
+  renderQuickAdd();
+}
+
+// Same field shape metadataEls.addConfirm builds by hand, minus the
+// label-derived key -- quick-add fields need a specific, predictable key
+// (e.g. "youtubePublic") so a step/template can reference it right away,
+// not whatever slugMetadataKey would have derived from the label.
+function makeMetadataField(key, label, type) {
+  const base = { id: `field${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`, label, key, type };
+  return METADATA_COMPOUND_TYPES.includes(type)
+    ? { ...base, text: '', separator: '', number: 0, padding: 0 }
+    : { ...base, value: type === 'number' ? 0 : type === 'checkbox' ? false : '' };
+}
+
+// Turns a metadata key into a readable label for a quick-added field --
+// "sessionParty" -> "Party", "sessionEpisodeFullText" -> "Episode Full Text".
+function labelFromKey(key) {
+  const stripped = key.startsWith('session') && key !== 'session' ? key.slice(7) : key;
+  const spaced = (stripped || key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
+  return spaced ? spaced[0].toUpperCase() + spaced.slice(1) : key;
+}
+
+// One-click bundles that create a starter set of Metadata fields for a
+// specific consumer, so setting one up doesn't mean hand-creating fields
+// one at a time and getting the key exactly right. Each entry says what it
+// would add right now, given the current config -- add more bundles here
+// as other features grow their own expected-fields list.
+const QUICK_ADD_BUNDLES = [
+  {
+    id: 'filename',
+    label: 'Recording Filename fields',
+    hint: 'Adds any {field} used in the Recording Filename format below that has no Metadata field yet.',
+    visible: () => true,
+    wanted: () => {
+      const used = [...(config.session.filenameFormat || '').matchAll(/\{([A-Za-z][A-Za-z0-9]*)\}/g)].map((m) => m[1]);
+      return [...new Set(used)]
+        .filter((key) => !RESERVED_FIELD_KEYS.includes(key))
+        .map((key) => ({ key, label: labelFromKey(key), type: 'text' }));
+    },
+  },
+];
+
+function renderQuickAdd() {
+  if (!metadataEls.quickAdd) return;
+  metadataEls.quickAdd.textContent = '';
+  const existing = new Set((config.metadataFields || []).map((f) => f.key));
+  QUICK_ADD_BUNDLES.forEach((bundle) => {
+    if (!bundle.visible()) return;
+    const missing = bundle.wanted().filter((f) => !existing.has(f.key));
+    if (!missing.length) return;
+
+    const row = document.createElement('div');
+    row.className = 'quick-add-item';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-small';
+    button.textContent = `Quick Add: ${bundle.label} (${missing.length})`;
+    button.addEventListener('click', () => {
+      config.metadataFields = [...(config.metadataFields || []), ...missing.map((f) => makeMetadataField(f.key, f.label, f.type))];
+      renderMetadataFields();
+      updateFilenamePreview();
+      scheduleSave();
+      showToast(`Added ${missing.length} field${missing.length === 1 ? '' : 's'}`);
+    });
+
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = bundle.hint;
+
+    row.append(button, hint);
+    metadataEls.quickAdd.appendChild(row);
+  });
 }
 
 function updateMetadataAddFormVisibility() {
@@ -409,6 +541,7 @@ metadataEls.newSeparator.addEventListener('input', () => {
 metadataEls.add.addEventListener('click', () => {
   metadataEls.addForm.hidden = false;
   metadataEls.newLabel.value = '';
+  metadataEls.newCategory.value = 'session';
   metadataEls.newType.value = 'text';
   metadataEls.newSeparator.value = '';
   metadataEls.newSeparatorHint.textContent = '';
@@ -426,10 +559,11 @@ metadataEls.addConfirm.addEventListener('click', () => {
     return;
   }
   const type = METADATA_FIELD_TYPES.includes(metadataEls.newType.value) ? metadataEls.newType.value : 'text';
-  const base = { id: `field${Date.now().toString(36)}`, label: label.slice(0, 60), key: uniqueMetadataKey(label), type };
+  const category = metadataEls.newCategory.value === 'youtube' ? 'youtube' : 'session';
+  const base = { id: `field${Date.now().toString(36)}`, label: label.slice(0, 60), key: uniqueMetadataKey(label, category), type };
   const field = METADATA_COMPOUND_TYPES.includes(type)
     ? { ...base, text: '', separator: metadataEls.newSeparator.value.slice(0, 20), number: 0, padding: Number(metadataEls.newPadding.value) || 0 }
-    : { ...base, value: type === 'number' ? 0 : '' };
+    : { ...base, value: type === 'number' ? 0 : type === 'checkbox' ? false : '' };
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
   editingMetadataFieldId = field.id;
@@ -450,7 +584,7 @@ let limits = { minViews: 1, maxViews: 5 };
 /** @type {Map<string, HTMLElement>} */
 const cards = new Map();
 let saveTimer = null;
-let activeTab = 'session';
+let activeTab = 'configuration';
 
 const NUMBER_FIELDS = new Set(['width', 'height']);
 const BOOL_FIELDS = new Set(['enabled', 'dockOnLaunch', 'muted', 'wakeAudio']);
@@ -472,6 +606,23 @@ function reportError(err) {
   setSaveState(String((err && err.message) || err).replace(/^.*Error: /, ''), 'error');
 }
 
+// A one-off confirmation (e.g. "Code copied") that pops near the cursor's
+// last known context and fades on its own -- for actions the footer's
+// #save-state line is too easy to miss, since that line normally reports
+// unrelated config-save status.
+const toastContainer = document.getElementById('toast-container');
+function showToast(message, { type = '' } = {}) {
+  const el = document.createElement('div');
+  el.className = `toast${type ? ` toast-${type}` : ''}`;
+  el.textContent = message;
+  toastContainer.append(el);
+  requestAnimationFrame(() => el.classList.add('toast-show'));
+  setTimeout(() => {
+    el.classList.remove('toast-show');
+    setTimeout(() => el.remove(), 200);
+  }, 2200);
+}
+
 // ---------------------------------------------------------------------------
 // Tabs
 // ---------------------------------------------------------------------------
@@ -486,27 +637,38 @@ function rememberTab(name) {
 
 function recallTab() {
   try {
-    return localStorage.getItem('activeTab') || 'session';
+    const saved = localStorage.getItem('activeTab');
+    // 'session' was this tab's key before the Configuration/Session split;
+    // a value saved before that change would otherwise match nothing below
+    // and leave every panel hidden.
+    return saved === 'session' ? 'configuration' : saved || 'configuration';
   } catch (err) {
-    return 'session';
+    return 'configuration';
   }
 }
 
 function selectTab(name) {
-  if (name === 'general' || name === 'obs') name = 'session';
-  if (name.startsWith('view:') && !config.views.some((v) => `view:${v.id}` === name)) name = 'session';
-  if (name === 'tavern' && !config.tavern.enabled) name = 'session';
-  if (name === 'automations' && !config.automations.enabled) name = 'session';
+  if (name === 'general' || name === 'obs') name = 'configuration';
+  if (name.startsWith('view:') && !config.views.some((v) => `view:${v.id}` === name)) name = 'configuration';
+  if (name === 'tavern' && !config.tavern.enabled) name = 'configuration';
+  if (name === 'automations' && !config.automations.enabled) name = 'configuration';
+  if (name.startsWith('app:') && !(config.appWindows || []).some((a) => `app:${a.id}` === name)) name = 'configuration';
   activeTab = name;
   rememberTab(name);
   for (const tab of document.querySelectorAll('.tab')) {
     tab.classList.toggle('active', tab.dataset.tab === name);
   }
-  $('tab-session').hidden = name !== 'session';
+  $('tab-metadata').hidden = name !== 'metadata';
+  $('tab-configuration').hidden = name !== 'configuration';
   $('tab-tavern').hidden = name !== 'tavern';
   $('tab-automations').hidden = name !== 'automations';
-  if (name === 'automations') refreshAutomationsScenes();
+  // OBS Control (scene/source pickers) lives on Configuration; Rule Sets'
+  // own scene/source pickers live on Automations -- both read the same
+  // automationsScenes/automationsSources, so either tab arriving is worth
+  // a fresh read.
+  if (name === 'configuration' || name === 'automations') refreshAutomationsScenes();
   for (const [id, card] of cards) card.hidden = name !== `view:${id}`;
+  for (const [id, card] of appWinCards) card.hidden = name !== `app:${id}`;
   refreshStatusBar();
 }
 
@@ -524,23 +686,60 @@ function renderTabs() {
     tab.append(view.label);
     viewTabsEl.appendChild(tab);
   }
-  $('tabs').querySelector('.tab-add').hidden = config.views.length >= limits.maxViews;
+  $('tabs').querySelector('.tab-add').hidden = config.views.length >= limits.maxViews && (config.appWindows || []).length >= MAX_APP_WINDOWS;
   selectTab(activeTab);
 }
 
-$('tabs').addEventListener('click', async (event) => {
+async function addWebWindow() {
+  await flushSave();
+  try {
+    const view = await api.addView();
+    // The status broadcast may have re-rendered the tabs already.
+    activeTab = `view:${view.id}`;
+    selectTab(activeTab);
+  } catch (err) {
+    reportError(err);
+  }
+}
+
+// The "+" tab asks what kind of window to add, instead of each kind
+// growing its own add button somewhere else.
+const addMenuEl = $('add-menu');
+function closeAddMenu() {
+  addMenuEl.hidden = true;
+  document.removeEventListener('mousedown', onAddMenuOutside, true);
+  document.removeEventListener('keydown', onAddMenuKey, true);
+}
+function onAddMenuOutside(event) {
+  if (!addMenuEl.contains(event.target)) closeAddMenu();
+}
+function onAddMenuKey(event) {
+  if (event.key === 'Escape') closeAddMenu();
+}
+function openAddMenu(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  addMenuEl.style.top = `${rect.bottom + 6}px`;
+  addMenuEl.style.left = `${Math.max(8, rect.left - 40)}px`;
+  addMenuEl.querySelector('[data-kind="web"]').disabled = config.views.length >= limits.maxViews;
+  addMenuEl.querySelector('[data-kind="app"]').disabled = (config.appWindows || []).length >= MAX_APP_WINDOWS;
+  addMenuEl.hidden = false;
+  document.addEventListener('mousedown', onAddMenuOutside, true);
+  document.addEventListener('keydown', onAddMenuKey, true);
+}
+addMenuEl.addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-kind]');
+  if (!btn || btn.disabled) return;
+  closeAddMenu();
+  if (btn.dataset.kind === 'web') addWebWindow();
+  else addAppWindow();
+});
+
+$('tabs').addEventListener('click', (event) => {
   const tab = event.target.closest('.tab');
   if (!tab) return;
   if (tab.dataset.tab === 'add') {
-    await flushSave();
-    try {
-      const view = await api.addView();
-      // The status broadcast may have re-rendered the tabs already.
-      activeTab = `view:${view.id}`;
-      selectTab(activeTab);
-    } catch (err) {
-      reportError(err);
-    }
+    if (addMenuEl.hidden) openAddMenu(tab);
+    else closeAddMenu();
     return;
   }
   selectTab(tab.dataset.tab);
@@ -605,13 +804,13 @@ function applyConfig(next) {
   obsAutoEl.checked = config.obs.autoConnect;
   if (document.activeElement !== obsHostEl) obsHostEl.value = config.obs.host;
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
-  sessionFilenameEnabledEl.checked = config.session.filenameFormatEnabled;
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
-  sessionFilenameFormatEl.disabled = !config.session.filenameFormatEnabled;
   updateFilenamePreview();
   renderMetadataFields();
+  if (firstLoad || (JSON.stringify(config.appWindows) !== appWinSignature && !isEditing(appWinEls.list))) renderAppWindows();
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
+  applyYoutubeConfig();
   if (!sameViews) {
     renderViewCards();
     return;
@@ -687,18 +886,10 @@ function renderObs() {
     error: o.message || 'Connection failed.',
   };
   let text = labels[o.state] || '';
-  if (connected) {
-    text += ` ${o.inputs.length} window-capture source${o.inputs.length === 1 ? '' : 's'} found.`;
-    if (o.lastSync) {
-      const bits = [];
-      if (o.lastSync.pointed.length) bits.push(`re-pointed ${o.lastSync.pointed.join(', ')}`);
-      if (o.lastSync.restarted && o.lastSync.restarted.length) bits.push(`restarted capture of ${o.lastSync.restarted.join(', ')}`);
-      if (o.lastSync.cropped && o.lastSync.cropped.length) bits.push(`cropped ${o.lastSync.cropped.join(', ')}`);
-      if (o.lastSync.detected.length) bits.push(`linked ${o.lastSync.detected.map((d) => d.input).join(', ')}`);
-      if (o.lastSync.missing.length) bits.push(`missing in OBS: ${o.lastSync.missing.join(', ')}`);
-      text += bits.length ? ` Last sync ${bits.join('; ')}.` : ' Last sync: everything already in place.';
-    }
-  }
+  // Sync detail (what got re-pointed/restarted/cropped/linked) goes to the
+  // Connections activity log instead of piling up here -- see logActivity('OBS', ...)
+  // in syncObs(), src/main.js. This hint stays a short, glanceable summary.
+  if (connected) text += ` ${o.inputs.length} window-capture source${o.inputs.length === 1 ? '' : 's'} found.`;
   obsStatusEl.textContent = text;
   obsStatusEl.classList.toggle('hint-error', o.state === 'error');
   obsPasswordEl.placeholder = o.hasPassword ? 'saved' : 'not set';
@@ -720,6 +911,11 @@ function connectionChipState(state, enabled, listeningWord) {
 
 function renderConnectionsBoard() {
   const board = $('connections-board');
+  const yt = status.youtube || {};
+  // youtube:setSettings only reports {connected, hasClientSecret, connecting}
+  // -- no {state} string like OBS/Tavern/Automations -- so it's translated
+  // into the same three states connectionChipState expects.
+  const youtubeState = yt.connecting ? 'connecting' : yt.connected ? 'connected' : 'disconnected';
   const entries = {
     obs: connectionChipState((status.obs || {}).state, true),
     tavern: connectionChipState((status.tavern || {}).state, Boolean(config && config.tavern.enabled)),
@@ -728,6 +924,7 @@ function renderConnectionsBoard() {
       Boolean(config && config.automations.enabled),
       'Listening'
     ),
+    youtube: connectionChipState(youtubeState, Boolean(config && config.youtube.enabled)),
   };
   for (const [key, { cls, label }] of Object.entries(entries)) {
     const chip = board.querySelector(`[data-connection="${key}"]`);
@@ -1130,7 +1327,7 @@ async function onCardClick(event) {
         break;
       case 'remove-view':
         if (window.confirm(`Delete the "${view.label}" window and its settings?`)) {
-          activeTab = 'session';
+          activeTab = 'configuration';
           await api.removeView(id);
         }
         break;
@@ -1208,7 +1405,6 @@ async function flushSave() {
     if (arrangeDisplayEl.value) config.arrangeDisplayId = Number(arrangeDisplayEl.value);
     config.session = {
       filenameFormat: sessionFilenameFormatEl.value,
-      filenameFormatEnabled: sessionFilenameEnabledEl.checked,
     };
     const saved = await api.saveConfig(config);
     setSaveState('All changes saved');
@@ -1233,7 +1429,7 @@ arrangeDisplayEl.addEventListener('change', () => {
   config.arrangeDisplayId = Number(arrangeDisplayEl.value);
   scheduleSave();
 });
-for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionFilenameEnabledEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
+for (const el of [menuBarIconEl, hideDockIconEl, retinaDoubleEl, dockEnabledEl, dockSideEl, dockOverlapEl, wakeDelayEl, sessionFilenameFormatEl]) el.addEventListener('change', scheduleSave);
 wakeDelayEl.addEventListener('input', () => {
   wakeDelayValueEl.textContent = describeDelay(Number(wakeDelayEl.value));
 });
@@ -1244,7 +1440,7 @@ $('reset-config').addEventListener('click', async () => {
   if (!window.confirm('Reset URLs, sizes and positions to the defaults?')) return;
   const saved = await api.resetConfig();
   setSaveState('All changes saved');
-  activeTab = 'session';
+  activeTab = 'configuration';
   applyConfig(saved);
   renderStatus();
 });
@@ -1314,7 +1510,10 @@ api.onStatus((next) => {
   renderTavern();
   renderAutomationsStatus();
   renderAutomationsObs();
+  renderYoutubeStatus();
   renderConnectionsBoard();
+  updateRulesetRunState();
+  if (config) updateAppWindowStatus();
   const obsConnected = Boolean(next.obs && next.obs.state === 'connected');
   if (obsConnected && !automationsObsWasConnected) refreshAutomationsScenes();
   automationsObsWasConnected = obsConnected;
@@ -1373,7 +1572,7 @@ function applyTavernConfig() {
   tavernEls.tab.hidden = !t.enabled;
   $('tavern-manage').hidden = !t.enabled;
   $('tavern-connect').hidden = !t.enabled;
-  if (!t.enabled && activeTab === 'tavern') selectTab('session');
+  if (!t.enabled && activeTab === 'tavern') selectTab('configuration');
   if (document.activeElement !== tavernEls.url) tavernEls.url.value = t.url;
   if (document.activeElement !== tavernEls.login) tavernEls.login.value = t.login;
   tavernEls.auto.checked = t.autoConnect;
@@ -1562,7 +1761,7 @@ function renderTavern() {
   $('tavern-users-title').textContent = room ? `Users in ${room.name}` : 'Users';
   $('tavern-room-count').textContent = room ? `${room.members.length} member${room.members.length === 1 ? '' : 's'}` : '';
   tavernEls.empty.hidden = connected;
-  tavernEls.empty.textContent = t.state === 'error' ? t.message : 'Sign in to the Tavern on the Session tab to see who is at the table.';
+  tavernEls.empty.textContent = t.state === 'error' ? t.message : 'Sign in to the Tavern on the Configuration tab to see who is at the table.';
   // A room's profile gates which sources it offers: 'participants' drops
   // Character, 'characters' drops Participant, 'roleplaying' (or no
   // profile, for an older server) offers both. Every user in `party` is a
@@ -1576,7 +1775,7 @@ function renderTavern() {
   $('tavern-participants-section').hidden = !connected || !allowedFor.player;
   $('tavern-characters-section').hidden = !connected || !allowedFor.character;
   // What each user gets: the ticks, defaulting to Participant on and
-  // Character per the Session tab; the sources exist while they are published.
+  // Character per the Configuration tab; the sources exist while they are published.
   const entryFor = (key) => {
     const e = published[key] || {};
     return {
@@ -1747,7 +1946,7 @@ async function onTavernRowClick(event) {
     } else if (button.dataset.action === 'copy-link') {
       const url = await api.tavernViewUrl(key, k.viewKind);
       await navigator.clipboard.writeText(url);
-      setSaveState('View link copied');
+      showToast('View link copied');
     }
   } catch (err) {
     reportError(err);
@@ -1782,12 +1981,27 @@ const automationsEls = {
   stopStreaming: $('automations-stop-streaming'),
   streamingTag: $('automations-streaming-tag'),
   obsStatus: $('automations-obs-status'),
-  studioActions: $('automations-studio-actions'),
   rulesets: $('automations-rulesets'),
   rulesetsEmpty: $('automations-rulesets-empty'),
+  rulesetsCount: $('automations-rulesets-count'),
   addRuleset: $('automations-add-ruleset'),
   testEvent: $('automations-test-event'),
   sendTest: $('automations-send-test'),
+};
+
+const youtubeEls = {
+  enabled: $('youtube-enabled'),
+  tag: $('youtube-tag'),
+  settings: $('youtube-settings'),
+  clientId: $('youtube-client-id'),
+  clientSecret: $('youtube-client-secret'),
+  saveSecret: $('youtube-save-secret'),
+  connect: $('youtube-connect'),
+  disconnect: $('youtube-disconnect'),
+  status: $('youtube-status'),
+  deviceCode: $('youtube-device-code'),
+  privacy: $('youtube-privacy'),
+  category: $('youtube-category'),
 };
 
 // What each OBS action means, what kind of thing its `param` holds
@@ -1809,8 +2023,7 @@ const AUTOMATION_ACTIONS = [
   { value: 'stopStreaming', label: 'Stop streaming', paramType: 'none', group: 'Controls' },
 ];
 // Studio actions: same shape, kept in sync by hand with STUDIO_ACTION_SCHEMA
-// in src/config.js. Whether one shows up as a choice anywhere is decided by
-// config.automations.studioActions (the checkboxes below), not this list.
+// in src/config.js. Always available, same as AUTOMATION_ACTIONS.
 const STUDIO_ACTIONS = [
   { value: 'wakeAudio', label: 'Wake audio (every open window)', paramType: 'none', group: 'Studio Control' },
   { value: 'startAll', label: 'Start all windows', paramType: 'none', group: 'Studio Control' },
@@ -1819,6 +2032,10 @@ const STUDIO_ACTIONS = [
   { value: 'undockAll', label: 'Undock all windows', paramType: 'none', group: 'Studio Control' },
   { value: 'syncObs', label: 'Sync OBS', paramType: 'none', group: 'Studio Control' },
   { value: 'applySessionFilename', label: 'Apply the session filename format to OBS', paramType: 'none', group: 'Studio Control' },
+  { value: 'runRuleSet', label: 'Run rule set', paramType: 'ruleSet', group: 'Studio Control' },
+  { value: 'incrementMetadataField', label: 'Increment a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
+  { value: 'decrementMetadataField', label: 'Decrement a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
+  { value: 'uploadToYouTube', label: 'Upload the recording to YouTube', paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 
 // Live OBS scene/source names, refreshed by refreshAutomationsScenes() below
@@ -1833,10 +2050,9 @@ let automationsSources = [];
 // it themselves.
 let automationsObsWasConnected = false;
 
-// OBS actions, plus whichever Studio actions are currently ticked on.
+// OBS actions plus Studio actions -- both always available.
 function availableActions() {
-  const enabled = new Set(config.automations.studioActions || []);
-  return [...AUTOMATION_ACTIONS, ...STUDIO_ACTIONS.filter((a) => enabled.has(a.value))];
+  return [...AUTOMATION_ACTIONS, ...STUDIO_ACTIONS];
 }
 
 function applyAutomationsConfig(firstLoad) {
@@ -1844,7 +2060,7 @@ function applyAutomationsConfig(firstLoad) {
   automationsEls.enabled.checked = a.enabled;
   automationsEls.settings.hidden = !a.enabled;
   automationsEls.tab.hidden = !a.enabled;
-  if (!a.enabled && activeTab === 'automations') selectTab('session');
+  if (!a.enabled && activeTab === 'automations') selectTab('configuration');
   if (document.activeElement !== automationsEls.port) automationsEls.port.value = String(a.port);
   if (document.activeElement !== automationsEls.token) automationsEls.token.value = a.token;
   // Every status push -- including the one an OBS action like "Time it"
@@ -1859,9 +2075,125 @@ function applyAutomationsConfig(firstLoad) {
   // ever driven by the user's own local actions (add/remove/move/save all
   // already re-render themselves); a passive push no longer touches it.
   if (firstLoad) {
-    renderAutomationsStudioActions();
     renderAutomationsRuleSets();
   }
+}
+
+// Config-driven fields only (enabled/clientId/privacy/category) -- gated by
+// applyConfig's own isDirty() check like everything else it drives, so a
+// passive status push can't clobber an in-progress edit. Connection status
+// (connected/device-code-in-progress) is a separate function,
+// renderYoutubeStatus below, called unconditionally on every status push
+// instead -- same split applyAutomationsConfig/renderAutomationsStatus
+// already use, for the same reason: status needs to update live while a
+// device-flow connect is being approved, which can take a while and
+// shouldn't wait on the user finishing whatever else they're mid-edit on.
+function applyYoutubeConfig() {
+  const y = config.youtube;
+  youtubeEls.enabled.checked = y.enabled;
+  youtubeEls.settings.hidden = !y.enabled;
+  if (document.activeElement !== youtubeEls.clientId) youtubeEls.clientId.value = y.clientId;
+  youtubeEls.privacy.value = y.privacyStatus;
+  if (document.activeElement !== youtubeEls.category) youtubeEls.category.value = y.categoryId;
+  renderQuickAdd();
+}
+
+function renderYoutubeStatus() {
+  const yt = status.youtube || { connected: false, hasClientSecret: false, connecting: null };
+  youtubeEls.tag.hidden = !yt.connected;
+  youtubeEls.connect.hidden = yt.connected;
+  youtubeEls.disconnect.hidden = !yt.connected;
+  youtubeEls.clientSecret.placeholder = yt.hasClientSecret ? 'saved' : 'not set';
+  if (yt.connecting) {
+    youtubeEls.deviceCode.hidden = false;
+    youtubeEls.deviceCode.textContent = '';
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = yt.connecting.verificationUrl;
+    link.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const result = await api.youtubeOpenVerificationUrl();
+      if (result && result.ok) showToast('Opened in your browser');
+      else showToast('That code has expired -- click Connect again', { type: 'error' });
+    });
+    // The code itself is the click target, not just a small icon beside it
+    // -- a short, easy-to-mistype string is exactly the case where "click
+    // the whole thing to copy it" beats "find the tiny icon".
+    const code = document.createElement('button');
+    code.type = 'button';
+    code.className = 'youtube-code-copy';
+    code.textContent = yt.connecting.userCode;
+    code.title = 'Click to copy';
+    code.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(yt.connecting.userCode);
+      showToast('Code copied');
+    });
+    youtubeEls.deviceCode.append('Go to ', link, ' and enter this code: ', code, ' -- waiting for approval…');
+    youtubeEls.status.textContent = '';
+  } else {
+    youtubeEls.deviceCode.hidden = true;
+    youtubeEls.status.textContent = yt.connected ? 'Connected.' : 'Not connected.';
+  }
+}
+
+async function saveYoutubeSettings(patch) {
+  config.youtube = { ...config.youtube, ...patch };
+  try {
+    status.youtube = await api.youtubeSetSettings(patch);
+    setSaveState('All changes saved');
+  } catch (err) {
+    reportError(err);
+  }
+  renderYoutubeStatus();
+}
+
+youtubeEls.enabled.addEventListener('change', () => saveYoutubeSettings({ enabled: youtubeEls.enabled.checked }));
+youtubeEls.clientId.addEventListener('change', () => saveYoutubeSettings({ clientId: youtubeEls.clientId.value }));
+youtubeEls.privacy.addEventListener('change', () => saveYoutubeSettings({ privacyStatus: youtubeEls.privacy.value }));
+youtubeEls.category.addEventListener('change', () => saveYoutubeSettings({ categoryId: youtubeEls.category.value }));
+
+youtubeEls.clientSecret.addEventListener('input', () => {
+  youtubeEls.saveSecret.hidden = false;
+});
+youtubeEls.saveSecret.addEventListener('click', async () => {
+  try {
+    status.youtube = await api.youtubeSetClientSecret(youtubeEls.clientSecret.value);
+    setSaveState('All changes saved');
+  } catch (err) {
+    reportError(err);
+  }
+  youtubeEls.clientSecret.value = '';
+  youtubeEls.saveSecret.hidden = true;
+  renderYoutubeStatus();
+});
+
+youtubeEls.connect.addEventListener('click', async () => {
+  try {
+    status.youtube = await api.youtubeConnect();
+  } catch (err) {
+    reportError(err);
+  }
+  renderYoutubeStatus();
+});
+youtubeEls.disconnect.addEventListener('click', async () => {
+  if (!window.confirm('Disconnect YouTube? Any rule set using the upload action will fail until you reconnect.')) return;
+  status.youtube = await api.youtubeDisconnect();
+  renderYoutubeStatus();
+});
+
+// The setup walkthrough's three links, plus the shortcut icon button next
+// to Client ID -- all open a fixed Google Cloud Console page in the
+// person's real browser (shell.openExternal, main.js), never this window.
+for (const [id, open] of [
+  ['youtube-open-api-library', () => api.youtubeOpenApiLibrary()],
+  ['youtube-open-consent-screen', () => api.youtubeOpenConsentScreen()],
+  ['youtube-open-credentials', () => api.youtubeOpenCredentials()],
+  ['youtube-open-credentials-2', () => api.youtubeOpenCredentials()],
+]) {
+  $(id).addEventListener('click', (event) => {
+    event.preventDefault();
+    open();
+  });
 }
 
 async function saveAutomationsSettings(patch) {
@@ -1893,7 +2225,7 @@ automationsEls.generateToken.addEventListener('click', () => {
 automationsEls.copyToken.addEventListener('click', async () => {
   if (!automationsEls.token.value) return;
   await navigator.clipboard.writeText(automationsEls.token.value);
-  setSaveState('Token copied');
+  showToast('Token copied');
 });
 
 // A small "copy" icon button, matching the one used for a Tavern view link.
@@ -1907,7 +2239,7 @@ function copyButton(value, label) {
     '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M10.6 13.4a1 1 0 0 1 0-1.4l3.4-3.4a3 3 0 1 1 4.2 4.2l-1.7 1.7a1 1 0 1 1-1.4-1.4l1.7-1.7a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4L10 15.4a3 3 0 1 1-4.2-4.2l1.7-1.7a1 1 0 1 1 1.4 1.4l-1.7 1.7a1 1 0 0 0 1.4 1.4l3.4-3.4a1 1 0 0 1 1.4 0z"/></svg>';
   btn.addEventListener('click', async () => {
     await navigator.clipboard.writeText(value);
-    setSaveState('Address copied');
+    showToast('Address copied');
   });
   return btn;
 }
@@ -2039,51 +2371,36 @@ automationsEls.stopRecording.addEventListener('click', () => api.obsStopRecordin
 automationsEls.startStreaming.addEventListener('click', () => api.obsStartStreaming().catch(reportError));
 automationsEls.stopStreaming.addEventListener('click', () => api.obsStopStreaming().catch(reportError));
 
-// --- Studio Control: which Studio actions (beyond OBS's own) are exposed,
-// off by default -- see the note by STUDIO_ACTIONS above. ---
-function renderAutomationsStudioActions() {
-  automationsEls.studioActions.textContent = '';
-  const enabled = new Set(config.automations.studioActions || []);
-  for (const a of STUDIO_ACTIONS) {
-    const label = document.createElement('label');
-    label.className = 'check';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = enabled.has(a.value);
-    input.dataset.studioAction = a.value;
-    const span = document.createElement('span');
-    span.textContent = a.label;
-    label.append(input, span);
-    automationsEls.studioActions.appendChild(label);
-  }
-}
-
-async function saveAutomationsStudioActions() {
-  try {
-    status.automations = await api.automationsSetSettings({ studioActions: config.automations.studioActions });
-  } catch (err) {
-    reportError(err);
-  }
-  renderAutomationsStudioActions();
-  renderAutomationsRuleSets(); // a step's available actions may have changed
-}
-
-automationsEls.studioActions.addEventListener('change', (event) => {
-  const value = event.target.dataset.studioAction;
-  if (!value) return;
-  const current = new Set(config.automations.studioActions || []);
-  if (event.target.checked) current.add(value);
-  else current.delete(value);
-  config.automations.studioActions = STUDIO_ACTIONS.map((a) => a.value).filter((v) => current.has(v));
-  saveAutomationsStudioActions();
-});
-
 // --- Rule sets: each one its own card (mirrors the Regions pattern), a
 // name/group/trigger-event header and a numbered sequence of steps. Live in
 // config.automations.ruleSets; edited directly in the DOM and saved as a
 // whole array on every change, same shape sent to automations:setSettings.
 // ---
 const rulesetTemplate = $('ruleset-template');
+
+// Which rule-set cards are collapsed -- a pure display preference, not
+// config, so it's never sent to the server, but it is remembered locally
+// (localStorage, same mechanism and reasoning as rememberTab/recallTab
+// above) so a long list of rule sets doesn't spring back open on every
+// reload once someone's collapsed the ones they don't need to see.
+function rememberCollapsedRulesets(ids) {
+  try {
+    localStorage.setItem('collapsedRulesetIds', JSON.stringify([...ids]));
+  } catch (err) {
+    // ignore
+  }
+}
+
+function recallCollapsedRulesets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('collapsedRulesetIds') || '[]');
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch (err) {
+    return new Set();
+  }
+}
+
+const collapsedRulesetIds = recallCollapsedRulesets();
 
 function ruleSetFromCard(card) {
   return (config.automations.ruleSets || []).find((r) => r.id === card.dataset.rulesetId);
@@ -2135,18 +2452,18 @@ const RESERVED_FIELD_KEYS = ['sessionTime', 'sessionDate', 'sessionDay', 'sessio
 // triggered the run (a registered field from Herald/Tavern/etc.), which is
 // exactly the case "Run Automation" needs to ask about below.
 function isStudioOwnedDataField(key) {
-  const baseKey = key.replace(/[+-]1$/, '');
-  if (RESERVED_FIELD_KEYS.includes(baseKey)) return true;
-  return ((config && config.metadataFields) || []).some((f) => f.key === baseKey);
+  if (RESERVED_FIELD_KEYS.includes(key)) return true;
+  return ((config && config.metadataFields) || []).some((f) => f.key === key);
 }
 
 // Every option a setText step's "Data Field" picker offers, grouped for the
 // <optgroup> markup below -- Studio's own built-ins (always present, no
-// setup needed), then Metadata (config.metadataFields, a "+1"/"-1" pair
-// added for every Number-typed one -- see resolveDataField in main.js for
-// what selecting one of those actually does), then whatever each connected
-// module has registered via POST /api/automations/fields, one group per
-// module so two modules' fields never look like one undifferentiated list.
+// setup needed), then Metadata (config.metadataFields -- bumping a Number
+// or compound field is its own Increment/Decrement step, not a variant of
+// its Data Field key; see resolveDataField in main.js), then whatever each
+// connected module has registered via POST /api/automations/fields, one
+// group per module so two modules' fields never look like one
+// undifferentiated list.
 function dataFieldGroups() {
   const groups = [];
   const withKeys = (pairs) => pairs.map(([key, label]) => ({ key, label: `${label} (${key})` }));
@@ -2163,15 +2480,7 @@ function dataFieldGroups() {
   });
   const metadataFields = (config && config.metadataFields) || [];
   if (metadataFields.length) {
-    const fields = [];
-    for (const f of metadataFields) {
-      fields.push({ key: f.key, label: `${f.label} (${f.key})` });
-      if (f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)) {
-        fields.push({ key: `${f.key}+1`, label: `${f.label} + 1 (${f.key}+1)` });
-        fields.push({ key: `${f.key}-1`, label: `${f.label} - 1 (${f.key}-1)` });
-      }
-    }
-    groups.push({ label: 'Metadata', fields });
+    groups.push({ label: 'Metadata', fields: metadataFields.map((f) => ({ key: f.key, label: `${f.label} (${f.key})` })) });
   }
 
   const registered = (status.automations && status.automations.registeredFields) || [];
@@ -2186,20 +2495,115 @@ function dataFieldGroups() {
   return groups;
 }
 
-function buildStepRow(step, index, number, isFirst, timeableActions) {
+// The subset of dataFieldGroups() that makes sense for a checkbox-only
+// slot (uploadToYouTube's "Made for kids") -- only Metadata itself can
+// ever be "checkbox"-typed, so this skips Date & Time and every
+// registered-fields group entirely rather than listing options that could
+// never be right.
+function checkboxMetadataFieldGroups() {
+  const fields = ((config && config.metadataFields) || [])
+    .filter((f) => f.type === 'checkbox')
+    .map((f) => ({ key: f.key, label: `${f.label} (${f.key})` }));
+  return [{ label: 'Metadata', fields }];
+}
+
+// A small "<label> <select>" pair appended to a step row -- shared by
+// uploadToYouTube's five named Data Field slots, each writing to its own
+// step property (dataset.sfield) rather than the single shared
+// `param`/`dataField` every other action uses.
+// One row in a step's settings list: a small dot (colored to match the
+// step's own tint -- pure CSS, via .automation-step-tint-X descendant rules
+// mirroring the number badge's own colors, not a class passed in here),
+// a label, and whatever control it's for. General-purpose -- any step
+// action with more than a couple of settings can use this instead of
+// cramming everything into the single header row, same as uploadToYouTube's
+// five fields do below.
+function appendSettingRow(settingsEl, labelText, controlEl) {
+  const settingRow = document.createElement('div');
+  settingRow.className = 'automation-step-setting';
+  const dot = document.createElement('span');
+  dot.className = 'automation-step-setting-dot';
+  const label = document.createElement('span');
+  label.className = 'automation-step-setting-label hint';
+  label.textContent = labelText;
+  settingRow.append(dot, label, controlEl);
+  settingsEl.appendChild(settingRow);
+  return settingRow;
+}
+
+function appendDataFieldPicker(settingsEl, { labelText, sfield, currentValue, groups, emptyText }) {
+  const select = document.createElement('select');
+  select.dataset.sfield = sfield;
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = emptyText;
+  select.appendChild(blank);
+  const allKeys = new Set();
+  for (const group of groups) {
+    if (!group.fields.length) continue;
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = group.label;
+    for (const f of group.fields) {
+      allKeys.add(f.key);
+      const opt = document.createElement('option');
+      opt.value = f.key;
+      opt.textContent = f.label;
+      if (f.key === currentValue) opt.selected = true;
+      optgroup.appendChild(opt);
+    }
+    select.appendChild(optgroup);
+  }
+  if (currentValue && !allKeys.has(currentValue)) {
+    const opt = document.createElement('option');
+    opt.value = currentValue;
+    opt.textContent = `[!] ${currentValue} — not found`;
+    opt.style.color = 'var(--danger)';
+    opt.selected = true;
+    select.appendChild(opt);
+    select.classList.add('automation-step-param-missing');
+  }
+  appendSettingRow(settingsEl, labelText, select);
+}
+
+function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) {
   const row = document.createElement('div');
-  row.className = `automation-step ${tintClassFor(step, availableActions())}`;
+  const enabled = step.enabled !== false;
+  row.className = `automation-step ${tintClassFor(step, availableActions())}${enabled ? '' : ' disabled'}`;
   row.dataset.stepId = step.id;
+
+  // The header line (enable/number/AND-or-Wait/action) stays one row, same
+  // as always. A step with more than a couple of settings (uploadToYouTube
+  // today) gets a second block below it, settingsEl -- a vertical list, one
+  // labeled row per setting, instead of every control crammed into the
+  // header line itself. General-purpose: any future action with several
+  // settings can grow its own settingsEl the same way.
+  const mainRow = document.createElement('div');
+  mainRow.className = 'automation-step-main';
+  let settingsEl = null;
+
+  const enabledLabel = document.createElement('label');
+  enabledLabel.className = 'check automation-step-enabled';
+  enabledLabel.title = 'Skip this step without losing its settings';
+  const enabledInput = document.createElement('input');
+  enabledInput.type = 'checkbox';
+  enabledInput.checked = enabled;
+  enabledInput.dataset.sfield = 'enabled';
+  enabledLabel.appendChild(enabledInput);
+  mainRow.appendChild(enabledLabel);
 
   const numberEl = document.createElement('span');
   numberEl.className = 'automation-step-number';
   numberEl.textContent = String(number);
-  row.appendChild(numberEl);
+  mainRow.appendChild(numberEl);
 
   if (step.type === 'delay') {
     row.classList.add('automation-step-delay');
+    // Same styling as "First step" below -- both are a fixed label sitting
+    // in the header line's AND-toggle slot for a step that has no real
+    // choice there (a delay can't be `and`; the first step has nothing
+    // before it to join), not a togglable control.
     const before = document.createElement('span');
-    before.className = 'automation-step-label';
+    before.className = 'hint automation-step-static-label';
     before.textContent = 'Wait';
     const seconds = document.createElement('input');
     seconds.type = 'number';
@@ -2212,7 +2616,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
     const after = document.createElement('span');
     after.className = 'automation-step-label';
     after.textContent = 'seconds';
-    row.append(before, seconds, after);
+    mainRow.append(before, seconds, after);
 
     // "Time it": run the step(s) right before this delay, start a stopwatch,
     // and let the delay measure itself instead of being guessed at -- only
@@ -2266,21 +2670,43 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         tick();
         timing.intervalId = setInterval(tick, 1000);
       });
-      row.appendChild(timeBtn);
+      mainRow.appendChild(timeBtn);
     }
   } else {
-    const andLabel = document.createElement('label');
-    andLabel.className = 'check automation-step-and';
-    andLabel.title = 'Run together with the step before this one, instead of waiting for it';
-    const andInput = document.createElement('input');
-    andInput.type = 'checkbox';
-    andInput.checked = Boolean(step.and);
-    andInput.dataset.sfield = 'and';
-    andInput.disabled = isFirst;
-    const andSpan = document.createElement('span');
-    andSpan.textContent = 'AND';
-    andLabel.append(andInput, andSpan);
-    row.appendChild(andLabel);
+    // A toggle button, not a bare checkbox -- "AND" next to an unlabeled
+    // checkbox didn't say which direction it went (with the step before,
+    // or after it?) without reading the tooltip. Same pattern as "Time it"
+    // below: mutates the step directly and saves on click, no delegated
+    // change-listener field for it. The very first step has no step above
+    // it to join, so it gets plain static text instead of a disabled
+    // button that would otherwise still claim to do something.
+    let andToggle;
+    if (isFirst) {
+      andToggle = document.createElement('span');
+      andToggle.className = 'hint automation-step-static-label';
+      andToggle.textContent = 'First step';
+    } else {
+      andToggle = document.createElement('button');
+      andToggle.type = 'button';
+      andToggle.className = 'btn btn-small automation-step-and-btn';
+      const renderAndToggle = () => {
+        const isAnd = Boolean(step.and);
+        andToggle.innerHTML = isAnd
+          ? '<i class="fa-solid fa-diagram-successor" aria-hidden="true"></i> With previous'
+          : '<i class="fa-solid fa-diagram-next" aria-hidden="true"></i> After previous';
+        andToggle.classList.toggle('automation-step-and-active', isAnd);
+        andToggle.title = isAnd
+          ? 'Runs at the same time as the step above, in the same stage -- click to wait for it instead'
+          : 'Waits for the step above to finish first -- click to run together with it instead';
+      };
+      renderAndToggle();
+      andToggle.addEventListener('click', () => {
+        step.and = !step.and;
+        renderAndToggle();
+        saveAutomationsRuleSets();
+      });
+    }
+    mainRow.appendChild(andToggle);
 
     const actions = availableActions();
     const actionSelect = document.createElement('select');
@@ -2299,10 +2725,10 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
       groups.get(a.group).appendChild(opt);
     }
     for (const group of groups.values()) actionSelect.appendChild(group);
-    row.appendChild(actionSelect);
+    mainRow.appendChild(actionSelect);
 
     const meta = actions.find((a) => a.value === step.action) || actions[0];
-    if (meta && meta.paramType !== 'none') {
+    if (meta && meta.paramType !== 'none' && meta.paramType !== 'ruleSet' && meta.paramType !== 'metadataField' && meta.paramType !== 'youtubeUpload') {
       const options = optionsForParamType(meta.paramType);
       const paramSelect = document.createElement('select');
       paramSelect.dataset.sfield = 'param';
@@ -2333,7 +2759,172 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         paramSelect.appendChild(opt);
         paramSelect.classList.add('automation-step-param-missing');
       }
-      row.appendChild(paramSelect);
+      mainRow.appendChild(paramSelect);
+    }
+
+    // "Run rule set" picks another rule set by id (stable; names aren't
+    // required unique) but shows its name -- its own dedicated picker since
+    // options here are {id, name} pairs, not the flat name list every other
+    // paramType uses from optionsForParamType.
+    if (meta && meta.paramType === 'ruleSet') {
+      const ruleSets = (config.automations && config.automations.ruleSets) || [];
+      const paramSelect = document.createElement('select');
+      paramSelect.dataset.sfield = 'param';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = ruleSets.length ? 'Choose a rule set…' : 'No rule sets yet';
+      paramSelect.appendChild(blank);
+      for (const r of ruleSets) {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name || '(unnamed rule set)';
+        if (r.id === step.param) opt.selected = true;
+        paramSelect.appendChild(opt);
+      }
+      if (step.param && !ruleSets.some((r) => r.id === step.param)) {
+        const opt = document.createElement('option');
+        opt.value = step.param;
+        opt.textContent = `[!] ${step.param} — rule set not found`;
+        opt.style.color = 'var(--danger)';
+        opt.selected = true;
+        paramSelect.appendChild(opt);
+        paramSelect.classList.add('automation-step-param-missing');
+      }
+      mainRow.appendChild(paramSelect);
+    }
+
+    // Increment/Decrement pick a Metadata field by key, filtered to the
+    // types a bump means anything for -- a plain Number field's value, or a
+    // Text+Number/Number+Text field's number segment. Same {value, label}
+    // shape as the rule-set picker above, not optionsForParamType's flat
+    // name list.
+    if (meta && meta.paramType === 'metadataField') {
+      const fields = ((config && config.metadataFields) || []).filter(
+        (f) => f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)
+      );
+      const paramSelect = document.createElement('select');
+      paramSelect.dataset.sfield = 'param';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = fields.length ? 'Choose a Metadata field…' : 'No Number-type Metadata fields yet';
+      paramSelect.appendChild(blank);
+      for (const f of fields) {
+        const opt = document.createElement('option');
+        opt.value = f.key;
+        opt.textContent = `${f.label} (${f.key})`;
+        if (f.key === step.param) opt.selected = true;
+        paramSelect.appendChild(opt);
+      }
+      if (step.param && !fields.some((f) => f.key === step.param)) {
+        const opt = document.createElement('option');
+        opt.value = step.param;
+        opt.textContent = `[!] ${step.param} — not a Number-type Metadata field`;
+        opt.style.color = 'var(--danger)';
+        opt.selected = true;
+        paramSelect.appendChild(opt);
+        paramSelect.classList.add('automation-step-param-missing');
+      }
+      mainRow.appendChild(paramSelect);
+    }
+
+    // uploadToYouTube: five named Data Field slots instead of the shared
+    // `param`, plus an optional file override -- see STUDIO_ACTION_SCHEMA's
+    // comment (src/config.js) and runYouTubeUpload (src/main.js). No
+    // Playlist slot -- see "Playlist support" in architecture-automations.md.
+    if (meta && meta.paramType === 'youtubeUpload') {
+      settingsEl = document.createElement('div');
+      settingsEl.className = 'automation-step-settings';
+      const generalGroups = dataFieldGroups();
+      const checkboxGroups = checkboxMetadataFieldGroups();
+      appendDataFieldPicker(settingsEl, { labelText: 'Title', sfield: 'titleField', currentValue: step.titleField, groups: generalGroups, emptyText: 'Choose a field…' });
+      appendDataFieldPicker(settingsEl, { labelText: 'Description', sfield: 'descriptionField', currentValue: step.descriptionField, groups: generalGroups, emptyText: 'None' });
+      appendDataFieldPicker(settingsEl, { labelText: 'Category', sfield: 'categoryField', currentValue: step.categoryField, groups: generalGroups, emptyText: 'None (use default)' });
+      appendDataFieldPicker(settingsEl, {
+        labelText: 'Made for kids',
+        sfield: 'madeForKidsField',
+        currentValue: step.madeForKidsField,
+        groups: checkboxGroups,
+        emptyText: checkboxGroups[0].fields.length ? 'Choose a checkbox field…' : 'No checkbox fields yet',
+      });
+      // Not checkbox-gated like "Made for kids" -- its resolved value
+      // is expected to be the word "private"/"unlisted"/"public" itself
+      // (any Data Field, same as Title/Description), which runYouTubeUpload
+      // validates at run time rather than restricting the picker to a type
+      // that can't actually hold three states.
+      appendDataFieldPicker(settingsEl, { labelText: 'Visibility', sfield: 'visibilityField', currentValue: step.visibilityField, groups: generalGroups, emptyText: 'None (use default)' });
+
+      // Video file's "control" is really two things -- the mode select,
+      // plus a path+Browse pair that only appears in "Specific file" mode --
+      // grouped so they read as one setting row, not two.
+      const fileControls = document.createElement('div');
+      fileControls.className = 'automation-step-setting-control-group';
+
+      const fileModeSelect = document.createElement('select');
+      for (const [v, label] of [['', 'Most recent recording'], ['specific', 'Specific file…']]) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = label;
+        fileModeSelect.appendChild(opt);
+      }
+      fileModeSelect.value = step.filePath ? 'specific' : '';
+      fileControls.appendChild(fileModeSelect);
+
+      const filePathGroup = document.createElement('div');
+      filePathGroup.className = 'automation-step-filepath-group';
+      filePathGroup.hidden = !step.filePath;
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'text';
+      fileInput.className = 'automation-step-filepath';
+      fileInput.spellcheck = false;
+      fileInput.value = step.filePath || '';
+      fileInput.dataset.sfield = 'filePath';
+      filePathGroup.appendChild(fileInput);
+
+      const browseBtn = document.createElement('button');
+      browseBtn.type = 'button';
+      browseBtn.className = 'btn btn-small';
+      browseBtn.textContent = 'Browse';
+      browseBtn.addEventListener('click', async () => {
+        const picked = await api.youtubePickVideoFile();
+        if (!picked) return;
+        fileInput.value = picked;
+        step.filePath = picked;
+        saveAutomationsRuleSets();
+      });
+      filePathGroup.appendChild(browseBtn);
+      fileControls.appendChild(filePathGroup);
+      appendSettingRow(settingsEl, 'Video file', fileControls);
+
+      fileModeSelect.addEventListener('change', () => {
+        const specific = fileModeSelect.value === 'specific';
+        filePathGroup.hidden = !specific;
+        if (!specific && step.filePath) {
+          fileInput.value = '';
+          step.filePath = '';
+          saveAutomationsRuleSets();
+        }
+      });
+
+      // Hidden until a real upload is in progress -- updateRulesetRunState
+      // (called on every status push, not gated by isDirty like a config
+      // rebuild would be) fills it in from status.automations.youtubeUploadProgress,
+      // keyed by this row's own rule set id via [data-youtube-progress].
+      if (ruleSetId) {
+        const progressRow = document.createElement('div');
+        progressRow.className = 'automation-step-upload-progress';
+        progressRow.dataset.youtubeProgress = ruleSetId;
+        progressRow.hidden = true;
+        const track = document.createElement('div');
+        track.className = 'automation-step-upload-progress-track';
+        const fill = document.createElement('div');
+        fill.className = 'automation-step-upload-progress-fill';
+        track.appendChild(fill);
+        const label = document.createElement('span');
+        label.className = 'automation-step-upload-progress-label hint';
+        progressRow.append(track, label);
+        settingsEl.appendChild(progressRow);
+      }
     }
 
     // setText's value is one of three explicit kinds -- "where it goes" is
@@ -2352,7 +2943,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         if ((step.valueType || 'literal') === v) opt.selected = true;
         valueTypeSelect.appendChild(opt);
       }
-      row.appendChild(valueTypeSelect);
+      mainRow.appendChild(valueTypeSelect);
 
       const valueType = step.valueType || 'literal';
       if (valueType === 'literal') {
@@ -2362,7 +2953,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         valueInput.placeholder = 'Text to set';
         valueInput.value = step.value || '';
         valueInput.dataset.sfield = 'value';
-        row.appendChild(valueInput);
+        mainRow.appendChild(valueInput);
       } else if (valueType === 'file') {
         const fileInput = document.createElement('input');
         fileInput.type = 'text';
@@ -2371,7 +2962,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
         fileInput.placeholder = '/path/to/file.txt';
         fileInput.value = step.filePath || '';
         fileInput.dataset.sfield = 'filePath';
-        row.appendChild(fileInput);
+        mainRow.appendChild(fileInput);
 
         const browseBtn = document.createElement('button');
         browseBtn.type = 'button';
@@ -2384,7 +2975,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
           step.filePath = picked;
           saveAutomationsRuleSets();
         });
-        row.appendChild(browseBtn);
+        mainRow.appendChild(browseBtn);
       } else {
         const fieldSelect = document.createElement('select');
         fieldSelect.dataset.sfield = 'dataField';
@@ -2421,7 +3012,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
           fieldSelect.appendChild(opt);
           fieldSelect.classList.add('automation-step-param-missing');
         }
-        row.appendChild(fieldSelect);
+        mainRow.appendChild(fieldSelect);
       }
     }
   }
@@ -2458,7 +3049,10 @@ function buildStepRow(step, index, number, isFirst, timeableActions) {
   const actionsEl = document.createElement('div');
   actionsEl.className = 'automation-step-actions';
   actionsEl.append(moveUp, moveDown, remove);
-  row.appendChild(actionsEl);
+  mainRow.appendChild(actionsEl);
+
+  row.appendChild(mainRow);
+  if (settingsEl) row.appendChild(settingsEl);
   return row;
 }
 
@@ -2473,16 +3067,23 @@ function renderRulesetSteps(card, ruleSet) {
     let timeableActions = null;
     if (step.type === 'delay') {
       const prevStage = numbers[i] - 1;
-      const actions = ruleSet.steps.filter((s, j) => numbers[j] === prevStage && s.type === 'action');
+      const actions = ruleSet.steps.filter((s, j) => numbers[j] === prevStage && s.type === 'action' && s.enabled !== false);
       if (actions.length) timeableActions = actions;
     }
-    const row = buildStepRow(step, i, numbers[i], i === 0, timeableActions);
+    const row = buildStepRow(step, i, numbers[i], i === 0, timeableActions, ruleSet.id);
     if (i === ruleSet.steps.length - 1) row.querySelector('[data-saction="move-down"]').disabled = true;
     container.appendChild(row);
   });
 }
 
-function buildRulesetCard(ruleSet) {
+function setRulesetCollapsed(node, collapsed) {
+  node.classList.toggle('ruleset-collapsed', collapsed);
+  node.querySelector('.region-body').hidden = collapsed;
+  const toggle = node.querySelector('[data-action="toggle-collapse-ruleset"]');
+  toggle.querySelector('i').className = collapsed ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-down';
+}
+
+function buildRulesetCard(ruleSet, index, total) {
   const node = rulesetTemplate.content.firstElementChild.cloneNode(true);
   node.dataset.rulesetId = ruleSet.id;
   node.classList.toggle('disabled', !ruleSet.enabled);
@@ -2490,15 +3091,65 @@ function buildRulesetCard(ruleSet) {
   node.querySelector('[data-rsfield="name"]').value = ruleSet.name;
   node.querySelector('[data-rsfield="group"]').value = ruleSet.group;
   node.querySelector('[data-rsfield="event"]').value = ruleSet.event;
+  const stepCount = ruleSet.steps.length;
+  node.querySelector('[data-role="step-count"]').textContent = `${stepCount} step${stepCount === 1 ? '' : 's'}`;
+  node.querySelector('[data-action="move-ruleset-up"]').disabled = index === 0;
+  node.querySelector('[data-action="move-ruleset-down"]').disabled = index === total - 1;
+  setRulesetCollapsed(node, collapsedRulesetIds.has(ruleSet.id));
   renderRulesetSteps(node, ruleSet);
   return node;
+}
+
+// Called on every status push -- deliberately NOT a rebuild (renderAutomationsRuleSets
+// itself is not called from here; see the note on firstLoad above for why a
+// passive push must never touch that list). Only toggles a class, swaps a
+// button's own label, and fills in a progress bar's width -- none of which
+// can clobber an in-progress edit the way tearing down and rebuilding every
+// card would.
+function updateRulesetRunState() {
+  const runningIds = new Set((status.automations && status.automations.runningRuleSetIds) || []);
+  const activeStepIds = (status.automations && status.automations.activeStepIds) || {};
+  const progress = (status.automations && status.automations.youtubeUploadProgress) || {};
+  for (const card of automationsEls.rulesets.querySelectorAll('.ruleset-card')) {
+    const id = card.dataset.rulesetId;
+    const running = runningIds.has(id);
+    card.classList.toggle('running', running);
+    const runBtn = card.querySelector('[data-action="run-ruleset"]');
+    if (runBtn) {
+      runBtn.classList.toggle('automation-run-btn-stop', running);
+      runBtn.innerHTML = running
+        ? '<i class="fa-solid fa-stop" aria-hidden="true"></i> Stop'
+        : '<i class="fa-solid fa-play" aria-hidden="true"></i> Run Automation';
+      runBtn.title = running
+        ? 'Stops this rule set -- remaining stages are skipped and a YouTube upload in progress is cancelled (it resumes next run)'
+        : 'Runs this rule set now by sending its event';
+    }
+    // Which step(s) this rule set is on right now -- an AND-grouped stage
+    // highlights every step in it at once, since they really do run
+    // together. Cleared automatically for a rule set that isn't running:
+    // activeStepIds[id] is empty (or the key is absent) once its entry in
+    // ruleSetRunState is gone.
+    const active = new Set(activeStepIds[id] || []);
+    for (const stepRow of card.querySelectorAll('.automation-step')) {
+      stepRow.classList.toggle('automation-step-current', active.has(stepRow.dataset.stepId));
+    }
+  }
+  for (const bar of automationsEls.rulesets.querySelectorAll('[data-youtube-progress]')) {
+    const pct = progress[bar.dataset.youtubeProgress];
+    bar.hidden = pct === undefined;
+    if (pct !== undefined) {
+      bar.querySelector('.automation-step-upload-progress-fill').style.width = `${pct}%`;
+      bar.querySelector('.automation-step-upload-progress-label').textContent = `Uploading… ${pct}%`;
+    }
+  }
 }
 
 function renderAutomationsRuleSets() {
   const ruleSets = config.automations.ruleSets || [];
   automationsEls.rulesets.textContent = '';
   automationsEls.rulesetsEmpty.hidden = ruleSets.length > 0;
-  for (const ruleSet of ruleSets) automationsEls.rulesets.appendChild(buildRulesetCard(ruleSet));
+  automationsEls.rulesetsCount.textContent = ruleSets.length ? `${ruleSets.length} rule set${ruleSets.length === 1 ? '' : 's'}` : '';
+  ruleSets.forEach((ruleSet, i) => automationsEls.rulesets.appendChild(buildRulesetCard(ruleSet, i, ruleSets.length)));
 }
 
 async function saveAutomationsRuleSets() {
@@ -2529,7 +3180,7 @@ automationsEls.rulesets.addEventListener('change', (event) => {
   if (!stepRow || !sfield) return;
   const step = ruleSet.steps.find((s) => s.id === stepRow.dataset.stepId);
   if (!step) return;
-  if (sfield === 'and') step.and = event.target.checked;
+  if (sfield === 'enabled') step.enabled = event.target.checked;
   else if (sfield === 'seconds') step.seconds = Number(event.target.value) || 1;
   else step[sfield] = event.target.value;
   if (sfield === 'action') step.param = ''; // the param field's kind depends on the action
@@ -2546,6 +3197,29 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
   const actionBtn = event.target.closest('[data-action]');
   const action = actionBtn && actionBtn.dataset.action;
 
+  if (action === 'toggle-collapse-ruleset') {
+    const collapsed = !collapsedRulesetIds.has(ruleSet.id);
+    if (collapsed) collapsedRulesetIds.add(ruleSet.id);
+    else collapsedRulesetIds.delete(ruleSet.id);
+    rememberCollapsedRulesets(collapsedRulesetIds);
+    setRulesetCollapsed(card, collapsed); // local DOM toggle only -- no data changed, no re-render
+    return;
+  }
+  // Display order only, same as a Metadata field's reorder buttons -- a
+  // rule set's own event/steps are unaffected by where it sits in this
+  // list, this just lets the page match whatever grouping makes sense to
+  // whoever is reading it.
+  if (action === 'move-ruleset-up' || action === 'move-ruleset-down') {
+    const list = config.automations.ruleSets;
+    const from = list.findIndex((r) => r.id === ruleSet.id);
+    const to = action === 'move-ruleset-up' ? from - 1 : from + 1;
+    if (to < 0 || to >= list.length) return;
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    saveAutomationsRuleSets();
+    return;
+  }
+
   if (action === 'delete-ruleset') {
     config.automations.ruleSets = config.automations.ruleSets.filter((r) => r.id !== ruleSet.id);
     saveAutomationsRuleSets();
@@ -2556,6 +3230,20 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'run-ruleset') {
+    // The button reads "Stop" while this rule set is already running
+    // (updateRulesetRunState) -- clicking it then cancels instead of
+    // starting a redundant second run.
+    const runningIds = new Set((status.automations && status.automations.runningRuleSetIds) || []);
+    if (runningIds.has(ruleSet.id)) {
+      try {
+        status.automations = await api.automationsCancelRuleSet(ruleSet.id);
+        updateRulesetRunState();
+        setSaveState(`Stopping "${ruleSet.name}"…`);
+      } catch (err) {
+        reportError(err);
+      }
+      return;
+    }
     if (!ruleSet.event) {
       reportError(new Error('Set this rule set\'s event before running it.'));
       return;
@@ -2640,6 +3328,10 @@ automationsEls.addRuleset.addEventListener('click', () => {
   ];
   renderAutomationsRuleSets();
   setSaveState('Unsaved changes...', 'dirty');
+  // New rule sets always land at the end of a possibly-long list -- without
+  // this, "Add Ruleset" looks like it did nothing until you scroll down.
+  const card = automationsEls.rulesets.querySelector(`[data-ruleset-id="${id}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 automationsEls.sendTest.addEventListener('click', async () => {
@@ -2652,6 +3344,330 @@ automationsEls.sendTest.addEventListener('click', async () => {
     reportError(err);
   }
 });
+
+// ---------------------------------------------------------------------------
+// App windows -- other applications' windows captured into OBS. Each one is
+// a tab of its own, added from the same "+" as a web window.
+// ---------------------------------------------------------------------------
+
+const appWinEls = { list: $('appwins'), tabs: $('appwin-tabs') };
+const appWinCards = new Map();
+const MAX_APP_WINDOWS = 20; // kept in lockstep with APP_WINDOW_LIMITS.maxWindows in src/config.js
+// OBS's own window list ([{label, app, title}]), fetched on demand -- it needs
+// OBS connected and can change any time an app opens or closes a window, so
+// it's never cached past a Refresh click.
+let appWindowChoices = [];
+// What renderAppWindows last drew -- applyConfig runs on every status push,
+// so it only rebuilds the cards when the list actually differs from this.
+let appWinSignature = '';
+
+function appWindowStatusFor(app) {
+  const st = (status.appWindows && status.appWindows[app.id]) || { found: false, inObs: false };
+  if (!st.inObs) return { text: 'Not in OBS yet', cls: '', inObs: false };
+  return st.found ? { text: `Capturing: ${st.matched || 'window found'}`, cls: 'on', inObs: true } : { text: 'Window not open right now', cls: 'connecting', inObs: true };
+}
+
+// A default source name for a not-yet-created app window that doesn't
+// collide with any other window, region or app window's source.
+function uniqueAppSourceName(label, exceptId) {
+  const taken = new Set([
+    ...config.appWindows.filter((a) => a.id !== exceptId).map((a) => a.sourceName),
+    ...config.views.flatMap((v) => [v.windowSource.name, ...v.regions.map((r) => r.obsSource)]),
+  ]);
+  const base = `App: ${label} (CP Studio)`;
+  let name = base;
+  for (let n = 2; taken.has(name); n += 1) name = `App: ${label} ${n} (CP Studio)`;
+  return name;
+}
+
+// Updates only the status dots/text -- called on every status push and
+// deliberately not a rebuild, same reasoning as updateRulesetRunState:
+// tearing the cards down mid-typing would wipe what's being edited.
+function updateAppWindowStatus() {
+  for (const app of config.appWindows || []) {
+    const { text, cls, inObs } = appWindowStatusFor(app);
+    const dots = [
+      appWinEls.tabs.querySelector(`[data-app-dot="${app.id}"]`),
+      ...(appWinCards.has(app.id) ? [appWinCards.get(app.id).querySelector('.dot')] : []),
+    ];
+    for (const dot of dots) {
+      if (!dot) continue;
+      dot.classList.remove('on', 'connecting', 'error');
+      if (cls) dot.classList.add(cls);
+    }
+    const card = appWinCards.get(app.id);
+    if (!card) continue;
+    card.querySelector('.appwin-status').textContent = text;
+    card.querySelector('[data-role="add-source"]').hidden = inObs;
+  }
+}
+
+function renderAppWindows() {
+  const list = config.appWindows || [];
+  appWinEls.list.textContent = '';
+  appWinEls.tabs.textContent = '';
+  appWinCards.clear();
+
+  for (const app of list) {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'tab';
+    tab.dataset.tab = `app:${app.id}`;
+    const tabDot = document.createElement('span');
+    tabDot.className = 'dot';
+    tabDot.dataset.appDot = app.id;
+    tab.appendChild(tabDot);
+    tab.append(app.label);
+    appWinEls.tabs.appendChild(tab);
+
+    const card = document.createElement('article');
+    card.className = 'card appwin-card';
+    card.dataset.appId = app.id;
+    card.hidden = true;
+    appWinCards.set(app.id, card);
+
+    const textField = (labelText, value, onChange, opts = {}) => {
+      const wrap = document.createElement('label');
+      wrap.className = 'field field-inline' + (opts.wide ? ' field-wide' : '');
+      const span = document.createElement('span');
+      span.textContent = labelText;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.spellcheck = false;
+      input.value = value;
+      if (opts.placeholder) input.placeholder = opts.placeholder;
+      input.addEventListener('change', () => onChange(input.value.trim(), input));
+      wrap.append(span, input);
+      return wrap;
+    };
+    // The saved config is replaced wholesale on every save round-trip, so the
+    // `app` object this card was built from goes stale -- every handler
+    // looks the entry up by id instead of mutating it, or an edit would
+    // land on an object no longer in config.appWindows and be lost.
+    const cur = () => config.appWindows.find((a) => a.id === app.id) || app;
+    const commit = () => {
+      appWinSignature = JSON.stringify(config.appWindows);
+      scheduleSave();
+      updateAppWindowStatus();
+    };
+
+    // Header: status dot, label, status text, remove
+    const head = document.createElement('div');
+    head.className = 'view-head';
+    const headLeft = document.createElement('div');
+    headLeft.className = 'view-head-left';
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    const title = document.createElement('h2');
+    title.className = 'view-title';
+    title.textContent = app.label;
+    const statusText = document.createElement('span');
+    statusText.className = 'hint appwin-status';
+    headLeft.append(dot, title, statusText);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-danger';
+    remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove';
+    remove.addEventListener('click', async () => {
+      const inObs = appWindowStatusFor(app).inObs;
+      const alsoObs = inObs && window.confirm(`Also delete "${cur().sourceName}" from OBS?`);
+      if (alsoObs) await api.obsRemoveSource(cur().sourceName).catch(reportError);
+      config.appWindows = config.appWindows.filter((a) => a.id !== app.id);
+      renderAppWindows();
+      if (activeTab === `app:${app.id}`) selectTab('configuration');
+      scheduleSave();
+    });
+    const actions = document.createElement('div');
+    actions.className = 'view-actions';
+    actions.appendChild(remove);
+    head.append(headLeft, actions);
+
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent =
+      "A window from another application, captured into OBS and kept pointed at it as the app reopens. Studio can't open, move or dock it, and leaves its audio alone.";
+
+    // Which window: picker + how it's found again
+    const pickRow = document.createElement('div');
+    pickRow.className = 'row';
+    const picker = document.createElement('select');
+    picker.className = 'appwin-picker';
+    const fillPicker = () => {
+      picker.textContent = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = appWindowChoices.length ? 'Pick an open window…' : 'Click Refresh to list open windows';
+      picker.appendChild(blank);
+      appWindowChoices.forEach((c, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = c.label;
+        picker.appendChild(opt);
+      });
+    };
+    fillPicker();
+    picker.addEventListener('change', () => {
+      const choice = appWindowChoices[Number(picker.value)];
+      if (!choice) return;
+      const a = cur();
+      a.matchApp = choice.app;
+      a.matchTitle = choice.title;
+      a.windowLabel = choice.label;
+      // A still-default label follows the app's name; a name someone typed stays.
+      if (/^App \d+$/.test(a.label) && choice.app) a.label = choice.app;
+      if (!appWindowStatusFor(a).inObs) a.sourceName = uniqueAppSourceName(a.label, a.id);
+      scheduleSave();
+      renderAppWindows();
+    });
+    const refresh = document.createElement('button');
+    refresh.type = 'button';
+    refresh.className = 'btn btn-small btn-icon';
+    refresh.title = "Re-read OBS's list of open windows";
+    refresh.setAttribute('aria-label', 'Refresh window list');
+    refresh.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i>';
+    refresh.addEventListener('click', async () => {
+      try {
+        appWindowChoices = await api.appWindowsList();
+        showToast(`${appWindowChoices.length} windows listed`);
+      } catch (err) {
+        reportError(err);
+      }
+      fillPicker();
+    });
+    pickRow.append(picker, refresh);
+
+    const matchRow = document.createElement('div');
+    matchRow.className = 'row';
+    matchRow.append(
+      textField('Label', app.label, (v) => {
+        const a = cur();
+        a.label = v || a.label;
+        scheduleSave();
+        renderAppWindows();
+      }),
+      textField('App', app.matchApp, (v) => {
+        cur().matchApp = v;
+        cur().windowLabel = ''; // a hand-edited rule no longer means "that exact window"
+        commit();
+      }, { placeholder: 'e.g. Discord' }),
+      textField('Title contains', app.matchTitle, (v) => {
+        cur().matchTitle = v;
+        cur().windowLabel = '';
+        commit();
+      }, { placeholder: 'optional -- blank matches any window of the app', wide: true })
+    );
+
+    // The OBS source
+    const sourceRow = document.createElement('div');
+    sourceRow.className = 'row';
+    const addSource = document.createElement('button');
+    addSource.type = 'button';
+    addSource.className = 'btn btn-primary';
+    addSource.dataset.role = 'add-source';
+    addSource.textContent = 'Add to OBS';
+    addSource.addEventListener('click', async () => {
+      try {
+        await api.appWindowsAdd(app.id);
+        showToast('Source created in OBS');
+      } catch (err) {
+        reportError(err);
+      }
+    });
+    sourceRow.append(
+      textField('OBS source', app.sourceName, async (v, input) => {
+        try {
+          config.appWindows = await api.appWindowsRename(app.id, v);
+        } catch (err) {
+          reportError(err);
+          input.value = cur().sourceName;
+          return;
+        }
+        renderAppWindows();
+      }, { wide: true }),
+      addSource
+    );
+
+    // Crop: trims each edge of the captured window, in captured pixels (twice
+    // the point size on a Retina display). OBS has no "hide title bar"
+    // option, so dropping one is just a top crop.
+    const cropRow = document.createElement('div');
+    cropRow.className = 'row';
+    const cropLabel = document.createElement('span');
+    cropLabel.className = 'hint';
+    cropLabel.textContent = 'Crop (pixels)';
+    cropRow.appendChild(cropLabel);
+    const cropInputs = {};
+    for (const edge of ['left', 'top', 'right', 'bottom']) {
+      const wrap = document.createElement('label');
+      wrap.className = 'field field-inline';
+      const span = document.createElement('span');
+      span.textContent = edge[0].toUpperCase() + edge.slice(1);
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.max = '10000';
+      input.step = '1';
+      input.size = 5;
+      input.className = 'appwin-crop';
+      input.value = String((app.crop && app.crop[edge]) || 0);
+      input.addEventListener('change', () => {
+        const a = cur();
+        a.crop = { ...(a.crop || {}), [edge]: Math.max(0, Math.round(Number(input.value) || 0)) };
+        commit();
+      });
+      cropInputs[edge] = input;
+      wrap.append(span, input);
+      cropRow.appendChild(wrap);
+    }
+    const trim = document.createElement('button');
+    trim.type = 'button';
+    trim.className = 'btn btn-small';
+    trim.textContent = 'Trim title bar';
+    trim.title = 'Sets Top to a standard macOS title bar (28 points, scaled for this display) -- adjust by eye, toolbar-style windows are taller';
+    trim.addEventListener('click', () => {
+      const top = Math.round(28 * (window.devicePixelRatio || 1));
+      const a = cur();
+      a.crop = { ...(a.crop || {}), top };
+      cropInputs.top.value = String(top);
+      commit();
+    });
+    const cursorLabel = document.createElement('label');
+    cursorLabel.className = 'check';
+    const cursorInput = document.createElement('input');
+    cursorInput.type = 'checkbox';
+    cursorInput.checked = Boolean(app.showCursor);
+    cursorInput.addEventListener('change', () => {
+      cur().showCursor = cursorInput.checked;
+      commit();
+    });
+    const cursorText = document.createElement('span');
+    cursorText.textContent = 'Show cursor';
+    cursorLabel.append(cursorInput, cursorText);
+    cropRow.append(trim, cursorLabel);
+
+    card.append(head, hint, pickRow, matchRow, cropRow, sourceRow);
+    appWinEls.list.appendChild(card);
+  }
+  $('tabs').querySelector('.tab-add').hidden = config.views.length >= limits.maxViews && list.length >= MAX_APP_WINDOWS;
+  appWinSignature = JSON.stringify(list);
+  // Show/hide only -- not selectTab, which also kicks off an OBS refresh and
+  // would run on every rebuild. The callers that change which tab is
+  // active (add, remove) call selectTab themselves.
+  for (const [id, card] of appWinCards) card.hidden = activeTab !== `app:${id}`;
+  for (const tab of appWinEls.tabs.querySelectorAll('.tab')) tab.classList.toggle('active', tab.dataset.tab === activeTab);
+  updateAppWindowStatus();
+}
+
+function addAppWindow() {
+  config.appWindows = config.appWindows || [];
+  const label = `App ${config.appWindows.length + 1}`;
+  const id = `app${Date.now().toString(36)}`;
+  config.appWindows.push({ id, label, matchApp: '', matchTitle: '', windowLabel: '', crop: { left: 0, top: 0, right: 0, bottom: 0 }, showCursor: false, sourceName: uniqueAppSourceName(label, id) });
+  activeTab = `app:${id}`;
+  renderAppWindows();
+  selectTab(activeTab);
+  scheduleSave();
+}
 
 // ---------------------------------------------------------------------------
 // Region picker

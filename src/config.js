@@ -32,6 +32,13 @@ function defaultSourceName(label) {
   return `Window: ${label} (CP Studio)`;
 }
 
+// A window belonging to some other application (a game, Discord, a
+// browser someone else runs), captured into OBS by Studio but not owned by
+// it -- see sanitizeAppWindows.
+function defaultAppSourceName(label) {
+  return `App: ${label} (CP Studio)`;
+}
+
 // A fresh window: no URL, a generic label and size. Nothing here assumes
 // Foundry, or any particular site -- this app wraps any web page in a
 // fixed-size, OBS-capturable window, and is optimized for FoundryVTT
@@ -120,6 +127,42 @@ function defaultObs() {
   return { autoConnect: false, host: '127.0.0.1', port: 4455 };
 }
 
+// YouTube: uploads a finished recording via the Data API v3's resumable
+// upload endpoint, triggered by the `uploadToYouTube` Studio action (see
+// STUDIO_ACTION_SCHEMA below) -- never automatic on its own, same reasoning
+// as every other Studio action here. Auth is OAuth 2.0's device flow (no
+// loopback redirect server, no port to configure -- see src/youtube.js);
+// `clientId` is not secret and lives here in plain config, same as
+// `obs.host`. `clientSecret` and the refresh token are not: encrypted at
+// rest via safeStorage, same pattern as the OBS/Tavern passwords (see
+// YOUTUBE_SECRET_PATH, src/main.js), never sent to the renderer.
+// `privacyStatus` defaults to "private" deliberately -- publishing a
+// recording is a decision for a human to make on YouTube itself, not
+// something this app should default to doing for you.
+function defaultYoutube() {
+  return {
+    enabled: false,
+    clientId: '',
+    privacyStatus: 'private',
+    titleTemplate: '',
+    descriptionTemplate: '',
+    categoryId: '20', // Gaming
+  };
+}
+
+function sanitizeYoutube(input) {
+  const d = defaultYoutube();
+  const src = input && typeof input === 'object' ? input : {};
+  return {
+    enabled: src.enabled === undefined ? d.enabled : Boolean(src.enabled),
+    clientId: typeof src.clientId === 'string' ? src.clientId.trim().slice(0, 200) : d.clientId,
+    privacyStatus: ['private', 'unlisted', 'public'].includes(src.privacyStatus) ? src.privacyStatus : d.privacyStatus,
+    titleTemplate: typeof src.titleTemplate === 'string' ? src.titleTemplate.slice(0, 300) : d.titleTemplate,
+    descriptionTemplate: typeof src.descriptionTemplate === 'string' ? src.descriptionTemplate.slice(0, 5000) : d.descriptionTemplate,
+    categoryId: typeof src.categoryId === 'string' && /^\d{1,3}$/.test(src.categoryId) ? src.categoryId : d.categoryId,
+  };
+}
+
 // Automations: a small HTTP server Foundry modules (starting with Herald)
 // call to report events (e.g. "combat has started"), which can then run a
 // rule set here -- a named, numbered sequence of OBS/Studio actions and
@@ -128,15 +171,15 @@ function defaultObs() {
 // thing standing between that port and anyone else on the network, so the
 // server refuses to start without one.
 //
-// Two kinds of action:
-// - OBS actions (AUTOMATIONS_ACTIONS) are always available -- Studio
-//   already owns the OBS connection for everything else, so there's no
-//   reason to gate them.
-// - Studio actions (STUDIO_ACTIONS) reach into Studio itself (wake a
-//   window's audio, start/stop/dock every window, re-sync OBS). These are
-//   opt-in per action (`automations.studioActions`), off by default, since
-//   they're a bigger blast radius than "switch a scene" and shouldn't be
-//   reachable just because Automations happens to be turned on.
+// Two kinds of action, both always available, same as each other -- OBS
+// actions (AUTOMATIONS_ACTIONS) and Studio actions (STUDIO_ACTIONS, which
+// reach into Studio itself: wake a window's audio, start/stop/dock every
+// window, re-sync OBS, apply the session filename) used to differ here, an
+// opt-in per-Studio-action toggle nobody could find a reason to justify:
+// it gated a rule set's own steps -- your own automations needing your own
+// permission to use your own actions -- and, separately, external callers
+// were already behind the token below, the same as every OBS action always
+// was. Removed entirely; the token is the one gate, for both kinds alike.
 //
 // Both are grouped (`group`) so a caller like Herald can build a menu --
 // "Controls > Start Recording", "Scenes > Combat" -- instead of one flat
@@ -178,12 +221,12 @@ const AUTOMATIONS_ACTION_SCHEMA = [
   { action: 'stopStreaming', param: null, paramType: 'none', group: 'Controls' },
 ];
 // Studio actions: same shape, plus a `label` (there's no single-word verb
-// for most of these the way there is for the OBS actions). Every one is off
-// by default and only reaches capabilities / the rule-set step list once
-// ticked on in automations.studioActions -- see the note above.
+// for most of these the way there is for the OBS actions). Always available,
+// same as AUTOMATIONS_ACTIONS -- see the note above.
 const STUDIO_ACTIONS = [
   'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
-  'applySessionFilename',
+  'applySessionFilename', 'runRuleSet', 'incrementMetadataField', 'decrementMetadataField',
+  'uploadToYouTube',
 ];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
@@ -193,14 +236,33 @@ const STUDIO_ACTION_SCHEMA = [
   { action: 'undockAll', label: 'Undock all windows', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'syncObs', label: 'Sync OBS', param: null, paramType: 'none', group: 'Studio Control' },
   { action: 'applySessionFilename', label: 'Apply the session filename format to OBS', param: null, paramType: 'none', group: 'Studio Control' },
+  // param is the target rule set's id, not its name (names aren't required
+  // unique; ids are) -- runAutomationAction (main.js) resolves it and
+  // refuses a cycle (this rule set already running further up the same
+  // call chain) rather than hanging or blowing the stack.
+  { action: 'runRuleSet', label: 'Run rule set', param: 'rule set id', paramType: 'ruleSet', group: 'Studio Control' },
+  // param is a Metadata field's key (a Number field, or a Text+Number/
+  // Number+Text field's number segment) -- the intent-driven replacement
+  // for a trailing "+1"/"-1" on a Data Field key, which used to hide this
+  // same mutation inside a read (see resolveDataField, src/main.js).
+  { action: 'incrementMetadataField', label: 'Increment a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
+  { action: 'decrementMetadataField', label: 'Decrement a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
+  // No single `param` -- five named slots instead (titleField/
+  // descriptionField/categoryField/madeForKidsField/visibilityField, each a
+  // Metadata field key; madeForKidsField must point at a "checkbox" field
+  // specifically -- see the comment on runYouTubeUpload, src/main.js, for
+  // why that one alone is strict), plus the same `filePath` a setText
+  // step's "File" valueType already uses (empty = the most recent OBS
+  // recording). See runAutomationAction's 'uploadToYouTube' case, src/main.js.
+  { action: 'uploadToYouTube', label: 'Upload the recording to YouTube', param: null, paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 
 function defaultAutomations() {
-  return { enabled: false, port: 9500, token: '', studioActions: [], ruleSets: [] };
+  return { enabled: false, port: 9500, token: '', ruleSets: [] };
 }
 
 // One step in a rule set's numbered sequence: either an action (an OBS
-// action, or a Studio action currently enabled in studioActions) or a
+// action or a Studio action, both always allowed) or a
 // delay. `and: true` on an action step means "run together with the step
 // before it" instead of waiting for it -- consecutive `and` action steps
 // form one numbered stage that fires at once; a plain (non-`and`) step, or
@@ -213,12 +275,18 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
   let n = 2;
   while (taken.has(id)) id = `step${index + 1}-${n++}`;
   taken.add(id);
+  // A disabled step is skipped entirely at run time (stagesFor, src/main.js)
+  // -- as if it weren't in the sequence at all, not "run it but do nothing"
+  // -- so someone can turn a step off for a session without losing its
+  // configuration the way deleting and later recreating it would.
+  const enabled = src.enabled === undefined ? true : Boolean(src.enabled);
   if (src.type === 'delay') {
     return {
       id,
       type: 'delay',
       seconds: clamp(toInt(src.seconds, 1), 1, AUTOMATIONS_LIMITS.maxDelaySeconds),
       and: false,
+      enabled,
     };
   }
   const action = allowedActions.includes(src.action) ? src.action : allowedActions[0];
@@ -228,6 +296,7 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
     and: Boolean(src.and),
+    enabled,
     // Only meaningful for setText -- "where it goes" is `param` above;
     // these four are "what it is", one of three kinds a user picks
     // explicitly rather than there being one ambiguous free-text field
@@ -242,8 +311,18 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     //     blind against an undocumented contract.
     valueType: ['literal', 'file', 'dataField'].includes(src.valueType) ? src.valueType : 'literal',
     value: typeof src.value === 'string' ? src.value.slice(0, 500) : '',
+    // filePath doubles as uploadToYouTube's optional file override (empty
+    // there means "the most recent OBS recording") -- same field, same
+    // meaning ("a path on disk"), no reason for a second one.
     filePath: typeof src.filePath === 'string' ? src.filePath.trim().slice(0, 500) : '',
     dataField: typeof src.dataField === 'string' ? src.dataField.trim().slice(0, 60) : '',
+    // uploadToYouTube only -- each a Metadata field key. See its schema
+    // entry above and runAutomationAction's case, src/main.js.
+    titleField: typeof src.titleField === 'string' ? src.titleField.trim().slice(0, 60) : '',
+    descriptionField: typeof src.descriptionField === 'string' ? src.descriptionField.trim().slice(0, 60) : '',
+    categoryField: typeof src.categoryField === 'string' ? src.categoryField.trim().slice(0, 60) : '',
+    madeForKidsField: typeof src.madeForKidsField === 'string' ? src.madeForKidsField.trim().slice(0, 60) : '',
+    visibilityField: typeof src.visibilityField === 'string' ? src.visibilityField.trim().slice(0, 60) : '',
   };
 }
 
@@ -271,8 +350,7 @@ function sanitizeRuleSet(input, index, taken, allowedActions) {
 function sanitizeAutomations(input) {
   const d = defaultAutomations();
   const src = input && typeof input === 'object' ? input : {};
-  const studioActions = (Array.isArray(src.studioActions) ? src.studioActions : []).filter((a) => STUDIO_ACTIONS.includes(a));
-  const allowedActions = [...AUTOMATIONS_ACTIONS, ...studioActions];
+  const allowedActions = [...AUTOMATIONS_ACTIONS, ...STUDIO_ACTIONS];
   const taken = new Set();
   // A config saved before rule sets existed only has the old flat `rules`
   // shape ({id, event, action, param} each, one action per event). Migrate
@@ -303,7 +381,6 @@ function sanitizeAutomations(input) {
     enabled: src.enabled === undefined ? d.enabled : Boolean(src.enabled),
     port: clamp(toInt(src.port, d.port), 1024, 65535),
     token: typeof src.token === 'string' ? src.token.trim().slice(0, 200) : d.token,
-    studioActions,
     ruleSets,
   };
 }
@@ -368,7 +445,6 @@ function sanitizeTavern(input) {
 function defaultSession() {
   return {
     filenameFormat: '',
-    filenameFormatEnabled: false,
   };
 }
 
@@ -377,12 +453,11 @@ function sanitizeSession(input) {
   const src = input && typeof input === 'object' ? input : {};
   return {
     filenameFormat: typeof src.filenameFormat === 'string' ? src.filenameFormat.slice(0, 300) : d.filenameFormat,
-    filenameFormatEnabled: Boolean(src.filenameFormatEnabled),
   };
 }
 
 const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500, maxSeparatorLen: 20 };
-const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText'];
+const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText', 'checkbox'];
 const METADATA_PADDING_OPTIONS = [0, 2, 3, 4];
 
 // Data Field keys Studio itself resolves specially (src/main.js's
@@ -401,11 +476,12 @@ function sanitizeMetadataField(input) {
   const id = sanitizeId(src.id, `field${Date.now().toString(36)}`);
 
   // "Text + Number"/"Number + Text": a fixed text segment glued to a
-  // number segment (which alone gets the +1/-1 treatment, same as a plain
-  // Number field) via a typed separator and an optional zero-pad width --
-  // covers "Chapter 5"/"5 Days Left" without needing a real {..} template
-  // engine. Order, separator, and padding are all fixed at creation, same
-  // reasoning as the key: delete and recreate rather than edit in place.
+  // number segment (which alone is Increment/Decrement-capable, same as a
+  // plain Number field's value) via a typed separator and an optional
+  // zero-pad width -- covers "Chapter 5"/"5 Days Left" without needing a
+  // real {..} template engine. Order, separator, and padding are all fixed
+  // at creation, same reasoning as the key: delete and recreate rather than
+  // edit in place.
   if (type === 'textNumber' || type === 'numberText') {
     return {
       id,
@@ -419,6 +495,19 @@ function sanitizeMetadataField(input) {
     };
   }
 
+  // "Checkbox": a plain boolean -- added for the YouTube upload action's
+  // "made for kids" flag, which needs a real true/false a rule-set step can
+  // point at, not a string a human has to
+  // type consistently ("true"/"yes"/"1"...) for something this consequential.
+  if (type === 'checkbox') return { id, label, key, type, value: Boolean(src.value) };
+
+  // "Text": stored as a plain string, but resolveDataField (src/main.js)
+  // expands any {token} it contains before returning it -- the same syntax
+  // and resolution the Recording Filename format already uses, and a no-op
+  // for a value with no {..} in it. (This used to be a separate "Template"
+  // type; merged into Text since it never had a use no Text field could
+  // also have -- see the "Text became template-aware" note in
+  // architecture-automations.md.)
   const value =
     type === 'number'
       ? Number.isFinite(Number(src.value))
@@ -448,6 +537,64 @@ function sanitizeMetadataFields(input) {
     if (!field.label || !field.key || seenKeys.has(field.key)) continue;
     seenKeys.add(field.key);
     out.push(field);
+  }
+  return out;
+}
+
+const APP_WINDOW_LIMITS = { maxWindows: 20, maxLabelLen: 40, maxMatchLen: 100 };
+
+// Windows of OTHER applications, captured into OBS and kept pointed at as
+// the app reopens (window IDs change every launch, so a saved ID would go
+// stale). Studio doesn't own these windows -- it can't open, move, dock or
+// mute them -- so this is deliberately not a "view": it's just a saved way
+// to find the window again (matchApp/matchTitle, compared as
+// case-insensitive substrings against OBS's own window list) plus the name
+// of the OBS source Studio manages for it.
+function sanitizeAppCrop(input) {
+  const c = input && typeof input === 'object' ? input : {};
+  const edge = (v) => clamp(toInt(v, 0), 0, 10000);
+  return { left: edge(c.left), top: edge(c.top), right: edge(c.right), bottom: edge(c.bottom) };
+}
+
+function sanitizeAppWindow(input, index) {
+  const src = input && typeof input === 'object' ? input : {};
+  const label = typeof src.label === 'string' && src.label.trim() ? src.label.trim().slice(0, APP_WINDOW_LIMITS.maxLabelLen) : `App ${index + 1}`;
+  const text = (v) => (typeof v === 'string' ? v.trim().slice(0, APP_WINDOW_LIMITS.maxMatchLen) : '');
+  const rawName = typeof src.sourceName === 'string' ? src.sourceName.trim().slice(0, 200) : '';
+  return {
+    id: sanitizeId(src.id, `app${index + 1}`),
+    label,
+    matchApp: text(src.matchApp),
+    matchTitle: text(src.matchTitle),
+    // The exact label of the window that was picked from the list, tried
+    // before the looser app/title match (see findAppWindowChoice, obs.js).
+    windowLabel: typeof src.windowLabel === 'string' ? src.windowLabel.slice(0, 300) : '',
+    // Trimmed off each edge of the captured window, in captured pixels (twice
+    // the point size on a Retina display) -- e.g. a top value to drop the
+    // title bar. OBS has no "hide title bar" option; a crop is the only way.
+    crop: sanitizeAppCrop(src.crop),
+    showCursor: Boolean(src.showCursor),
+    sourceName: rawName || defaultAppSourceName(label),
+  };
+}
+
+function sanitizeAppWindows(input) {
+  const list = Array.isArray(input) ? input : [];
+  const seenIds = new Set();
+  const seenNames = new Set();
+  const out = [];
+  for (const raw of list) {
+    if (out.length >= APP_WINDOW_LIMITS.maxWindows) break;
+    const w = sanitizeAppWindow(raw, out.length);
+    let id = w.id;
+    let n = 2;
+    while (seenIds.has(id)) id = `${w.id}-${n++}`;
+    seenIds.add(id);
+    // Two app windows can't share one OBS source -- the second would fight
+    // the first over where it points.
+    if (seenNames.has(w.sourceName)) continue;
+    seenNames.add(w.sourceName);
+    out.push({ ...w, id });
   }
   return out;
 }
@@ -482,6 +629,7 @@ function defaultConfig() {
     // No metadata fields on a fresh install -- created by hand via "New" on
     // the Session tab's Metadata card.
     metadataFields: [],
+    appWindows: [],
     // No windows on a fresh install -- the user adds and points each one at
     // whatever they're actually running via the "+" tab.
     views: [],
@@ -588,8 +736,10 @@ function sanitizeConfig(input) {
     obs: sanitizeObs(src.obs),
     tavern: sanitizeTavern(src.tavern),
     automations: sanitizeAutomations(src.automations),
+    youtube: sanitizeYoutube(src.youtube),
     session: sanitizeSession(src.session),
     metadataFields: sanitizeMetadataFields(src.metadataFields),
+    appWindows: sanitizeAppWindows(src.appWindows),
     panel: sanitizePanel(src.panel),
     views,
   };

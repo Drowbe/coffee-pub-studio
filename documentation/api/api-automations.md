@@ -13,8 +13,8 @@ is built.
 
 Foundry usually runs on a different machine than Studio, so the server listens on every network
 interface Studio's Mac has, not just localhost, and is reachable at
-`https://<studio-host>:<port>` -- the address and port are shown on Studio's Session tab, under
-Automations, once it is enabled. The port defaults to 9500 and is configurable there.
+`https://<studio-host>:<port>` -- the address and port are shown on Studio's Configuration tab,
+under Automations, once it is enabled. The port defaults to 9500 and is configurable there.
 
 Every request needs a Bearer token, generated and shown in the same place. There is no
 unauthenticated route except `GET /ca.crt`, described below.
@@ -128,12 +128,16 @@ or guess either:
 ```
 
 `actions` is the fixed vocabulary of every action available right now -- OBS actions (see the
-table below) plus whichever Studio actions are currently ticked on in the Studio Control card (off
-by default; a Studio action carries a `label` since there's no single verb for most of them).
+table below) plus every Studio action, unconditionally (a Studio action carries a `label` since
+there's no single verb for most of them). The only gate on either kind is the `token` this
+request itself needs.
 `group` on each is meant for building a menu -- `"Controls"`, `"Scenes"`, `"Sources"`, or
 `"Studio Control"` -- grouped the same way Studio's own OBS Control card is laid out. `paramType`
-says what kind of thing `param` holds (`"scene"`, `"source"`, or `"none"`) -- `scenes` and
-`sources` below are the actual live values to offer for those two kinds, the same way Studio's own
+says what kind of thing `param` holds (`"scene"`, `"source"`, `"ruleSet"`, `"metadataField"`,
+`"youtubeUpload"`, or `"none"`) -- `youtubeUpload` (`uploadToYouTube` alone) is the one exception to
+"one param": it has five named fields instead (see the Studio actions table below), not
+discoverable or callable meaningfully via this API at all -- Studio's own step editor is the only
+place that builds it. `scenes` and `sources` below are the actual live values to offer for those two kinds, the same way Studio's own
 step editor turns a `param` field into a dropdown instead of free text. Both are read from OBS
 fresh on every capabilities request (a real round trip, not cached), so `scenes[].current` always
 reflects whichever scene is live right now, matching Studio's own OBS Control card highlighting
@@ -164,10 +168,8 @@ Content-Type: application/json
 {"action": "sceneSwitch", "param": "Combat"}
 ```
 
-- `action` (string, required) must be one of the `action` values `GET /capabilities` currently
-  returns -- that list already reflects which Studio actions are ticked on, so an action missing
-  from it is rejected the same way a made-up name would be: `400 {"error": "Unknown or currently
-  disabled action: ..."}`.
+- `action` (string, required) must be one of the `action` values `GET /capabilities` returns -- a
+  made-up name is rejected: `400 {"error": "Unknown or currently disabled action: ..."}`.
 - `param` (string, optional) means whatever that action's `paramType` says -- a scene name, a
   source name, or unused. Missing where one is required fails the same way it would from a rule
   set's own step (`sceneSwitch` needs a scene name, and so on).
@@ -274,8 +276,9 @@ genuine no-op.
 
 ## Studio actions
 
-Off by default -- see the Studio Control card on the Automations tab. Reach into Studio itself,
-not OBS, so (`syncObs`/`applySessionFilename` aside) they work even while OBS is disconnected:
+Always available, same as OBS actions -- the token on this request is the only gate. Reach into
+Studio itself, not OBS, so (`syncObs`/`applySessionFilename` aside) they work even while OBS is
+disconnected:
 
 | Action | What it does |
 | --- | --- |
@@ -285,15 +288,32 @@ not OBS, so (`syncObs`/`applySessionFilename` aside) they work even while OBS is
 | `dockAll` | Slides every open window into the edge dock |
 | `undockAll` | Brings every docked window back out |
 | `syncObs` | Re-points every OBS source at its window/region/Tavern source, the same as **Sync OBS** |
-| `applySessionFilename` | Writes the Session tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything unless **Enable filename automation** is ticked there and a template is set -- both off by default, deliberately, since this overwrites a real OBS setting |
+| `applySessionFilename` | Writes the Automations tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything if no template is set |
+| `runRuleSet` | Runs another rule set by id (`param`), inline -- its stages run in order same as a real trigger, and the caller's own run doesn't continue until it finishes. Refuses with an error rather than looping if the target is already running further up the same call chain |
+| `incrementMetadataField` / `decrementMetadataField` | Adds or subtracts 1 from a Metadata field (`param`, its `key`) -- a plain Number field's value, or a Text+Number/Number+Text field's number segment. Fails with a clear error if the field doesn't exist or isn't a Number-shaped type |
+| `uploadToYouTube` | Uploads a recording (the most recent one OBS reported, unless the step overrides it) to YouTube. Not driven by `param` at all -- five separate Metadata field keys instead (`titleField`, `descriptionField`, `categoryField`, `madeForKidsField`, `visibilityField`), configured on the step, not passable through this API. No playlist support -- see `architecture-automations.md`'s "Uploading a recording to YouTube" for why |
+
+A Metadata field's `key` isn't listed anywhere in this API today (no endpoint enumerates
+`config.metadataFields`), so in practice these two (and `uploadToYouTube`'s five) are picked from
+Studio's own step editor, which already has the list, rather than typed blind by an external caller.
+
+`runRuleSet` is really a Studio-internal composition primitive -- built so one rule set's own steps
+can call another (a small "Bump Numbers" rule set called from a bigger "Record Session" one, say),
+picked from a dropdown in Studio's own step editor. Its `param` is a rule set's `id`, deliberately
+*not* discoverable from `GET /capabilities` -- that endpoint's `ruleSets` only ever carries
+`name`/`group`/`event`, on purpose (see the comment at its call site), since a caller doesn't need
+a rule set's internals to trigger it by name. An external caller wanting to run a specific rule set
+should keep using `POST /event` with its `event` string, same as always; `runRuleSet` still appears
+in `actions` since every Studio action is now listed unconditionally, but there is no supported way
+for an external caller to obtain a valid id for it.
 
 The template accepts `{title}`/`{campaign}` (the triggering event's `data.title`/`data.campaign`,
 blank if absent) as fixed names, kept for backward compatibility. Any *other* `{name}` in the
 template is resolved the same way a `setText` step's Data Field picker would: a Studio-defined
 Metadata field by its own key (`{sessionCampaign}`) or an evergreen field (`{sessionTime}`,
-`{sessionDate}`, ...) -- including a Metadata Number field's `+1`/`-1` variants
-(`{sessionDaysLeft+1}`), which mutate and persist the field's stored value exactly as selecting
-that variant from a `setText` step's picker would, not just a read. A name that doesn't resolve to
+`{sessionDate}`, ...) -- always a plain read. Bumping a Metadata field's value is a separate,
+explicit action (`incrementMetadataField`/`decrementMetadataField`, in the Studio actions table
+below), not something referencing it in a template can trigger. A name that doesn't resolve to
 anything Studio knows about is left as the literal triggering event's `data[name]` if present,
 blank otherwise. OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the filename
 format pass through untouched either way -- only `{...}`-bracketed names are ever substituted.

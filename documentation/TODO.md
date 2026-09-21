@@ -2,6 +2,31 @@
 
 Things agreed on but not built yet, roughly in order.
 
+## App windows
+
+- **App windows, phase 1 is built and confirmed on macOS: capture and keep-pointed only.** A separate
+  `appWindows` config list (not a web-window "view" -- those are tied to Electron windows Studio
+  owns) with a saved match rule (app + title substring against OBS's own window list) and a managed
+  OBS source, re-pointed on every sync alongside the web windows. Not yet built:
+  - **Cropping is built as manual numbers** (Left/Top/Right/Bottom, plus a "Trim title bar"
+    button and a Show cursor toggle) -- confirmed working live on macOS. **Still open: a drag-to-select
+    crop picker and named regions for app windows.** The region picker takes its snapshot from
+    Studio's own page; an app window would need a snapshot from `desktopCapturer`, which means
+    Studio needs its own Screen Recording permission (unchecked whether it has it). Capture
+    method is deliberately fixed at Window Capture.
+  - **Windows.** OBS uses `window_capture` with a `Title:Class:Exe` string instead of a numeric
+    ID, so source creation and re-pointing need a second path -- the same gap already listed under
+    Known issues for web windows.
+  - **Moving/resizing/docking another app's window.** Needs Accessibility permission (macOS) or
+    Win32 calls; deliberately out of scope.
+  - **First use needs an existing window source.** OBS only exposes its window list through an
+    existing input; with none, the picker says so instead of listing.
+  - **Confirmed working live on macOS**: pick, Add to OBS, and re-pointing on sync. Two things
+    it surfaced and fixed: card handlers edited a stale copy of the entry after a save round-trip
+    (they now look it up by id), and matching by app name alone could land on an app's hidden,
+    untitled helper window, leaving a source with nothing selected (it now prefers the exact
+    window picked, then a titled match, and the tab shows which window is being captured).
+
 ## Tavern
 
 Bigger Tavern-side design work (multi-admin "who drives the stream," multiple simultaneous
@@ -47,9 +72,10 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   trip, and against a real Herald build: Herald now calls `/capabilities` and `/event`, hit and
   helped fix the `rules` -> `ruleSets` rename, and 4 real rule sets are configured and firing.
   The Automations tab also works as a plain manual OBS remote with no Foundry module involved,
-  and a Studio Control card exposes Studio's own commands (wake audio, start/stop/dock all
-  windows, sync OBS, plus season/episode text and filename actions -- see below) opt-in per
-  command. Full HTTP contract and a worked Herald example (`combatStart` via Blacksmith's
+  and Studio's own commands (wake audio, start/stop/dock all windows, sync OBS, apply the session
+  filename) are available the same as any OBS action -- no separate opt-in, the automations token
+  is the only gate, same as everything else here. Full HTTP contract and a worked Herald example
+  (`combatStart` via Blacksmith's
   `HookManager`) are on the wiki, at `api-automations`. Still open: a bare action (`sceneSwitch`,
   `setText`, and so on) is only reachable via a matching rule set or a direct
   `POST /api/automations/action` call -- there is still no conditional ("if/then") trigger, where
@@ -69,22 +95,45 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   tab's Metadata card lets the person running Studio create their own Text, Number, or Text+Number
   values (a campaign name, a countdown, "Chapter 5"), each registered into the same "Data Field"
   dropdown a connected module's own fields already populate, alongside built-in evergreen fields
-  (today's date/time). A Number field's "+1"/"-1" variant (from a rule-set step, or the Metadata
-  card's own inline buttons for a one-off manual bump) is a real mutation, not a pure read --
-  selecting it both writes the incremented value and persists it for next time. Doing this
-  surfaced that `POST /api/automations/fields` wholesale-replaced the entire registered list on
-  every call; fixed to scope replacement per module (a required `module` field in the request
-  body) so a second connected module can't wipe out the first's fields -- a breaking API change,
-  published to the wiki ahead of the Studio-side implementation landing. Full design and what was
-  verified live in `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated
-  Episode card (season/episode as their own tracked numbers, separate from this system) redundant
-  -- see the item above.
-- **Automated YouTube upload.** Explicitly on hold -- "hold off... until we nail down how that
-  will work." What's already known (OBS gives Studio the output file path, YouTube's Data API
-  supports resumable uploads) and what's still a real, unmade decision (OAuth flow and token
-  storage, upload trigger, privacy default, progress/failure handling, quota) are both in
-  `documentation/plans/plan-session-text-and-youtube-upload.md`. Needs its own short design pass
-  before any code.
+  (today's date/time). Doing this surfaced that `POST /api/automations/fields` wholesale-replaced
+  the entire registered list on every call; fixed to scope replacement per module (a required
+  `module` field in the request body) so a second connected module can't wipe out the first's
+  fields -- a breaking API change, published to the wiki ahead of the Studio-side implementation
+  landing. Full design and what was verified live in
+  `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated Episode card
+  (season/episode as their own tracked numbers, separate from this system) redundant -- see the
+  item above. A Number field's "+1"/"-1" Data Field suffix (a mutation hiding inside a read) was
+  later retired in favor of explicit `incrementMetadataField`/`decrementMetadataField` Studio
+  actions, once it caused a real double-increment bug -- see the addendum in that same plan file
+  and "Composing rule sets" in `architecture-automations.md`.
+- **A rule-set stage's concurrent steps can race on `configStore`.** Noticed while building the
+  Increment/Decrement actions above, not fixed: a stage's steps run together via `Promise.all`
+  (`runRuleSet`, `src/main.js`), and any two of them that both read-modify-write
+  `configStore` state (two Increment steps for different Metadata fields in the same `and`-joined
+  stage, say) can race -- both read the same "before" state, and whichever saves second silently
+  overwrites the first's change rather than merging it. Worked around for the one place it matters
+  today by keeping the two Increment steps this session added to "Set Session Info" as separate
+  sequential stages (`and: false`) instead of one concurrent one, but the engine itself has no
+  guard against a user building a rule set that hits this. A real fix (an in-process mutex around
+  `configStore.save`, or making the read-modify-write atomic some other way) needs its own design
+  pass, not a quick patch here.
+- **Naming convention enforcement for Window Source names is still only half done.** Regions
+  already enforce `Region: <window label>>Region: <name> (CP Studio)` (the OBS name is composed
+  from a separate plain label, `region.name` -> `region.obsSource`); Window Source's own name field
+  is still the raw, freely-typed OBS name, with the convention only supplying its initial default.
+  A plan for the matching UI treatment (a `.name-compose` chip like Region's, splitting the fixed
+  `Window: `/` (CP Studio)` wrapper from the editable label) exists but was never started this
+  session -- picked back up whenever Window Source naming comes up again.
+- ~~**Automated YouTube upload.**~~ Confirmed working end-to-end against the real API, including a
+  real completed upload (`uploadToYouTube`, a Studio action, opt-in rule-set step only, never
+  automatic) -- device-flow OAuth, the resumable upload endpoint, title/description/privacy all
+  confirmed live. **No playlist support** -- tried, then removed after Google's device-code endpoint
+  rejected the broader OAuth scope playlist support needs ("Invalid device flow scope"), a live-
+  confirmed Google restriction on this auth flow, not a bug here; add an upload to a playlist by
+  hand afterward in YouTube Studio. See "Uploading a recording to YouTube" in
+  `documentation/architecture/architecture-automations.md` for the full account, including what
+  else was found live (a UI bug in the device-code link, the Metadata Quick Add feature it led to,
+  and the Google Auth Platform console UI's actual layout).
 - **Unify the control panel's design system.** Fixing the CP Tavern tab's layout surfaced a
   pattern: styling for the same kind of thing (a sub-section heading partway down a card, a
   divider row, spacing around a title) kept getting re-declared per instance instead of shared,

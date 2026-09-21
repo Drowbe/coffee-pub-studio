@@ -23,6 +23,47 @@ const CROP_FILTER_NAME = 'Coffee Pub Crop';
 const DIM_FILTER_NAME = 'Coffee Pub Dim';
 const RECONNECT_MS = 10000;
 
+// OBS lists each capturable window as "[App Name] Window Title". Split it
+// into the two halves; if a future OBS formats it differently, the whole
+// string lands in `title` and matching still works, since it's a substring
+// test against the full label either way.
+function parseWindowChoice(itemName) {
+  const m = /^\[(.+?)\]\s*(.*)$/.exec(String(itemName || ''));
+  return m ? { app: m[1], title: m[2] } : { app: '', title: String(itemName || '') };
+}
+
+// The window ID of the first listed window whose label contains both the
+// saved app name and the saved title (each optional, case-insensitive).
+// Both empty matches nothing rather than "the first window" -- a match
+// rule that says nothing shouldn't quietly capture something arbitrary.
+// Which listed window a match rule points at, ranked so the pick is the one
+// the user actually chose, not merely the first of the app's windows: the
+// exact label they picked, if that window is still listed; otherwise the
+// first substring match that HAS a title (an app's hidden/helper windows
+// are usually untitled -- capturing one of those is a source that shows
+// nothing); otherwise the first substring match at all.
+function findAppWindowChoice(choices, match) {
+  const app = String(match.app || '').toLowerCase();
+  const title = String(match.title || '').toLowerCase();
+  const usable = (c) => typeof c.itemName === 'string' && Number.isInteger(c.itemValue);
+  if (match.label) {
+    const exact = choices.find((c) => usable(c) && c.itemName === match.label);
+    if (exact) return exact;
+  }
+  if (!app && !title) return null;
+  const hits = choices.filter((c) => {
+    if (!usable(c)) return false;
+    const hay = c.itemName.toLowerCase();
+    return (!app || hay.includes(app)) && (!title || hay.includes(title));
+  });
+  return hits.find((c) => parseWindowChoice(c.itemName).title.trim()) || hits[0] || null;
+}
+
+function findAppWindow(choices, match) {
+  const hit = findAppWindowChoice(choices, match);
+  return hit ? hit.itemValue : null;
+}
+
 class ObsBridge extends EventEmitter {
   /**
    * @param {object} options
@@ -39,10 +80,10 @@ class ObsBridge extends EventEmitter {
     this.suspended = false; // user pressed Disconnect: no auto-reconnect until Connect
     this.obsVersion = '';
     this.inputs = []; // window-capture inputs known in OBS: [{ name, window }]
-    this.lastSync = null;
     this.reconnectTimer = null;
     this.connecting = null;
     this.outputs = { recording: false, recordingPaused: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
+    this.lastRecordingPath = ''; // set by stopRecording() below -- what uploadToYouTube defaults to
     this.pollTimer = null;
 
     this.obs.on('ConnectionClosed', (err) => {
@@ -64,7 +105,6 @@ class ObsBridge extends EventEmitter {
       message: this.message,
       obsVersion: this.obsVersion,
       inputs: this.inputs.map((i) => i.name),
-      lastSync: this.lastSync,
       outputs: this.outputs,
     };
   }
@@ -186,7 +226,7 @@ class ObsBridge extends EventEmitter {
       const { inputSettings } = await this.obs.call('GetInputSettings', { inputName: input.inputName });
       const type = inputSettings.type === undefined ? CAPTURE_TYPE_WINDOW : inputSettings.type;
       if (type !== CAPTURE_TYPE_WINDOW) continue;
-      result.push({ name: input.inputName, window: inputSettings.window || 0 });
+      result.push({ name: input.inputName, window: inputSettings.window || 0, showCursor: Boolean(inputSettings.show_cursor) });
     }
     this.inputs = result;
     this.emit('status', this.status());
@@ -203,6 +243,12 @@ class ObsBridge extends EventEmitter {
       propertyName: 'window',
     });
     return propertyItems || [];
+  }
+
+  // The current window ID of whichever open window matches, or null --
+  // the same lookup a sync does, exposed for creating an app window's source.
+  async findAppWindowId(match) {
+    return findAppWindow(await this.windowChoices().catch(() => []), match);
   }
 
   async pointInput(inputName, windowId) {
@@ -244,6 +290,10 @@ class ObsBridge extends EventEmitter {
     } else {
       await this.obs.call('CreateSourceFilter', { sourceName: inputName, filterName: CROP_FILTER_NAME, filterKind: CROP_FILTER_KIND, filterSettings });
     }
+  }
+
+  async removeCropFilter(inputName) {
+    await this.obs.call('RemoveSourceFilter', { sourceName: inputName, filterName: CROP_FILTER_NAME }).catch(() => {});
   }
 
   async removeInput(inputName) {
@@ -396,13 +446,13 @@ class ObsBridge extends EventEmitter {
     await this.obs.call('SetInputName', { inputName, newInputName });
   }
 
-  async createInput(inputName, windowId) {
+  async createInput(inputName, windowId, { showCursor = false } = {}) {
     const { currentProgramSceneName } = await this.obs.call('GetCurrentProgramScene');
     await this.obs.call('CreateInput', {
       sceneName: currentProgramSceneName,
       inputName,
       inputKind: INPUT_KIND,
-      inputSettings: { type: CAPTURE_TYPE_WINDOW, window: windowId, show_cursor: false },
+      inputSettings: { type: CAPTURE_TYPE_WINDOW, window: windowId, show_cursor: showCursor },
       sceneItemEnabled: true,
     });
     await this.refreshInputs();
@@ -426,13 +476,21 @@ class ObsBridge extends EventEmitter {
     await this.refreshInputs();
     const choices = await this.windowChoices().catch(() => []);
     const known = new Set(this.inputs.map((i) => i.name));
-    const report = { pointed: [], cropped: [], missing: [], detected: [], restarted: [] };
+    const report = { pointed: [], cropped: [], missing: [], detected: [], restarted: [], resolved: {}, matchedLabels: {} };
     // Every name some window or region already owns; those are never "detected".
     const owned = new Set(views.flatMap((v) => [...v.sources, ...(v.allRegionSources || v.regions.map((r) => r.obsSource))]));
 
     // Prefer the window ID OBS itself reports for our title; fall back to
     // the ID Electron knows.
     const resolveId = (view) => {
+      // An app window (some other application's) has no title of ours to
+      // look for -- it's found by its saved match rule instead. No fallback
+      // ID exists for it, so an unmatched one is simply "not open right now".
+      if (view.match) {
+        const chosen = findAppWindowChoice(choices, view.match);
+        report.matchedLabels[view.id] = chosen ? chosen.itemName : null;
+        return chosen ? chosen.itemValue : null;
+      }
       const match = choices.find((c) => typeof c.itemName === 'string' && c.itemName.endsWith(view.title));
       if (match && Number.isInteger(match.itemValue)) return match.itemValue;
       return view.windowId;
@@ -440,8 +498,11 @@ class ObsBridge extends EventEmitter {
 
     for (const view of views) {
       const windowId = resolveId(view);
-      // Detect unowned inputs already pointing at this window.
-      for (const input of this.inputs) {
+      report.resolved[view.id] = windowId || null;
+      // Detect unowned inputs already pointing at this window. Not for an
+      // app window: adoption exists to link a hand-made source to one of
+      // OUR windows, and an app window's source name is set by the user.
+      for (const input of view.match ? [] : this.inputs) {
         if (windowId && input.window === windowId && !owned.has(input.name)) {
           report.detected.push({ id: view.id, input: input.name });
         }
@@ -459,7 +520,17 @@ class ObsBridge extends EventEmitter {
         // window's "Mute audio" setting instead of leaving it at whatever
         // OBS's own default is. Applied whether or not the window is open
         // right now, so it's already correct the moment it starts.
-        await this.setInputMuted(name, Boolean(view.muted)).catch(() => {});
+        // An app window's audio isn't Studio's to decide (it doesn't own the
+        // window) -- leave whatever mute state OBS has alone, don't reset it.
+        if (view.muted !== undefined) await this.setInputMuted(name, Boolean(view.muted)).catch(() => {});
+        // An app window's cursor setting is ours to manage (a web window's is
+        // fixed at creation); applied whether or not the window is open.
+        if (view.showCursor !== undefined) {
+          const seen = this.inputs.find((i) => i.name === name);
+          if (seen && Boolean(seen.showCursor) !== Boolean(view.showCursor)) {
+            await this.obs.call('SetInputSettings', { inputName: name, inputSettings: { show_cursor: Boolean(view.showCursor) }, overlay: true }).catch(() => {});
+          }
+        }
         if (!windowId) continue; // window not open or not yet visible
         const current = this.inputs.find((i) => i.name === name);
         const unchanged = current && current.window === windowId;
@@ -477,6 +548,12 @@ class ObsBridge extends EventEmitter {
       if (view.crop && windowId) {
         for (const name of view.sources) {
           if (!known.has(name)) continue;
+          // An app window with nothing to trim shouldn't carry an empty crop
+          // filter around (or keep an old one after the numbers go back to 0).
+          if (view.match && !view.crop.left && !view.crop.top && !view.crop.right && !view.crop.bottom) {
+            await this.removeCropFilter(name);
+            continue;
+          }
           await this.ensureCropFilter(name, view.crop);
           report.cropped.push(name);
           if (view.scale) await this.ensureScale(name, view.scale);
@@ -489,7 +566,6 @@ class ObsBridge extends EventEmitter {
         if (view.scale && windowId) await this.ensureScale(region.obsSource, view.scale);
       }
     }
-    this.lastSync = { at: Date.now(), ...report };
     this.emit('status', this.status());
     return report;
   }
@@ -566,7 +642,14 @@ class ObsBridge extends EventEmitter {
   }
 
   async stopRecording() {
-    await this.obs.call('StopRecord');
+    // StopRecord's own response carries the file it just finished writing --
+    // the one place OBS tells Studio this at all (no GetRecordStatus field
+    // for it, and RecordStateChanged's data isn't guaranteed to arrive before
+    // a caller awaiting stopRecording() needs it) -- so this is the only
+    // reliable moment to capture it. uploadToYouTube (src/main.js) reads
+    // this when a step doesn't override it with an explicit file.
+    const { outputPath } = await this.obs.call('StopRecord');
+    if (outputPath) this.lastRecordingPath = outputPath;
   }
 
   async startStreaming() {
@@ -586,4 +669,4 @@ function describeError(err) {
   return msg;
 }
 
-module.exports = { ObsBridge, INPUT_KIND, BROWSER_KIND };
+module.exports = { ObsBridge, INPUT_KIND, BROWSER_KIND, parseWindowChoice, findAppWindow, findAppWindowChoice };

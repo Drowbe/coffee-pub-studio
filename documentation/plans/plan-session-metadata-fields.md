@@ -91,6 +91,34 @@ edit mode -- no dedicated increment control. A freshly-created field opens strai
 since it has nothing worth reading yet; see `architecture-automations.md` for the implementation
 (`editingMetadataFieldId`, `composeMetadataFieldValue`).
 
+### Addendum: the `+1`/`-1` Data Field suffix is retired -- Increment/Decrement is a real action now
+
+The manual buttons above were one half of "don't make a human click something automation already
+handles" -- this is the other half, and the more consequential one. A trailing `+1`/`-1` on a Data
+Field key used to be resolved *and* mutate the field's stored value in the same step
+(`resolveDataField`, `src/main.js`) -- a mutation hiding inside a read. Raised directly by the
+person who owns the feature, walking through a real sequence: Herald fires "set session info" (a
+rule set step reads `sessionEpisode+1`, bumping 1→2), then starting the recording applies the
+session filename (whose own template also reads `{sessionEpisode+1}`, bumping 2→3) -- one session,
+bumped twice, landing on the wrong number, with nothing to indicate either reference was secretly
+mutating state. Confirmed as a real, current risk against the live config (not hypothetical): the
+same trailing-`+1` pattern was already independently present in both the filename template and a
+`setText` step referencing two *different* Metadata fields meant to represent the same episode
+number, silently drifting apart run to run.
+
+Fixed by removing the mutation from resolution entirely -- `resolveDataField` is a pure read now,
+full stop -- and giving the bump its own explicit action, `incrementMetadataField` /
+`decrementMetadataField` (`runAutomationAction`, `src/main.js`; see also `runRuleSet` in
+`architecture-automations.md`, built the same session so a bump-once sequence can be composed into
+whatever bigger rule set needs it, called from exactly one place). The Data Field picker
+(`dataFieldGroups`, `src/control/control.js`) no longer generates derived `+1`/`-1` entries -- one
+option per field, same as everywhere else. Existing config referencing the old suffix (the live
+`session.filenameFormat` template, and the one `setText` step still pointing at
+`sessionEpisodeFullText+1`) was migrated by hand: the suffix stripped back to a plain key, and a
+matching Increment step added as its own leading stage in the "Set Session Info" rule set, ahead of
+everything that reads the value -- preserving the original one-bump-per-run intent, now made
+explicit instead of implicit.
+
 ## Why
 
 `setText`'s "Data Field" value type only ever sees whatever a *connected module* has registered via

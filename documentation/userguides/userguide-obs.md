@@ -82,6 +82,37 @@ correct. Removing a region in the app leaves the source in OBS; delete it there 
 need it. Only elements that stay in a fixed place work well; a chat message that scrolls away
 cannot be followed by a crop.
 
+## App windows: capturing another application
+
+An **app window** captures a window that belongs to a different application (a game, Discord, a browser you run yourself) into OBS, and keeps it pointed at that
+window as the app reopens. Studio doesn't own these windows: it can't open, move, dock or mute
+them, and it leaves their audio alone.
+
+Add one with the **+** tab, the same as a web window: it asks whether you want a **Web window** or an
+**App window**. Each app window then gets a tab of its own.
+
+1. Connect the app to OBS. OBS has to be connected, and it needs at least one window source already
+   (any of Studio's own will do), because that's where OBS lists windows from.
+2. On the new app window's tab, click the refresh button beside the picker and choose the window.
+   This fills in the **App** and **Title contains** fields.
+3. Clear **Title contains** if the window's title changes (a document name, a browser tab) and you
+   want any window of that app. Both fields are case-insensitive substring matches. If several
+   windows match, the first one OBS lists wins, so narrow it with the title.
+4. Click **Add to OBS**. The source is named `App: <label> (CP Studio)`; edit the **OBS source**
+   field to rename it (the OBS source is renamed too).
+
+The tab's header shows whether the window is currently found, and its dot goes green when it is. The app looks it up again on every sync, so a
+relaunched app is picked up automatically. If the window isn't open, the source is left as it was.
+**Cropping and the cursor.** OBS has no "hide title bar" option on macOS; a crop is the only way, so
+each app window has **Crop (pixels)** fields for Left, Top, Right and Bottom (captured pixels, which
+is twice the point size on a Retina display). **Trim title bar** fills in Top with a standard 28-point
+title bar for this display; adjust it by eye, since windows with a toolbar built into the title bar
+(and some apps that draw their own) need a different number. A crop of all zeros leaves the source
+uncropped. **Show cursor** controls whether the mouse pointer appears in the capture (off by default).
+The capture method stays on OBS's Window Capture; Display and Application Capture aren't offered.
+Cropping part of a window into separate sources (regions) isn't available for app windows yet, and
+this is macOS only for now.
+
 ## Troubleshooting
 
 - **OBS shows a black or frozen source.** Make sure OBS has Screen Recording permission and that

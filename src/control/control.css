@@ -273,6 +273,13 @@ main {
   gap: 6px;
 }
 
+/* Inside a Text field's row (a flex-wrap row of its own), the picker must
+   claim the full row width to drop onto its own line below the input
+   rather than fight the row's other children for horizontal space. */
+.metadata-field-row .datafield-picker {
+  flex-basis: 100%;
+}
+
 .field input,
 .field select,
 select {
@@ -489,6 +496,28 @@ select:focus {
   line-height: 1.45;
 }
 
+.metadata-quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.metadata-quick-add:empty {
+  display: none;
+}
+
+.quick-add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.quick-add-item .hint {
+  font-size: 11px;
+}
+
 .statusbar {
   display: flex;
   justify-content: space-between;
@@ -503,6 +532,40 @@ select:focus {
 }
 
 #save-state.error {
+  color: #f0a597;
+}
+
+#toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 44px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.toast.toast-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.toast-error {
+  border-color: var(--danger);
   color: #f0a597;
 }
 
@@ -784,6 +847,7 @@ select:focus {
 .metadata-field-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -791,7 +855,8 @@ select:focus {
 }
 
 .metadata-field-label {
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--text-dim);
   flex: 0 0 160px;
 }
 
@@ -806,14 +871,24 @@ select:focus {
   min-width: 0;
 }
 
+.metadata-field-value.metadata-field-checkbox {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  /* Overrides the shared text-input box treatment below (background/
+     border/padding) -- a native checkbox doesn't want a text-field frame
+     around it. */
+  background: none;
+  border: none;
+  padding: 0;
+}
+
 .metadata-field-value-display {
   flex: 1;
   min-width: 120px;
-  padding: 7px 9px;
+  padding: 7px 0;
   color: var(--text);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  font-weight: 600;
 }
 
 .metadata-field-separator {
@@ -1128,14 +1203,71 @@ select:focus {
   color: var(--accent);
 }
 
-.automations-studio-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-}
-
 .ruleset-card .region-head {
   align-items: center;
+}
+
+/* A plain, static border -- enough to spot which card (out of a long list)
+   is mid-run at a glance. The pulse lives on the specific step actually
+   executing right now instead (.automation-step-current below), since
+   that's the thing worth drawing the eye to, not the whole card. */
+.ruleset-card.running {
+  border-color: var(--accent);
+}
+
+/* The step (or AND-grouped stage of steps) a running rule set is on right
+   now. */
+@keyframes automation-step-current-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+}
+
+.automation-step.automation-step-current {
+  border-color: var(--accent);
+  animation: automation-step-current-pulse 1.2s ease-in-out infinite;
+}
+
+[data-action="run-ruleset"].automation-run-btn-stop {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+[data-action="run-ruleset"].automation-run-btn-stop:hover {
+  background: color-mix(in srgb, var(--danger) 22%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
+.automation-step-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 24px;
+}
+
+.automation-step-upload-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.automation-step-upload-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.automation-step-upload-progress-label {
+  flex: none;
+  font-size: 11px;
 }
 
 /* The rule set's name reads as this card's own title -- same colour and
@@ -1177,6 +1309,10 @@ select:focus {
 .ruleset-group {
   flex: 1;
   min-width: 100px;
+}
+
+.ruleset-step-count {
+  white-space: nowrap;
 }
 
 .ruleset-group,
@@ -1224,20 +1360,29 @@ select:focus {
   gap: 8px;
 }
 
-/* Each step is its own boxed row (same treatment as a Tavern .player-card),
+/* Each step is its own boxed card (same treatment as a Tavern .player-card),
    tinted by kind -- see tintClassFor() in control.js -- so a whole
    sequence can be scanned by colour instead of read word by word. The tint
-   itself is a muted background wash on the row and the actual colour on
-   its number badge; nothing on the row's edge. */
+   itself is a muted background wash on the card and the actual colour on
+   its number badge and setting dots; nothing on the card's edge.
+   Column layout: the header line (.automation-step-main) plus, for an
+   action with more than a couple of settings, a vertical settings list
+   (.automation-step-settings) below it -- see buildStepRow, control.js. */
 .automation-step {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
+}
+
+.automation-step-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .automation-step-tint-scenes {
@@ -1254,6 +1399,23 @@ select:focus {
 
 .automation-step-tint-timer {
   background: color-mix(in srgb, var(--accent) 5%, var(--bg-input));
+}
+
+/* Dims everything except the number and the enable checkbox itself, same
+   spirit as .region-card.disabled -- the controls you need to find and
+   re-enable a skipped step should stay just as easy to read as ever. */
+.automation-step.disabled .automation-step-main > *:not(.automation-step-number):not(.automation-step-enabled) {
+  opacity: 0.5;
+}
+
+.automation-step.disabled .automation-step-settings {
+  opacity: 0.5;
+}
+
+.automation-step-enabled {
+  margin: 0;
+  width: 16px;
+  justify-content: center;
 }
 
 .automation-step-actions {
@@ -1297,20 +1459,128 @@ select:focus {
   color: #2a1a08;
 }
 
-.automation-step-and {
+/* Shared by "First step" and a delay's "Wait" label -- both sit in the
+   header line's AND-toggle slot for a step that has no real choice there
+   (a delay can't be `and`; the first step has nothing before it to join),
+   so both read as a fixed label, not a togglable control. */
+.automation-step-static-label {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-dim);
+  padding: 0 4px;
 }
 
-.automation-step-and input:disabled {
-  opacity: 0.4;
+/* "After previous" (the default, sequential case) gets a slight green
+   tint; "With previous" gets the same tint treatment but in the app's own
+   accent orange, not a bold solid fill -- two distinct, equally-weighted
+   states, not one loud and one quiet. */
+.automation-step-and-btn {
+  font-size: 11px;
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.automation-step-and-btn.automation-step-and-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.automation-step-and-btn:hover {
+  background: color-mix(in srgb, var(--ok) 22%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--border));
+}
+
+.automation-step-and-btn.automation-step-and-active:hover {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 .automation-step-label {
   color: var(--text-dim);
   font-size: 13px;
+}
+
+/* The settings list below a step's header line -- one labeled row per
+   setting instead of every control crammed inline. See appendSettingRow,
+   control.js. */
+.automation-step-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.automation-step-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Lines the dot up under the number badge above: the enable checkbox's
+     own fixed width (16px) plus the header row's gap (8px). */
+  padding-left: 24px;
+}
+
+/* A fixed-width slot the same size as .automation-step-number, so its
+   centered dot lands under the number badge above -- not the dot's own
+   size, which stays a small 8px circle drawn by ::before. Colour-matches
+   the badge too (same per-tint rules below), so a setting can be traced
+   back to its step at a glance in a long list. */
+.automation-step-setting-dot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+}
+
+.automation-step-setting-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.automation-step-tint-scenes .automation-step-setting-dot::before {
+  background: #5b8fc7;
+}
+
+.automation-step-tint-obs .automation-step-setting-dot::before {
+  background: #4fb0a5;
+}
+
+.automation-step-tint-studio .automation-step-setting-dot::before {
+  background: #9b7fd4;
+}
+
+.automation-step-tint-timer .automation-step-setting-dot::before {
+  background: var(--accent);
+}
+
+.automation-step-setting-label {
+  flex: 0 0 110px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* Video file's "control" is a select plus a conditional path+Browse pair,
+   not a single element -- flexes the same way a lone select would. */
+.automation-step-setting-control-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.automation-step-filepath-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .automation-step-seconds {
@@ -1437,6 +1707,31 @@ select.automation-step-param-missing {
   margin-top: 4px;
 }
 
+.cert-trust-help a {
+  color: var(--accent);
+}
+
+#youtube-device-code a {
+  color: var(--accent);
+}
+
+.youtube-code-copy {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.youtube-code-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* A minimal replacement for window.prompt(), which Electron's renderer
    does not support at all (confirmed live: it throws "prompt() is not
    supported" and silently aborts whatever called it -- the rule set
@@ -1495,4 +1790,27 @@ select.automation-step-param-missing {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* App window tabs' cards and the "+" chooser. */
+.appwin-picker {
+  flex: 1;
+  min-width: 200px;
+}
+
+.add-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.add-menu .btn {
+  text-align: left;
 }

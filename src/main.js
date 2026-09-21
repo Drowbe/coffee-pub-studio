@@ -5,9 +5,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage } = require('electron');
 const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA, STUDIO_ACTION_SCHEMA } = require('./config');
-const { ObsBridge } = require('./obs');
+const { ObsBridge, parseWindowChoice } = require('./obs');
 const { TavernBridge } = require('./tavern');
 const { AutomationsServer } = require('./automations');
+const { YouTubeUploader } = require('./youtube');
 const parkingGeometry = require('./parking');
 
 const APP_NAME = 'Coffee Pub Studio';
@@ -158,7 +159,7 @@ const readObsPassword = () => readSecret(OBS_SECRET_PATH);
 const writeObsPassword = (password) => writeSecret(OBS_SECRET_PATH, password);
 
 // ---------------------------------------------------------------------------
-// Activity log (Connections card, Session tab) -- a shared, in-memory record
+// Activity log (Connections card, Configuration tab) -- a shared, in-memory record
 // of state transitions and errors from OBS, Tavern, and Automations, so
 // troubleshooting a bad connection doesn't mean reading main-process console
 // output. Not persisted -- resets on restart.
@@ -189,6 +190,58 @@ obs.on('connected', () => {
   syncObs().catch(() => {});
   syncTavern().catch(() => {});
 });
+
+// ---------------------------------------------------------------------------
+// YouTube (uploads a finished recording -- see uploadToYouTube in
+// runAutomationAction, and src/youtube.js for why this is OAuth's device
+// flow rather than a loopback redirect). clientSecret and the refresh token
+// share one encrypted file, same keychain-backed pattern as the OBS/Tavern
+// passwords above; clientId is not secret and lives in config.json like
+// obs.host does.
+// ---------------------------------------------------------------------------
+
+const YOUTUBE_SECRET_PATH = path.join(app.getPath('userData'), 'youtube-secret.bin');
+
+function readYoutubeSecret() {
+  const raw = readSecret(YOUTUBE_SECRET_PATH);
+  if (!raw) return { clientSecret: '', refreshToken: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      clientSecret: typeof parsed.clientSecret === 'string' ? parsed.clientSecret : '',
+      refreshToken: typeof parsed.refreshToken === 'string' ? parsed.refreshToken : '',
+      uploadSession: parsed.uploadSession && typeof parsed.uploadSession === 'object' ? parsed.uploadSession : undefined,
+    };
+  } catch (err) {
+    return { clientSecret: '', refreshToken: '' };
+  }
+}
+
+function writeYoutubeSecret(patch) {
+  writeSecret(YOUTUBE_SECRET_PATH, JSON.stringify({ ...readYoutubeSecret(), ...patch }));
+}
+
+const youtube = new YouTubeUploader({
+  getCredentials: () => {
+    const { clientId } = configStore.get().youtube;
+    const { clientSecret, refreshToken } = readYoutubeSecret();
+    return { clientId, clientSecret, refreshToken };
+  },
+  saveRefreshToken: (refreshToken) => writeYoutubeSecret({ refreshToken }),
+  // An in-flight upload's session URL is effectively a bearer capability
+  // (whoever has it can push bytes into that upload), so it lives in the
+  // same encrypted blob as the refresh token rather than a plain file.
+  loadUploadSession: () => readYoutubeSecret().uploadSession || null,
+  saveUploadSession: (uploadSession) => writeYoutubeSecret({ uploadSession: uploadSession || undefined }),
+});
+// Set only while a device-flow connect is in progress, so a control-panel
+// reload mid-flow can still show the code the user needs to enter --
+// cleared on success, failure, or starting a fresh connect.
+let youtubeConnectState = null;
+// ruleSetId -> 0-100, only while that rule set's uploadToYouTube step is
+// actively uploading -- lets the Automations tab show a live progress bar
+// on the specific card doing the upload. See runYouTubeUpload.
+const youtubeUploadProgress = new Map();
 
 // ---------------------------------------------------------------------------
 // Coffee Pub Tavern (the party's voice and video; each player an OBS source)
@@ -413,7 +466,7 @@ function freeSourceName(user, kind, players) {
 
 // A user's entry: which sources they get (the Participant and Character
 // ticks) and the OBS source names while published. Untouched users default
-// to Participant on and Character per the Session tab setting.
+// to Participant on and Character per the Configuration tab setting.
 function playerEntry(tavernConfig, key) {
   const entry = tavernConfig.players[key];
   return {
@@ -528,88 +581,75 @@ function requireObs() {
 // a manual "Time it" run) into a user-configured template -- kept as their
 // own fixed aliases since they read from eventData directly, not through
 // resolveDataField's fallback-to-eventData branch (same outcome, just not
-// routed through the key-parsing/mutation logic that only makes sense for
-// a Data Field key).
-// Any OTHER {name} in the template -- {sessionCampaign}, {sessionDaysLeft
-// +1}, {sessionTime}, anything resolveDataField (below) understands -- is
-// resolved the same way a setText step's Data Field picker would, so a
-// Number field's "+1"/"-1" mutates and persists here exactly as it does
-// from a setText step. Used by applySessionFilename; anything OBS's own
+// routed through the key-lookup logic that only makes sense for a Data
+// Field key).
+// Any OTHER {name} in the template -- {sessionCampaign}, {sessionDaysLeft},
+// {sessionTime}, anything resolveDataField (below) understands -- is
+// resolved the same way a setText step's Data Field picker would: a pure
+// read, never a mutation. Used by applySessionFilename; anything OBS's own
 // %-style recording macros use is untouched, since this only ever replaces
 // {..}-bracketed names.
-function formatSessionTemplate(template, eventData) {
+function formatSessionTemplate(template, eventData, chain) {
   const legacy = {
     title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
     campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
   };
-  return template.replace(/\{([A-Za-z][A-Za-z0-9]*(?:[+-]1)?)\}/g, (_match, key) =>
-    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData)
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) =>
+    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData, chain)
   );
 }
 
 // Resolves one Data Field key to a string, in this order -- see
 // plan-session-metadata-fields.md for the full design:
-//   1. An evergreen field (today's date/time) -- computed fresh, no
-//      storage, a trailing +1/-1 makes no sense here and is ignored.
+//   1. An evergreen field (today's date/time) -- computed fresh, no storage.
 //   2. A user-created metadataFields entry, by key -- "text"/"number" as
 //      you'd expect, plus "textNumber"/"numberText": a fixed text segment
 //      glued to a number segment via a typed separator ("Chapter" + "5" ->
-//      "Chapter 5"), the number segment optionally zero-padded. Only that
-//      number segment is ever "+1"/"-1"-capable, same as a plain Number
-//      field; the text segment and separator are fixed at creation.
-//   For (2), a trailing "+1"/"-1" is NOT a pure read: on a Number-shaped
-//   value (or a textNumber/numberText's number segment) it computes the
-//   new number, PERSISTS it back (configStore.save + broadcastStatus), and
-//   returns the new (composed) value -- confirmed directly: selecting
-//   "sessionDaysLeft + 1" in an automation both writes "4" to OBS and
-//   leaves the stored value at 4 for next time. A delta against a
-//   Text-typed field, or one that doesn't exist, is silently ignored --
-//   same "just don't crash a rule set over it" posture as the rest of
-//   this function.
+//      "Chapter 5"), the number segment optionally zero-padded.
 //   3. Not a Studio-known key at all -- fall through to eventData[key]
 //      (whatever the triggering event actually sent), the original and
-//      only behavior before Studio had any fields of its own. A trailing
-//      +1/-1 is meaningless against live event data (there is no "current
-//      value" to increment), so a delta that didn't match (1)-(2) returns
-//      '' rather than trying eventData with the suffix still attached.
-function resolveDataField(key, eventData) {
-  const match = /^(.+)([+-]1)$/.exec(key || '');
-  const baseKey = match ? match[1] : key;
-  const delta = match ? (match[2] === '+1' ? 1 : -1) : 0;
-
+//      only behavior before Studio had any fields of its own.
+// A pure read, always -- bumping a Number (or a compound field's number
+// segment) is its own explicit action (incrementMetadataField /
+// decrementMetadataField, below), not something reading a value can also
+// trigger as a side effect. That used to be a trailing "+1"/"-1" on the key
+// itself; retired once it became clear that hiding a mutation inside a read
+// meant the same field could get bumped twice if two different places both
+// referenced its "+1" variant during what was conceptually one action (see
+// the "Composing rule sets" note in architecture-automations.md).
+function resolveDataField(key, eventData, chain = new Set()) {
   const now = new Date();
-  if (baseKey === 'sessionTime') return now.toLocaleTimeString();
-  if (baseKey === 'sessionDate') return now.toLocaleDateString();
-  if (baseKey === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
-  if (baseKey === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
-  if (baseKey === 'sessionYear') return String(now.getFullYear());
+  if (key === 'sessionTime') return now.toLocaleTimeString();
+  if (key === 'sessionDate') return now.toLocaleDateString();
+  if (key === 'sessionDay') return now.toLocaleDateString(undefined, { weekday: 'long' });
+  if (key === 'sessionMonth') return now.toLocaleDateString(undefined, { month: 'long' });
+  if (key === 'sessionYear') return String(now.getFullYear());
 
-  const fields = configStore.get().metadataFields;
-  const field = fields.find((f) => f.key === baseKey);
+  const field = configStore.get().metadataFields.find((f) => f.key === key);
   if (field) {
     if (field.type === 'textNumber' || field.type === 'numberText') {
-      let number = field.number;
-      if (delta) {
-        number += delta;
-        const current = configStore.get();
-        configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, number } : f)) });
-        broadcastStatus();
-      }
-      const numberText = field.padding ? String(number).padStart(field.padding, '0') : String(number);
+      const numberText = field.padding ? String(field.number).padStart(field.padding, '0') : String(field.number);
       return field.type === 'textNumber' ? `${field.text}${field.separator}${numberText}` : `${numberText}${field.separator}${field.text}`;
     }
-    if (field.type === 'number' && delta) {
-      const value = Number(field.value) + delta;
-      const current = configStore.get();
-      configStore.save({ ...current, metadataFields: fields.map((f) => (f.key === baseKey ? { ...f, value } : f)) });
-      broadcastStatus();
-      return String(value);
+    if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
+    // A Text field's value can itself contain {token} references (same
+    // syntax as the Recording Filename format) -- expanded unconditionally,
+    // not opt-in, since a literal value with no {..} in it passes through
+    // this untouched anyway (there used to be a separate "Template" type
+    // for this; it added a choice without adding a real capability, since
+    // Text already had to support everything Template did). Number stays a
+    // plain passthrough -- it's a number, not a composable string. Tracks
+    // which keys are already being expanded on this branch so a field that
+    // references itself, directly or through another Text field, comes
+    // back blank instead of recursing forever.
+    if (field.type === 'text') {
+      if (chain.has(key)) return '';
+      return formatSessionTemplate(String(field.value), eventData, new Set(chain).add(key));
     }
     return String(field.value);
   }
 
-  if (delta) return '';
-  return eventData && typeof eventData[baseKey] === 'string' ? eventData[baseKey] : '';
+  return eventData && typeof eventData[key] === 'string' ? eventData[key] : '';
 }
 
 // What a setText step actually writes -- "where it goes" is `param`
@@ -655,8 +695,12 @@ function resolveTextValue(stepContext, eventData) {
 // rule-set step itself, or undefined for a direct call. OBS actions need
 // OBS connected; Studio actions (everything from wakeAudio down) work
 // regardless -- none of them but syncObs and applySessionFilename touch
-// OBS at all.
-async function runAutomationAction(action, param, eventData, stepContext) {
+// OBS at all. `chain` is the set of rule-set ids already running further up
+// this same call stack -- only ever non-empty when a `runRuleSet` step led
+// here, threaded through so a cycle (A runs B runs A) is refused instead of
+// recursing forever; a direct call (a step run from the UI, a "Time it"
+// test, a bare `POST /action`) always starts with an empty one.
+async function runAutomationAction(action, param, eventData, stepContext, chain = new Set(), ruleSetId) {
   switch (action) {
     case 'sceneSwitch':
       requireObs();
@@ -715,13 +759,145 @@ async function runAutomationAction(action, param, eventData, stepContext) {
       return syncObs();
     case 'applySessionFilename': {
       requireObs();
-      const { filenameFormat, filenameFormatEnabled } = configStore.get().session;
-      if (!filenameFormatEnabled) throw new Error('Filename automation is off. Enable it under Recording Filename on the Session tab first.');
-      if (!filenameFormat) throw new Error('Set a filename format on the Session tab first.');
+      const { filenameFormat } = configStore.get().session;
+      if (!filenameFormat) throw new Error('Set a filename format on the Automations tab first.');
       return obs.setFilenameFormat(formatSessionTemplate(filenameFormat, eventData));
     }
+    case 'runRuleSet': {
+      if (!param) throw new Error('runRuleSet needs a rule set to run.');
+      const { ruleSets } = configStore.get().automations;
+      const target = ruleSets.find((r) => r.id === param);
+      if (!target) throw new Error(`Rule set not found: ${param}`);
+      if (chain.has(target.id)) {
+        throw new Error(`"${target.name || target.id}" is already running earlier in this same chain -- refusing to loop.`);
+      }
+      return runRuleSet(target, eventData, new Set([...chain, target.id]));
+    }
+    case 'incrementMetadataField':
+    case 'decrementMetadataField': {
+      if (!param) throw new Error(`${action} needs a Metadata field.`);
+      const delta = action === 'incrementMetadataField' ? 1 : -1;
+      const current = configStore.get();
+      const field = current.metadataFields.find((f) => f.key === param);
+      if (!field) throw new Error(`Metadata field not found: ${param}`);
+      let patch;
+      if (field.type === 'number') patch = { value: Number(field.value) + delta };
+      else if (field.type === 'textNumber' || field.type === 'numberText') patch = { number: field.number + delta };
+      else throw new Error(`"${field.label}" isn't a Number field -- nothing to ${delta > 0 ? 'increment' : 'decrement'}.`);
+      configStore.save({ ...current, metadataFields: current.metadataFields.map((f) => (f.key === param ? { ...f, ...patch } : f)) });
+      broadcastStatus();
+      return;
+    }
+    case 'uploadToYouTube':
+      return runYouTubeUpload(stepContext || {}, eventData, ruleSetId);
     default:
       throw new Error(`Unknown action: ${action}`);
+  }
+}
+
+// uploadToYouTube's own logic, kept out of the switch above -- it needs
+// five named step fields (titleField/descriptionField/categoryField/
+// madeForKidsField/visibilityField), not the single param/dataField shape
+// every other action uses, and a genuinely multi-step body (find the file,
+// resolve each field, upload). No playlist support -- see "Playlist
+// support" in architecture-automations.md for why.
+//
+// madeForKidsField alone is strict: it must point at a real "checkbox"
+// Metadata field, or this throws rather than guessing a default -- a COPPA
+// declaration is consequential enough that silently defaulting it on a
+// stale or missing field reference would hide a real configuration mistake
+// instead of surfacing it (same reasoning incrementMetadataField uses for a
+// field that isn't Number-shaped). visibilityField is strict in a
+// different way: it's a plain Data Field like Title/Description (any
+// Metadata field, any evergreen), but if it resolves to something at all,
+// that something must be exactly "private"/"unlisted"/"public" -- whether
+// a recording becomes publicly visible is exactly the kind of mistake a
+// typo shouldn't quietly get wrong. categoryField has no such check: it's
+// permissive like Description, since YouTube's category list is large and
+// there is no small, meaningful set to validate against.
+// ruleSetId (the rule set this step is running as part of, threaded down
+// from runRuleSet/runAutomationAction) is optional -- only used to key
+// youtubeUploadProgress so the Automations tab can show a progress bar on
+// the specific card that's uploading; a direct "Time it" test run passes
+// none, and the upload still works, just without a progress bar to update.
+async function runYouTubeUpload(step, eventData, ruleSetId) {
+  const y = configStore.get().youtube;
+  if (!y.enabled) throw new Error('YouTube upload is off -- enable it on the Automations tab first.');
+
+  const filePath = step.filePath || obs.lastRecordingPath;
+  if (!filePath) throw new Error('No recording to upload -- record something first, or set a file on this step.');
+  if (!fs.existsSync(filePath)) throw new Error(`Recording file not found: ${filePath}`);
+
+  const title = resolveDataField(step.titleField || '', eventData);
+  if (!title) throw new Error('uploadToYouTube needs a Title field that resolves to something.');
+  const description = step.descriptionField ? resolveDataField(step.descriptionField, eventData) : '';
+
+  const fields = configStore.get().metadataFields;
+  const madeForKidsField = fields.find((f) => f.key === step.madeForKidsField);
+  if (!madeForKidsField || madeForKidsField.type !== 'checkbox') {
+    throw new Error('uploadToYouTube needs a checkbox-type Metadata field wired to "Made for kids".');
+  }
+  // Checked = yes, made for kids -- direct, matching the field's own label
+  // and the API's own field name, not inverted. (Used to be a "Not made
+  // for kids" field with the opposite polarity: checked meant NOT for
+  // kids, which read as a double negative once you had to reason about
+  // what an unchecked box actually meant -- "made for kids" checked=yes is
+  // the plainer question to answer.)
+  const selfDeclaredMadeForKids = Boolean(madeForKidsField.value);
+
+  let privacyStatus = y.privacyStatus;
+  if (step.visibilityField) {
+    const resolved = resolveDataField(step.visibilityField, eventData).trim().toLowerCase();
+    if (resolved) {
+      if (!['private', 'unlisted', 'public'].includes(resolved)) {
+        throw new Error(`uploadToYouTube's Visibility field resolved to "${resolved}", not "private", "unlisted", or "public".`);
+      }
+      privacyStatus = resolved;
+    }
+  }
+
+  let categoryId = y.categoryId;
+  if (step.categoryField) {
+    const resolved = resolveDataField(step.categoryField, eventData).trim();
+    if (resolved) categoryId = resolved;
+  }
+
+  logActivity('YouTube', `Upload started: "${title}" (${privacyStatus})`, 'info');
+  let lastLoggedPercent = -1;
+  if (ruleSetId) {
+    youtubeUploadProgress.set(ruleSetId, 0);
+    broadcastStatus();
+  }
+  const signal = ruleSetId && ruleSetRunState.get(ruleSetId) ? ruleSetRunState.get(ruleSetId).abort.signal : undefined;
+  try {
+    const { videoId, url, resumed } = await youtube.uploadVideo(
+      filePath,
+      { title: title.slice(0, 100), description, categoryId, privacyStatus, selfDeclaredMadeForKids },
+      (fraction) => {
+        const percent = Math.floor(fraction * 100);
+        if (ruleSetId) {
+          youtubeUploadProgress.set(ruleSetId, percent);
+          broadcastStatus();
+        }
+        if (percent >= lastLoggedPercent + 10) {
+          lastLoggedPercent = percent;
+          logActivity('YouTube', `Upload progress: ${percent}%`, 'info');
+        }
+      },
+      signal
+    );
+    logActivity('YouTube', `Upload complete${resumed ? ' (resumed an earlier interrupted upload)' : ''}: ${url}`, 'info');
+    return { videoId, url };
+  } catch (err) {
+    if (err && err.message === 'Upload cancelled.') {
+      logActivity('YouTube', 'Upload cancelled -- the next run of the same file resumes from where it stopped.', 'info');
+    }
+    throw err;
+  } finally {
+    if (ruleSetId) {
+      youtubeUploadProgress.delete(ruleSetId);
+      broadcastStatus();
+    }
   }
 }
 
@@ -732,8 +908,16 @@ async function runAutomationAction(action, param, eventData, stepContext) {
 function stagesFor(steps) {
   const stages = [];
   for (const step of steps) {
+    // Skipped as if it weren't in the sequence at all -- not "run it but do
+    // nothing" -- so an AND step right after a disabled one groups with
+    // whichever enabled step actually precedes it.
+    if (step.enabled === false) continue;
     if (step.type === 'delay') {
-      stages.push({ kind: 'delay', seconds: step.seconds });
+      // id kept (unlike the rest of a delay stage's shape) so runRuleSet
+      // can report it as the active step while waiting -- a Wait row
+      // benefits from the same "this is what's happening right now"
+      // highlight an action step gets.
+      stages.push({ kind: 'delay', seconds: step.seconds, id: step.id });
       continue;
     }
     if (step.and && stages.length && stages[stages.length - 1].kind === 'action') {
@@ -749,26 +933,97 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Whether a rule set is currently mid-run, and the means to stop it early
+// (the Automations tab's Run/Stop toggle). Keyed by rule set id, ref-counted
+// rather than a boolean since the same rule set can genuinely be running
+// more than once at a time -- a real trigger firing again while a manual
+// "Run Automation" of the same rule set is still going, or (nested) two
+// different callers both invoking it via the `runRuleSet` Studio action.
+// `cancelled` is shared by every concurrent run of that id, so Stop halts
+// all of them, not just whichever one the button happened to start.
+const ruleSetRunState = new Map();
+
+function beginRuleSetRun(id) {
+  let state = ruleSetRunState.get(id);
+  if (!state) {
+    state = { count: 0, cancelled: false, activeStepIds: [], abort: new AbortController() };
+    ruleSetRunState.set(id, state);
+  }
+  state.count += 1;
+  broadcastStatus();
+  return state;
+}
+
+function endRuleSetRun(id) {
+  const state = ruleSetRunState.get(id);
+  if (!state) return;
+  state.count -= 1;
+  if (state.count <= 0) ruleSetRunState.delete(id);
+  broadcastStatus();
+}
+
+function cancelRuleSetRun(id) {
+  const state = ruleSetRunState.get(id);
+  if (!state) return;
+  state.cancelled = true;
+  // Also aborts anything mid-flight that takes a signal (today: a YouTube
+  // upload's fetch calls) -- a stage already dispatched no longer has to
+  // run to completion.
+  state.abort.abort();
+}
+
+// A delay that gives up early once `state.cancelled` is set, checked every
+// 200ms rather than only after the full wait -- so Stop takes effect
+// within a fraction of a second even mid-delay, not only between stages.
+async function sleepCancellable(ms, state) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (state.cancelled) return;
+    await sleep(Math.min(200, end - Date.now()));
+  }
+}
+
 // Runs a rule set's stages in order. OBS never tells Studio a scene "is
 // done" -- there is no such event on the WebSocket API -- so delays are
 // plain timers Studio keeps itself, not a wait for OBS to confirm anything.
 // One step failing (OBS not connected, a scene that doesn't exist) does not
-// stop the rest of its stage or the stages after it.
-async function runRuleSet(ruleSet, eventData) {
-  for (const stage of stagesFor(ruleSet.steps)) {
-    if (stage.kind === 'delay') {
-      await sleep(stage.seconds * 1000);
-      continue;
+// stop the rest of its stage or the stages after it. `chain` defaults to
+// just this rule set's own id -- the normal case, a fresh top-level run;
+// `runAutomationAction`'s `runRuleSet` case passes a larger one down when
+// this run is itself nested inside another.
+//
+// Stop (cancelRuleSetRun) prevents any stage that hasn't started from
+// starting, and aborts a YouTube upload that's mid-flight (it takes the
+// run's AbortSignal). Other stage actions -- OBS calls already dispatched --
+// still run to completion; they're single quick calls with nothing worth
+// aborting, and a step failing doesn't roll back the ones before it either.
+async function runRuleSet(ruleSet, eventData, chain = new Set([ruleSet.id])) {
+  const state = beginRuleSetRun(ruleSet.id);
+  try {
+    for (const stage of stagesFor(ruleSet.steps)) {
+      if (state.cancelled) break;
+      // Whichever step(s) this stage covers -- an AND-grouped action stage
+      // highlights all of them at once, since they really are running
+      // together, not one after another.
+      state.activeStepIds = stage.kind === 'delay' ? [stage.id] : stage.steps.map((s) => s.id);
+      broadcastStatus();
+      if (stage.kind === 'delay') {
+        await sleepCancellable(stage.seconds * 1000, state);
+        continue;
+      }
+      await Promise.all(
+        stage.steps.map((step) =>
+          runAutomationAction(step.action, step.param, eventData, step, chain, ruleSet.id).catch((err) => {
+            const message = `Rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`;
+            console.warn(`[automations] ${message}`);
+            logActivity('Automations', message, 'error');
+          })
+        )
+      );
     }
-    await Promise.all(
-      stage.steps.map((step) =>
-        runAutomationAction(step.action, step.param, eventData, step).catch((err) => {
-          const message = `Rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`;
-          console.warn(`[automations] ${message}`);
-          logActivity('Automations', message, 'error');
-        })
-      )
-    );
+  } finally {
+    state.activeStepIds = [];
+    endRuleSetRun(ruleSet.id);
   }
 }
 
@@ -776,7 +1031,9 @@ async function runRuleSet(ruleSet, eventData) {
 // independently -- one rule set's sequence does not wait for another's, and
 // a rule set that matches again while already mid-sequence just runs a
 // second, overlapping time (OBS actions are idempotent, so overlap is
-// harmless; nothing here tracks or cancels an in-flight run).
+// harmless). Both runs share the same ruleSetRunState entry (see
+// runRuleSet) -- Stop halts every concurrent run of that id at once, not
+// just whichever one the Automations tab's button happened to start.
 async function runAutomationRuleSets(entry) {
   const { ruleSets } = configStore.get().automations;
   const matched = ruleSets.filter((r) => r.enabled && r.event === entry.event);
@@ -791,17 +1048,15 @@ async function runAutomationRuleSets(entry) {
 
 // Starts or stops the HTTPS server to match current settings -- called at
 // launch and again whenever Automations settings are saved, so toggling
-// Enable, editing the port/token, or ticking a Studio action takes effect
-// immediately.
+// Enable or editing the port/token takes effect immediately.
 async function syncAutomationsServer() {
   const a = configStore.get().automations;
   if (a.enabled) {
-    const studioActions = STUDIO_ACTION_SCHEMA.filter((s) => a.studioActions.includes(s.action));
     await automations.start({
       port: a.port,
       getToken: () => configStore.get().automations.token,
       getRuleSets: () => configStore.get().automations.ruleSets,
-      actions: [...AUTOMATIONS_ACTION_SCHEMA, ...studioActions],
+      actions: [...AUTOMATIONS_ACTION_SCHEMA, ...STUDIO_ACTION_SCHEMA],
       runAction: (action, param, data) => runAutomationAction(action, param, data),
       getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
       getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
@@ -898,7 +1153,7 @@ async function pageAudioState(wc) {
   }
 }
 
-// Wake the page's audio: wait the delay set on the Session tab (Foundry
+// Wake the page's audio: wait the delay set on the Configuration tab (Foundry
 // ignores clicks until it has finished setting up, which the page does not
 // announce reliably), click, then keep clicking every few seconds while
 // Foundry still reports its audio locked. Gives up after three minutes.
@@ -962,7 +1217,16 @@ function fullStatus() {
     config: configStore.get(),
     obs: { ...obs.status(), hasPassword: readObsPassword() !== '' },
     tavern: { ...tavern.status(), hasPassword: readSecret(TAVERN_SECRET_PATH) !== '', sync: tavernSync },
-    automations: automations.status(),
+    automations: {
+      ...automations.status(),
+      runningRuleSetIds: [...ruleSetRunState.keys()],
+      activeStepIds: Object.fromEntries([...ruleSetRunState.entries()].map(([id, s]) => [id, s.activeStepIds || []])),
+      youtubeUploadProgress: Object.fromEntries(youtubeUploadProgress),
+    },
+    appWindows: Object.fromEntries(
+      configStore.get().appWindows.map((a) => [a.id, { found: Boolean(appWindowResolved[`app:${a.id}`]), matched: appWindowMatched[`app:${a.id}`] || '', inObs: obs.status().inputs.includes(a.sourceName) }])
+    ),
+    youtube: { connected: readYoutubeSecret().refreshToken !== '', hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
     activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
@@ -1122,6 +1386,12 @@ function windowSources(view) {
 let obsSyncTimer = null;
 // Views whose windows appeared since the last sync: their captures get restarted.
 const freshlyShown = new Set();
+// view id ("app:<id>") -> the window ID the last sync matched, or null when
+// that app's window wasn't open. Drives the "found / not open" indicator on
+// the App windows card.
+let appWindowResolved = {};
+// Same keys -> the OBS label of the window matched, for showing which one.
+let appWindowMatched = {};
 async function syncObs() {
   if (!obs.connected) return null;
   const force = new Set(freshlyShown);
@@ -1146,7 +1416,37 @@ async function syncObs() {
       regions: regions.filter((r) => r.enabled).map((r) => ({ name: r.name, obsSource: r.obsSource, crop: cropFor(win, r) })),
     });
   }
+  for (const app of configStore.get().appWindows) {
+    views.push({
+      id: `app:${app.id}`,
+      match: { app: app.matchApp, title: app.matchTitle, label: app.windowLabel },
+      title: '',
+      windowId: null,
+      scale: null,
+      sources: [app.sourceName],
+      regions: [],
+      crop: app.crop,
+      showCursor: app.showCursor,
+      // muted deliberately absent -- not our window, not our call (see syncViews).
+    });
+  }
   const report = await obs.syncViews(views, force);
+  appWindowResolved = report.resolved || {};
+  appWindowMatched = report.matchedLabels || {};
+  // A routine sync doesn't change connection *state*, so the 'status'
+  // listener's own logActivity call (state-change only, to avoid spam on
+  // every poll) never sees this -- log it here instead, and only when there
+  // was actually something to report, same reasoning: a no-op sync (the
+  // common case, firing on every view/region edit via obsSyncTimer) would
+  // otherwise flood the Connections activity log on every keystroke-level
+  // change.
+  const bits = [];
+  if (report.pointed.length) bits.push(`re-pointed ${report.pointed.join(', ')}`);
+  if (report.restarted.length) bits.push(`restarted capture of ${report.restarted.join(', ')}`);
+  if (report.cropped.length) bits.push(`cropped ${report.cropped.join(', ')}`);
+  if (report.detected.length) bits.push(`linked ${report.detected.map((d) => d.input).join(', ')}`);
+  if (report.missing.length) bits.push(`missing in OBS: ${report.missing.join(', ')}`);
+  if (bits.length) logActivity('OBS', `Synced sources: ${bits.join('; ')}.`, 'info');
   const known = new Set(obs.status().inputs);
   let adopted = false;
   for (const { id, input } of report.detected) {
@@ -1700,7 +2000,7 @@ function createControlWindow() {
   controlWindow = new BrowserWindow({
     title: `${APP_NAME} - Control Panel - ${REVISION}`,
     ...placement,
-    minWidth: 720,
+    minWidth: 820,
     minHeight: 560,
     backgroundColor: '#1a1410',
     // The native title bar was its own separate, system-colored strip above
@@ -2052,6 +2352,59 @@ function registerIpc() {
     broadcastStatus();
     return name;
   });
+  // --- App windows (other applications' windows captured into OBS) ---
+  // OBS's own list of capturable windows, for the picker. Needs OBS
+  // connected AND at least one existing window-capture source to read the
+  // list from (OBS only exposes it through an existing input).
+  ipcMain.handle('appWindows:list', async () => {
+    if (!obs.connected) throw new Error('Connect to OBS first -- its window list is where this comes from.');
+    const choices = await obs.windowChoices();
+    if (!choices.length) {
+      throw new Error('OBS returned no windows. This needs at least one macOS Screen Capture (window) source to exist already -- add any window source first, then refresh.');
+    }
+    return choices
+      .filter((c) => typeof c.itemName === 'string' && c.itemName.trim())
+      .map((c) => ({ label: c.itemName, ...parseWindowChoice(c.itemName) }));
+  });
+  // Creates the app window's source in OBS pointed at whichever window its
+  // match rule finds right now. A source already existing under that name
+  // (made by hand) is taken over, same as a web window's.
+  ipcMain.handle('appWindows:add', async (_event, id) => {
+    const app = configStore.get().appWindows.find((a) => a.id === id);
+    if (!app) throw new Error('Unknown app window.');
+    if (!obs.connected) throw new Error('Connect to OBS first.');
+    if (!app.matchApp && !app.matchTitle) throw new Error('Pick a window (or fill in the app/title match) first.');
+    const windowId = await obs.findAppWindowId({ app: app.matchApp, title: app.matchTitle, label: app.windowLabel });
+    if (!windowId) throw new Error(`No open window matches "${[app.matchApp, app.matchTitle].filter(Boolean).join(' / ')}" -- open it, then try again.`);
+    if (!obs.status().inputs.includes(app.sourceName)) await obs.createInput(app.sourceName, windowId, { showCursor: app.showCursor });
+    scheduleObsSync();
+    broadcastStatus();
+    return app.sourceName;
+  });
+  // Renames the app window's OBS source (and the saved name) -- refuses a
+  // name another window, region or app window already owns.
+  ipcMain.handle('appWindows:rename', async (_event, id, name) => {
+    const current = configStore.get();
+    const app = current.appWindows.find((a) => a.id === id);
+    if (!app) throw new Error('Unknown app window.');
+    const next = typeof name === 'string' ? name.trim().slice(0, 200) : '';
+    if (!next) throw new Error('A source name is required.');
+    const taken =
+      current.views.some((v) => v.windowSource.name === next || v.regions.some((r) => r.obsSource === next)) ||
+      current.appWindows.some((a) => a.id !== id && a.sourceName === next);
+    if (taken) throw new Error(`"${next}" is already used by another window, region or app window.`);
+    const saved = configStore.save({ ...current, appWindows: current.appWindows.map((a) => (a.id === id ? { ...a, sourceName: next } : a)) });
+    if (obs.connected) {
+      const inputs = obs.status().inputs;
+      if (inputs.includes(app.sourceName) && !inputs.includes(next)) {
+        await obs.renameInput(app.sourceName, next).catch((err) => console.warn(`[obs] rename: ${err.message}`));
+        await obs.refreshInputs().catch(() => {});
+      }
+    }
+    scheduleObsSync();
+    broadcastStatus();
+    return saved.appWindows;
+  });
   // --- Tavern ---
   ipcMain.handle('tavern:setSettings', async (_event, settings) => {
     const current = configStore.get();
@@ -2147,6 +2500,13 @@ function registerIpc() {
     automations.recordEvent(event, data && typeof data === 'object' ? data : {});
     return fullStatus().automations;
   });
+  // The Automations tab's Run/Stop toggle, once a rule set is already
+  // running -- see cancelRuleSetRun. A no-op, not an error, if the rule set
+  // isn't actually running (a stop click racing the run's own natural end).
+  ipcMain.handle('automations:cancelRuleSet', (_event, id) => {
+    cancelRuleSetRun(String(id || ''));
+    return fullStatus().automations;
+  });
   // Runs one stage's worth of steps on demand (the Automations tab's own
   // "Time it" button, which fires a delay step's preceding action so the
   // user can watch it happen and measure how long the delay should
@@ -2174,6 +2534,83 @@ function registerIpc() {
       ],
     });
     return canceled || !filePaths.length ? null : filePaths[0];
+  });
+  // --- YouTube ---
+  ipcMain.handle('youtube:setSettings', async (_event, settings) => {
+    const current = configStore.get();
+    configStore.save({ ...current, youtube: { ...current.youtube, ...settings } });
+    broadcastStatus();
+    return fullStatus().youtube;
+  });
+  ipcMain.handle('youtube:setClientSecret', (_event, secret) => {
+    writeYoutubeSecret({ clientSecret: typeof secret === 'string' ? secret : '' });
+    broadcastStatus();
+    return fullStatus().youtube;
+  });
+  // Step 1 of the device flow: request a code, hand it straight back so the
+  // renderer can show "go to <url>, enter <code>" immediately. Step 2 (the
+  // poll) runs in the background, not awaited here -- a person approving on
+  // their phone might take a while, and this IPC call isn't meant to hang
+  // open for it.
+  ipcMain.handle('youtube:connect', async () => {
+    const { deviceCode, userCode, verificationUrl, interval, expiresIn } = await youtube.requestDeviceCode();
+    youtubeConnectState = { userCode, verificationUrl, expiresAt: Date.now() + expiresIn * 1000 };
+    broadcastStatus();
+    youtube
+      .pollForToken({ deviceCode, interval, expiresIn })
+      .then(() => {
+        youtubeConnectState = null;
+        logActivity('YouTube', 'Connected.', 'info');
+      })
+      .catch((err) => {
+        youtubeConnectState = null;
+        logActivity('YouTube', `Connect failed: ${err.message}`, 'error');
+      });
+    return fullStatus().youtube;
+  });
+  ipcMain.handle('youtube:disconnect', () => {
+    youtube.disconnect();
+    writeYoutubeSecret({ refreshToken: '' });
+    youtubeConnectState = null;
+    broadcastStatus();
+    return fullStatus().youtube;
+  });
+  // Reuses the exact same dialog as a setText step's "File" value type --
+  // this is the uploadToYouTube step's optional file override.
+  ipcMain.handle('youtube:pickVideoFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(controlWindow, {
+      title: 'Choose a video file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Video files', extensions: ['mp4', 'mov', 'mkv', 'flv', 'avi', 'webm'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    return canceled || !filePaths.length ? null : filePaths[0];
+  });
+  // Fixed Google Cloud Console URLs, not accepting anything from the
+  // renderer -- one handler per setup step (API Library, OAuth consent
+  // screen, Credentials) rather than one generic "open any URL" handler, so
+  // there's nothing here for a compromised renderer to redirect elsewhere.
+  ipcMain.handle('youtube:openApiLibrary', () => {
+    shell.openExternal('https://console.cloud.google.com/apis/library/youtube.googleapis.com');
+  });
+  ipcMain.handle('youtube:openConsentScreen', () => {
+    shell.openExternal('https://console.cloud.google.com/apis/credentials/consent');
+  });
+  ipcMain.handle('youtube:openCredentials', () => {
+    shell.openExternal('https://console.cloud.google.com/apis/credentials');
+  });
+  // The device-flow approval URL Google itself returned for the connect
+  // currently in progress (youtubeConnectState, set by 'youtube:connect'
+  // above) -- read from server-side state, not a URL the renderer passes
+  // in, so there's nothing to validate: this only ever opens whatever
+  // Google's own device-code response said, for the connect Studio itself
+  // just started.
+  ipcMain.handle('youtube:openVerificationUrl', () => {
+    if (!youtubeConnectState) return { ok: false };
+    shell.openExternal(youtubeConnectState.verificationUrl);
+    return { ok: true };
   });
   // --- Regions ---
   ipcMain.handle('view:snapshot', async (_event, id) => {

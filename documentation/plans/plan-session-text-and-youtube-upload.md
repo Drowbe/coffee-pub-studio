@@ -129,7 +129,7 @@ behavior of `setText` explained (including the `dataField` convention, even thou
 internals stay Studio's own business), and a worked example alongside the existing `combatStart`
 one.
 
-## Part 2: Automated YouTube upload -- planning only, not started
+## Part 2: Automated YouTube upload -- built overnight, unverified against the real API
 
 Explicitly on hold per the user ("hold off on the YouTube until we nail down how that will
 work") -- this section is the starting point for that conversation, not a build order.
@@ -178,3 +178,54 @@ A short design pass answering the auth/trigger/privacy questions above, written 
 this document is, before any code -- this is a bigger, more externally-facing feature (a Google
 OAuth app, a public YouTube channel) than anything built in Studio so far, and deserves that
 pass on its own rather than being sized up mid-implementation.
+
+### Addendum: built overnight, while the person who owns this feature slept
+
+The "short design pass" above happened as a live conversation instead of a written one, the same
+night -- the person who owns this feature said "get as far as you can" and went to bed, so the
+design decisions below were made without the chance to confirm each one, the way every other
+addendum in this file records a decision *with* them. Flagged clearly for exactly that reason: read
+this whole addendum, and the "What's not built, or not verified" section in
+`architecture-automations.md`'s "Uploading a recording to YouTube", before trusting this against a
+real recording.
+
+Each open question above, resolved:
+
+- **Auth.** OAuth's device flow (RFC 8628), not a loopback redirect -- no local server, no port,
+  no registered redirect URI; the person approves by visiting a short URL on any device and typing
+  a code. Requires the Google Cloud OAuth client to be the **"TVs and Limited Input devices"** type
+  specifically. `clientSecret` and the refresh token are `safeStorage`-encrypted, same pattern as
+  the OBS/Tavern passwords; `clientId` is plain config, same as `obs.host`.
+- **Trigger.** Explicit rule-set step only, same as every other Studio action -- never automatic on
+  `StopRecord`. Nothing wires it into any of the real rule sets that already exist; adding the step
+  where it belongs (almost certainly "End Session Recording", after `stopRecording`) is left for the
+  person who owns this feature to do once they've connected a real YouTube account and are ready to
+  test it deliberately.
+- **Video metadata and privacy.** Not a static config template -- five Metadata field keys the
+  rule-set step points at (`titleField`/`descriptionField`/`playlistField`/`madeForKidsField`/
+  `publicField`), so the person filling in session data controls all of it, the same way they
+  already fill in Campaign/Party/Title. This needed a new Metadata field type, "checkbox" (see
+  architecture doc), since none of the four existing types could hold a real boolean.
+  `privacyStatus` defaults to `"private"` (`config.youtube.privacyStatus`) and only becomes
+  `"public"` when the step's own `publicField` resolves to a checked box for *that specific run* --
+  the "requires an explicit action to actually publish" recommendation from above, made concrete.
+  Thumbnail assignment: not built (separate API call, scoped out to land a working core first).
+- **Upload duration and failure handling.** Chunked resumable upload (8 MiB chunks, retried with
+  backoff on failure), progress logged to the Connections activity log every ~10%. Resumable within
+  one run; **not** resumable across a Studio restart -- the session URL isn't persisted. A real gap,
+  not an oversight; see the architecture doc.
+- **Quota.** Not reconfirmed against the user's actual Google Cloud project (couldn't be, overnight,
+  without their account) -- but per Google's published cost table a resumable upload costs roughly
+  1600 units against a 10,000-unit default daily quota, comfortably covering one upload per session.
+
+What actually got verified, live, before morning: the Metadata "checkbox" type (created, edited,
+saved, persisted, correctly typed as a real boolean on disk); the YouTube settings card (enable
+toggle, Client ID/Secret fields, Connect/Disconnect, privacy/category settings all render and save
+correctly); the `uploadToYouTube` step itself (all five Data Field pickers plus the file-path
+override render, the two checkbox-only pickers correctly show only checkbox-typed fields and
+nothing else); and a real bug this surfaced and fixed before morning -- the action was registered
+in `src/config.js` but not in `src/control/control.js`'s own duplicate action list, so it silently
+never appeared in the step editor's dropdown at all despite the schema being correct. What did
+*not* get verified, because it cannot be without the person's own Google account: the actual OAuth
+device-flow handshake, and an actual file upload against Google's real servers. Treat the auth and
+upload code as carefully written and internally consistent, not as tested.
