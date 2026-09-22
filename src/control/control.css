@@ -1551,6 +1551,37 @@ select:focus {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
+/* "Always" (the default) reads as a plain, untinted button -- most steps
+   never need this, so it shouldn't compete for attention with the With/
+   After toggle right next to it. On Success/On Failure pick up --ok/
+   --danger, same tint treatment (not a bold fill) as With/After's own
+   two colors, so a gated step is easy to spot scanning down a rule set. */
+.automation-step-runif-btn {
+  font-size: 11px;
+}
+
+.automation-step-runif-btn.automation-step-runif-success {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.automation-step-runif-btn.automation-step-runif-success:hover {
+  background: color-mix(in srgb, var(--ok) 22%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--border));
+}
+
+.automation-step-runif-btn.automation-step-runif-failure {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.automation-step-runif-btn.automation-step-runif-failure:hover {
+  background: color-mix(in srgb, var(--danger) 22%, var(--bg-input));
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
 .automation-step-label {
   color: var(--text-dim);
   font-size: 13px;

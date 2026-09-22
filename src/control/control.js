@@ -87,6 +87,9 @@ function previewDataField(key, chain = new Set(), sanitizeValue) {
     // fills in at run time, not composed here, regardless of whatever
     // value happens to be sitting in it right now.
     if (field.type === 'prompt') return '[PROMPTED]';
+    // Same optional zero-padding a Text+Number/Number+Text field's own
+    // number segment already has -- see resolveDataField, src/main.js.
+    if (field.type === 'number') return field.padding ? String(field.value).padStart(field.padding, '0') : String(field.value);
     return String(field.value);
   }
 
@@ -292,6 +295,7 @@ function composeMetadataFieldValue(field) {
   // places, so it reads as one consistent signal rather than two different
   // ways of saying the same thing.
   if (field.type === 'prompt') return field.value ? `[PROMPTED] ${field.value} (last answer)` : '[PROMPTED] Set when the automation runs';
+  if (field.type === 'number') return field.padding ? String(field.value).padStart(field.padding, '0') : String(field.value);
   return String(field.value);
 }
 
@@ -576,9 +580,13 @@ function renderQuickAdd() {
 }
 
 function updateMetadataAddFormVisibility() {
-  const compound = METADATA_COMPOUND_TYPES.includes(metadataEls.newType.value);
+  const type = metadataEls.newType.value;
+  const compound = METADATA_COMPOUND_TYPES.includes(type);
   metadataEls.newSeparatorField.hidden = !compound;
-  metadataEls.newPaddingField.hidden = !compound;
+  // Padding applies to a plain Number too, not just the compound types --
+  // a Number composed into a Text field's {token} template had no way to
+  // pad at all otherwise (see resolveDataField, src/main.js).
+  metadataEls.newPaddingField.hidden = !(compound || type === 'number');
 }
 metadataEls.newType.addEventListener('change', updateMetadataAddFormVisibility);
 
@@ -612,7 +620,9 @@ metadataEls.addConfirm.addEventListener('click', () => {
   const base = { id: `field${Date.now().toString(36)}`, label: label.slice(0, 60), key: uniqueMetadataKey(label, category), type };
   const field = METADATA_COMPOUND_TYPES.includes(type)
     ? { ...base, text: '', separator: metadataEls.newSeparator.value.slice(0, 20), number: 0, padding: Number(metadataEls.newPadding.value) || 0 }
-    : { ...base, value: type === 'number' ? 0 : type === 'checkbox' ? false : '' };
+    : type === 'number'
+      ? { ...base, value: 0, padding: Number(metadataEls.newPadding.value) || 0 }
+      : { ...base, value: type === 'checkbox' ? false : '' };
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
   // A "prompt" field has no value to land straight in edit mode for --
@@ -2797,10 +2807,48 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
       andToggle.addEventListener('click', () => {
         step.and = !step.and;
         renderAndToggle();
+        if (runIfToggle) runIfToggle.hidden = Boolean(step.and);
         saveAutomationsRuleSets();
       });
     }
     mainRow.appendChild(andToggle);
+
+    // Only makes sense on a step that opens its own stage ("After
+    // previous") -- a step joining the current stage via "With previous"
+    // has no distinct "previous" of its own to check (the whole stage
+    // succeeds or fails together; see runRuleSet, src/main.js). Hidden,
+    // not omitted, so toggling With/After doesn't have to rebuild this
+    // part of the row.
+    let runIfToggle;
+    if (!isFirst) {
+      runIfToggle = document.createElement('button');
+      runIfToggle.type = 'button';
+      runIfToggle.className = 'btn btn-small automation-step-runif-btn';
+      runIfToggle.hidden = Boolean(step.and);
+      const RUNIF_CYCLE = { always: 'onSuccess', onSuccess: 'onFailure', onFailure: 'always' };
+      const renderRunIfToggle = () => {
+        const mode = step.runIf || 'always';
+        runIfToggle.classList.toggle('automation-step-runif-success', mode === 'onSuccess');
+        runIfToggle.classList.toggle('automation-step-runif-failure', mode === 'onFailure');
+        if (mode === 'onSuccess') {
+          runIfToggle.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> On Success';
+          runIfToggle.title = 'Only runs if the step before it succeeded -- click to change';
+        } else if (mode === 'onFailure') {
+          runIfToggle.innerHTML = '<i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> On Failure';
+          runIfToggle.title = 'Only runs if the step before it failed -- click to change';
+        } else {
+          runIfToggle.innerHTML = '<i class="fa-solid fa-angles-right" aria-hidden="true"></i> Always';
+          runIfToggle.title = 'Always runs, regardless of whether the step before it succeeded or failed -- click to change';
+        }
+      };
+      renderRunIfToggle();
+      runIfToggle.addEventListener('click', () => {
+        step.runIf = RUNIF_CYCLE[step.runIf || 'always'];
+        renderRunIfToggle();
+        saveAutomationsRuleSets();
+      });
+      mainRow.appendChild(runIfToggle);
+    }
 
     const actions = availableActions();
     const actionSelect = document.createElement('select');

@@ -283,6 +283,67 @@ let a rule set call another rule set from inside Studio's own step editor, not f
 reach in and pick one; an external caller wanting to run a specific rule set already has the
 supported path, `POST /event` with its `event` string.
 
+## Conditional steps: `runIf` -- On Success / On Failure
+
+Raised directly from a real limitation this session's own `clearMetadataField` steps had: they run
+unconditionally at the end of `"Upload to Youtube"`, so a failed upload still clears
+`sessionTitle`/`youtubeDescription`, forcing a re-type on retry. The engine had no way to say "only
+if the step before this one failed" at all -- every stage in `stagesFor`'s sequence always ran,
+`Promise.all`'s per-step `.catch()` existing only to keep one step's failure from crashing the whole
+rule set, not to let a *later* step react to it.
+
+`runIf` (`src/config.js`, step sanitizer -- `"always"`/`"onSuccess"`/`"onFailure"`, default
+`"always"`) is a small, deliberately narrow answer: not a general if/then over arbitrary conditions
+(the "if `data.player` is Nik Melok" kind of thing TODO.md already lists as a real idea, not built)
+-- just "did the *previous stage* succeed or fail." Only meaningful on a step that opens its own
+stage (`and: false`); a step joining the current stage via `and` has no distinct "previous" of its
+own, so the step editor (`buildStepRow`, `src/control/control.js`) hides the control whenever `and`
+is on, showing it right next to the With/After toggle otherwise -- same visual language (a small
+tinted button, cycling through its states on click), `--ok` green for On Success and `--danger` red
+for On Failure, an untinted "Always" for the default so most steps, which never need this, don't
+compete for attention with it.
+
+`stagesFor` now also carries each action stage's `runIf` (taken from whichever step opened it,
+`src/main.js`). `runRuleSet`'s own stage loop tracks `lastOutcome` -- `'success'` until an action
+stage's `Promise.all` actually catches a step failure, at which point it flips to `'failure'` for the
+*next* stage's gate to check. A delay stage, or a stage skipped by its own gate, leaves `lastOutcome`
+untouched -- "previous" always means the last stage that actually *ran* something, not merely the
+one immediately before it in the list, so several gated stages in a row (or a gated stage after a
+`[Wait]`) can all key off one real outcome further back. Starts `'success'` (vacuously -- nothing has
+failed yet) so a gate on an early stage doesn't spuriously skip for lack of anything to check yet. A
+skipped stage logs a plain info-level activity entry (not an error -- skipping on purpose is not a
+failure) saying which gate skipped it and what the previous outcome actually was.
+
+Verified live with three throwaway rule sets (config restored and diffed clean afterward, same
+verification discipline as every other feature in this document): an unconditionally-succeeding
+first step correctly ran its On Success branch and skipped its On Failure branch; a guaranteed-to-
+fail first step (`incrementMetadataField` on a made-up key) correctly flipped that -- On Failure ran,
+On Success was skipped, and the field the On Success branch would have written was confirmed
+untouched; a `[Wait]` stage placed between a successful first step and an On Success-gated third step
+did not reset the tracked outcome -- the gated step still ran.
+
+## A plain Number field's own zero-padding
+
+A second real gap the same review surfaced: a Text+Number/Number+Text field's own number segment
+always had an optional zero-padding width (`METADATA_PADDING_OPTIONS`, `[0, 2, 3, 4]`), but a plain
+Number field never did. This mattered once season/episode got restructured from one `textNumber`
+field each (`text: "S"`, `number: 3`, `padding: 2` -> `"S03"`) into a separate raw counter (a plain
+Number, `sessionSeasonCounter`) plus a Text field composing a display string from it
+(`sessionSeasonShort`, value `"S{sessionSeasonCounter}"`) -- the raw counter had nowhere to carry
+padding at all, so the composed result silently lost its leading zero (`"S3"`, not `"S03"`).
+
+`sanitizeMetadataField` (`src/config.js`) now accepts an optional `padding` on a plain `"number"`
+field, same `METADATA_PADDING_OPTIONS` validation the compound types already use.
+`resolveDataField` (`src/main.js`) applies it the same way it already applies a compound field's own
+padding (`String(value).padStart(padding, '0')`) -- the renderer's own read-mode display
+(`composeMetadataFieldValue`) and its Data Field preview mirror (`previewDataField`,
+`src/control/control.js`) both do the same, so what's shown on the Metadata card matches what a real
+run actually produces. The New-field form's existing Padding selector (previously shown only for the
+two compound types) now shows for a plain Number too. The user's own real `sessionSeasonCounter`/
+`sessionEpisodeCounter` were given `padding: 2` directly, restoring `"S03"`/`"E28"` -- verified live
+by resolving the padded field's value through a throwaway `setMetadataField` step and reading the
+result back (`"03"`), config restored afterward.
+
 ## Where setText's value actually comes from
 
 Every other action's `param` is fixed at edit time (a scene name, a source name) -- `setText`

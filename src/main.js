@@ -667,9 +667,8 @@ function resolveDataField(key, eventData, chain = new Set()) {
     // not opt-in, since a literal value with no {..} in it passes through
     // this untouched anyway (there used to be a separate "Template" type
     // for this; it added a choice without adding a real capability, since
-    // Text already had to support everything Template did). Number stays a
-    // plain passthrough -- it's a number, not a composable string. Tracks
-    // which keys are already being expanded on this branch so a field that
+    // Text already had to support everything Template did). Tracks which
+    // keys are already being expanded on this branch so a field that
     // references itself, directly or through another Text field, comes
     // back blank instead of recursing forever.
     // "prompt" is stored exactly like Text (see sanitizeMetadataField,
@@ -680,6 +679,11 @@ function resolveDataField(key, eventData, chain = new Set()) {
       if (chain.has(key)) return '';
       return formatSessionTemplate(String(field.value), eventData, new Set(chain).add(key));
     }
+    // "number" gets the same optional zero-padding a Text+Number/
+    // Number+Text field's own number segment already has -- otherwise
+    // composing a plain Number into a Text field's {token} template (e.g.
+    // "S{sessionSeasonCounter}") had no way to pad at all.
+    if (field.type === 'number') return field.padding ? String(field.value).padStart(field.padding, '0') : String(field.value);
     return String(field.value);
   }
 
@@ -1117,6 +1121,9 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
 // action step, or a delay step, starts a new stage; a following `and`
 // action step joins the current stage instead of starting its own. An
 // action stage runs every step in it at once; a delay stage just waits.
+// `runIf` (src/config.js) comes from whichever step actually opened the
+// stage -- a joining `and` step's own runIf is never consulted, since the
+// whole stage runs or doesn't run together (see runRuleSet's gate below).
 function stagesFor(steps) {
   const stages = [];
   for (const step of steps) {
@@ -1135,7 +1142,7 @@ function stagesFor(steps) {
     if (step.and && stages.length && stages[stages.length - 1].kind === 'action') {
       stages[stages.length - 1].steps.push(step);
     } else {
-      stages.push({ kind: 'action', steps: [step] });
+      stages.push({ kind: 'action', steps: [step], runIf: step.runIf || 'always' });
     }
   }
   return stages;
@@ -1211,9 +1218,31 @@ async function sleepCancellable(ms, state) {
 // aborting, and a step failing doesn't roll back the ones before it either.
 async function runRuleSet(ruleSet, eventData, chain = new Set([ruleSet.id])) {
   const state = beginRuleSetRun(ruleSet.id);
+  // Tracks whether the last action stage that actually ran had every step
+  // succeed, or at least one fail -- what an "On Success"/"On Failure"
+  // stage checks itself against. Starts 'success' (vacuously: nothing has
+  // failed yet) so a gated stage early in the sequence doesn't spuriously
+  // skip for lack of anything to check. A delay stage, or a stage skipped
+  // by its own gate, leaves this untouched -- "previous" always means the
+  // last stage that actually *ran*, not merely the one before it in the
+  // list, so a chain of several gated stages can all key off one real
+  // outcome further back.
+  let lastOutcome = 'success';
   try {
     for (const stage of stagesFor(ruleSet.steps)) {
       if (state.cancelled) break;
+      if (stage.kind === 'action' && stage.runIf && stage.runIf !== 'always') {
+        const wantsSuccess = stage.runIf === 'onSuccess';
+        if ((wantsSuccess && lastOutcome !== 'success') || (!wantsSuccess && lastOutcome !== 'failure')) {
+          const label = wantsSuccess ? 'On Success' : 'On Failure';
+          logActivity(
+            'Automations',
+            `Rule set "${ruleSet.name}" skipped a step (${label}) -- the previous step ${lastOutcome === 'success' ? 'succeeded' : 'failed'}.`,
+            'info'
+          );
+          continue;
+        }
+      }
       // Whichever step(s) this stage covers -- an AND-grouped action stage
       // highlights all of them at once, since they really are running
       // together, not one after another.
@@ -1223,15 +1252,18 @@ async function runRuleSet(ruleSet, eventData, chain = new Set([ruleSet.id])) {
         await sleepCancellable(stage.seconds * 1000, state);
         continue;
       }
+      let stageFailed = false;
       await Promise.all(
         stage.steps.map((step) =>
           runAutomationAction(step.action, step.param, eventData, step, chain, ruleSet.id).catch((err) => {
+            stageFailed = true;
             const message = `Rule set "${ruleSet.name}" step -> ${step.action} failed: ${err.message}`;
             console.warn(`[automations] ${message}`);
             logActivity('Automations', message, 'error');
           })
         )
       );
+      lastOutcome = stageFailed ? 'failure' : 'success';
     }
   } finally {
     state.activeStepIds = [];

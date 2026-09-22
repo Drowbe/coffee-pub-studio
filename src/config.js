@@ -304,6 +304,16 @@ function sanitizeAutomationStep(input, index, allowedActions, taken) {
     action,
     param: typeof src.param === 'string' ? src.param.trim().slice(0, AUTOMATIONS_LIMITS.maxParamLen) : '',
     and: Boolean(src.and),
+    // Gates whether this step's whole stage runs at all, based on whether
+    // the *previous* stage's steps all succeeded or any of them failed --
+    // "always" (the default) is today's unconditional behavior. Only
+    // meaningful on a step that starts a new stage (and: false); a step
+    // joining the current stage via `and` has no distinct "previous" of
+    // its own to check, so the step editor hides this control whenever
+    // `and` is on. See stagesFor/runRuleSet, src/main.js, for how the
+    // preceding outcome is tracked and threaded through delay/skipped
+    // stages unchanged.
+    runIf: ['always', 'onSuccess', 'onFailure'].includes(src.runIf) ? src.runIf : 'always',
     enabled,
     // Only meaningful for setText -- "where it goes" is `param` above;
     // these four are "what it is", one of three kinds a user picks
@@ -514,21 +524,34 @@ function sanitizeMetadataField(input) {
   // type consistently ("true"/"yes"/"1"...) for something this consequential.
   if (type === 'checkbox') return { id, label, key, type, value: Boolean(src.value) };
 
-  // "Text": stored as a plain string, but resolveDataField (src/main.js)
-  // expands any {token} it contains before returning it -- the same syntax
-  // and resolution the Recording Filename format already uses, and a no-op
-  // for a value with no {..} in it. (This used to be a separate "Template"
-  // type; merged into Text since it never had a use no Text field could
-  // also have -- see the "Text became template-aware" note in
-  // architecture-automations.md.)
-  const value =
-    type === 'number'
-      ? Number.isFinite(Number(src.value))
-        ? Number(src.value)
-        : 0
-      : typeof src.value === 'string'
-        ? src.value.slice(0, METADATA_FIELD_LIMITS.maxValueLen)
-        : '';
+  // "Number": a plain counter, with an optional zero-padding width -- the
+  // same METADATA_PADDING_OPTIONS a Text+Number/Number+Text field's own
+  // number segment already offers. Added after a real gap surfaced live: a
+  // plain Number composed into a Text field's {token} template had no way
+  // to pad at all ("S{sessionSeasonCounter}" -> "S3", not "S03"), where
+  // splitting season/episode into a raw counter plus a separately-composed
+  // display string (instead of one textNumber field, which always had
+  // padding) lost it. resolveDataField (src/main.js) applies this the same
+  // way it already applies a compound field's own padding.
+  if (type === 'number') {
+    return {
+      id,
+      label,
+      key,
+      type,
+      value: Number.isFinite(Number(src.value)) ? Number(src.value) : 0,
+      padding: METADATA_PADDING_OPTIONS.includes(Number(src.padding)) ? Number(src.padding) : 0,
+    };
+  }
+
+  // "Text"/"Prompt": stored as a plain string, but resolveDataField
+  // (src/main.js) expands any {token} it contains before returning it --
+  // the same syntax and resolution the Recording Filename format already
+  // uses, and a no-op for a value with no {..} in it. (This used to be a
+  // separate "Template" type; merged into Text since it never had a use no
+  // Text field could also have -- see the "Text became template-aware"
+  // note in architecture-automations.md.)
+  const value = typeof src.value === 'string' ? src.value.slice(0, METADATA_FIELD_LIMITS.maxValueLen) : '';
   return { id, label, key, type, value };
 }
 

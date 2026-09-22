@@ -422,8 +422,11 @@ A rule set's steps run in the numbered order shown on the Automations tab. A del
 plain timer Studio keeps itself -- there is no OBS WebSocket event for "this scene change is
 done," so nothing here waits on OBS to confirm anything, only on the clock. A step marked AND
 fires at the same time as the step before it instead of waiting for it, so "switch to scene Wide
-AND show source Lower Third" is one stage, not two -- this is Studio-side sequencing, invisible to
-a caller of this API, which only ever sees the rule set's name/group/event via
+AND show source Lower Third" is one stage, not two. A step can also be gated on whether the stage
+before it succeeded or failed ("On Success"/"On Failure", the default being "Always") -- a stage
+whose gate isn't met is skipped outright, and a delay or another skipped stage doesn't reset which
+outcome the *next* gated stage checks against. All of this is Studio-side sequencing, invisible to
+a caller of this API, which only ever sees the rule set's name/group/event/prompts via
 `GET /api/automations/capabilities`.
 
 ## Example: reporting combat start
