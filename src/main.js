@@ -576,6 +576,24 @@ function requireObs() {
   if (!obs.connected) throw new Error('OBS is not connected.');
 }
 
+// Strips characters a resolved Data Field value could carry that a
+// filesystem path can't -- most urgently "/" (a US-locale {sessionDate}
+// reads "9/18/2026"; OBS writes that literally, and a "/" in a filename
+// argument is a real directory separator, not text, so it silently created
+// nested folders instead of one .mkv). Also covers the rest of Windows'
+// reserved set (backslash, colon, the four others below) ahead of the
+// Windows build, since a value born on macOS ends up in the same template.
+// Control characters are dropped outright. Deliberately narrow: this only
+// ever touches a *substituted* value (see formatSessionTemplate's
+// `sanitizeValue`), never literal characters the user typed into the
+// template itself.
+function sanitizeFilenameValue(value) {
+  return String(value)
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/[\x00-\x1f]/g, '')
+    .trim();
+}
+
 // Substitutes {title}/{campaign} (from eventData -- whatever triggered
 // this, e.g. Herald's POST /event data; blank when there is none, such as
 // a manual "Time it" run) into a user-configured template -- kept as their
@@ -589,14 +607,26 @@ function requireObs() {
 // read, never a mutation. Used by applySessionFilename; anything OBS's own
 // %-style recording macros use is untouched, since this only ever replaces
 // {..}-bracketed names.
-function formatSessionTemplate(template, eventData, chain) {
+// `sanitizeValue`, when given, runs on each *substituted* value only (not
+// on the template's own literal characters) -- applySessionFilename passes
+// one to strip filesystem-reserved characters a resolved value could carry
+// (a locale date like "9/18/2026", or event data straight off the wire),
+// since those would otherwise reach OBS's FilenameFormatting unsanitized
+// and get split into real subdirectories on disk (a literal live bug: a
+// missing Herald title defaulted to a placeholder and {sessionDate}'s
+// slashes turned every recording into a three-level folder tree instead of
+// one file). Every other caller (a setText step, a YouTube title/
+// description) passes no sanitizer, since a "/" is perfectly legitimate
+// there.
+function formatSessionTemplate(template, eventData, chain, sanitizeValue) {
   const legacy = {
     title: eventData && typeof eventData.title === 'string' ? eventData.title : '',
     campaign: eventData && typeof eventData.campaign === 'string' ? eventData.campaign : '',
   };
-  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) =>
-    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData, chain)
-  );
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) => {
+    const value = Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : resolveDataField(key, eventData, chain);
+    return sanitizeValue ? sanitizeValue(value) : value;
+  });
 }
 
 // Resolves one Data Field key to a string, in this order -- see
@@ -761,7 +791,7 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
       requireObs();
       const { filenameFormat } = configStore.get().session;
       if (!filenameFormat) throw new Error('Set a filename format on the Automations tab first.');
-      return obs.setFilenameFormat(formatSessionTemplate(filenameFormat, eventData));
+      return obs.setFilenameFormat(formatSessionTemplate(filenameFormat, eventData, undefined, sanitizeFilenameValue));
     }
     case 'runRuleSet': {
       if (!param) throw new Error('runRuleSet needs a rule set to run.');

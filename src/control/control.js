@@ -61,7 +61,7 @@ const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES, 'che
 // (name) when nothing matches -- same spirit as the (title)/(campaign)
 // placeholders below, which truly have no value to show here since
 // there's no triggering event on this tab.
-function previewDataField(key, chain = new Set()) {
+function previewDataField(key, chain = new Set(), sanitizeValue) {
   const now = new Date();
   if (key === 'sessionTime') return now.toLocaleTimeString();
   if (key === 'sessionDate') return now.toLocaleDateString();
@@ -78,7 +78,7 @@ function previewDataField(key, chain = new Set()) {
     if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
     if (field.type === 'text') {
       if (chain.has(key)) return '';
-      return expandTemplatePreview(String(field.value), new Set(chain).add(key));
+      return expandTemplatePreview(String(field.value), new Set(chain).add(key), sanitizeValue);
     }
     return String(field.value);
   }
@@ -86,26 +86,41 @@ function previewDataField(key, chain = new Set()) {
   return `(${key})`;
 }
 
+// Same reasoning as sanitizeFilenameValue in src/main.js: a "/" (a
+// US-locale {sessionDate}, say) is real text in a YouTube title or an OBS
+// text source, but a real directory separator once it reaches OBS's own
+// FilenameFormatting -- keep this preview honest about which one the
+// Filename format field actually is.
+function sanitizeFilenamePreviewValue(value) {
+  return String(value)
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/[\x00-\x1f]/g, '')
+    .trim();
+}
+
 // Mirrors formatSessionTemplate in src/main.js -- {title}/{campaign} shown
 // as placeholders since there's no triggering event to read them from on
 // this tab, any other {name} resolved through previewDataField, and OBS's
 // own %-style macros left untouched either way. Shared by the Filename
-// format preview below and a Text Metadata field's own read-mode display
-// (composeMetadataFieldValue).
-function expandTemplatePreview(template, chain = new Set()) {
+// format preview below (which passes `sanitizeFilenamePreviewValue`, since
+// that's the one consumer where the result becomes a filesystem path) and a
+// Text Metadata field's own read-mode display (composeMetadataFieldValue,
+// which doesn't -- there, a "/" is just text).
+function expandTemplatePreview(template, chain = new Set(), sanitizeValue) {
   const legacy = {
     title: '(title)',
     campaign: '(campaign)',
   };
-  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) =>
-    Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key, chain)
-  );
+  return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_match, key) => {
+    const value = Object.prototype.hasOwnProperty.call(legacy, key) ? legacy[key] : previewDataField(key, chain, sanitizeValue);
+    return sanitizeValue ? sanitizeValue(value) : value;
+  });
 }
 
 // A live preview of what applySessionFilename would actually write.
 function updateFilenamePreview() {
   const format = sessionFilenameFormatEl.value;
-  sessionFilenamePreviewEl.textContent = format ? `Preview: ${expandTemplatePreview(format)}` : '';
+  sessionFilenamePreviewEl.textContent = format ? `Preview: ${expandTemplatePreview(format, new Set(), sanitizeFilenamePreviewValue)}` : '';
 }
 
 // Inserts at the cursor (replacing any current selection) rather than
