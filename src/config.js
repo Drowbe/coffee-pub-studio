@@ -144,8 +144,6 @@ function defaultYoutube() {
     enabled: false,
     clientId: '',
     privacyStatus: 'private',
-    titleTemplate: '',
-    descriptionTemplate: '',
     categoryId: '20', // Gaming
   };
 }
@@ -157,8 +155,6 @@ function sanitizeYoutube(input) {
     enabled: src.enabled === undefined ? d.enabled : Boolean(src.enabled),
     clientId: typeof src.clientId === 'string' ? src.clientId.trim().slice(0, 200) : d.clientId,
     privacyStatus: ['private', 'unlisted', 'public'].includes(src.privacyStatus) ? src.privacyStatus : d.privacyStatus,
-    titleTemplate: typeof src.titleTemplate === 'string' ? src.titleTemplate.slice(0, 300) : d.titleTemplate,
-    descriptionTemplate: typeof src.descriptionTemplate === 'string' ? src.descriptionTemplate.slice(0, 5000) : d.descriptionTemplate,
     categoryId: typeof src.categoryId === 'string' && /^\d{1,3}$/.test(src.categoryId) ? src.categoryId : d.categoryId,
   };
 }

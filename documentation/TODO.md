@@ -117,13 +117,15 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   guard against a user building a rule set that hits this. A real fix (an in-process mutex around
   `configStore.save`, or making the read-modify-write atomic some other way) needs its own design
   pass, not a quick patch here.
-- **Naming convention enforcement for Window Source names is still only half done.** Regions
-  already enforce `Region: <window label>>Region: <name> (CP Studio)` (the OBS name is composed
-  from a separate plain label, `region.name` -> `region.obsSource`); Window Source's own name field
-  is still the raw, freely-typed OBS name, with the convention only supplying its initial default.
-  A plan for the matching UI treatment (a `.name-compose` chip like Region's, splitting the fixed
-  `Window: `/` (CP Studio)` wrapper from the editable label) exists but was never started this
-  session -- picked back up whenever Window Source naming comes up again.
+- ~~**Naming convention enforcement for Window Source names.**~~ Done: Window Source now gets the
+  same treatment as Region -- a `.name-compose` chip splits the fixed `Window: `/` (CP Studio)`
+  wrapper from the editable label, the field only ever edits the label, and saving always composes
+  the full name (`commitWindowSourceName`, `WINDOW_SOURCE_NAME_RE`, `src/control/control.js`). A
+  legacy or adopted name that doesn't match the pattern displays unwrapped until next edited, then
+  gets wrapped like everything else -- auto-adoption itself is untouched, so an adopted hand-made
+  OBS name never risks diverging from what's actually in OBS. The unclaimed-name datalist this
+  field used to offer was dropped along with it, since suggesting full wrapped or hand-made names
+  into a label-only field no longer made sense.
 - ~~**Automated YouTube upload.**~~ Confirmed working end-to-end against the real API, including a
   real completed upload (`uploadToYouTube`, a Studio action, opt-in rule-set step only, never
   automatic) -- device-flow OAuth, the resumable upload endpoint, title/description/privacy all
