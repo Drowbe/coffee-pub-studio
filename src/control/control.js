@@ -287,7 +287,11 @@ function composeMetadataFieldValue(field) {
   }
   if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
   if (field.type === 'text') return expandTemplatePreview(String(field.value), new Set([field.key]));
-  if (field.type === 'prompt') return field.value ? `${field.value} (last answer)` : 'Prompted when the automation runs';
+  // "[PROMPTED]" matches the marker previewDataField shows when this same
+  // field gets composed into another one's preview -- same tag, both
+  // places, so it reads as one consistent signal rather than two different
+  // ways of saying the same thing.
+  if (field.type === 'prompt') return field.value ? `[PROMPTED] ${field.value} (last answer)` : '[PROMPTED] Set when the automation runs';
   return String(field.value);
 }
 
