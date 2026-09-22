@@ -80,6 +80,13 @@ function previewDataField(key, chain = new Set(), sanitizeValue) {
       if (chain.has(key)) return '';
       return expandTemplatePreview(String(field.value), new Set(chain).add(key), sanitizeValue);
     }
+    // A "prompt" field's stored value is whatever it was last answered
+    // with (often blank, before it's ever run) -- showing that literally
+    // inside another field's composed preview reads as a plain gap, easy
+    // to mistake for something broken. "[PROMPTED]" marks it as data that
+    // fills in at run time, not composed here, regardless of whatever
+    // value happens to be sitting in it right now.
+    if (field.type === 'prompt') return '[PROMPTED]';
     return String(field.value);
   }
 
