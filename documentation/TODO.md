@@ -153,12 +153,21 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   `window_capture` (window named by `Title:Class:Exe`) instead of macOS `screen_capture` with an
   integer window ID -- a different input kind, a different settings shape, and a different way of
   resolving "this app window" to "this OBS capture target" -- and is genuinely untestable without
-  a Windows machine running OBS, so left unbuilt rather than guessed at. ~~Also open: Windows
-  display scaling in the captured-size readout, a colour tray icon at 16 and 32 px (the current
-  one is a macOS template image)~~, and quit on close instead of living in the Dock. The tray icon
-  is done: a real brandmark (`src/assets/tray.png`/`tray@2x.png`), no longer a template image, once
-  the Coffee Pub team supplied a proper app icon/brandmark set. Windows display scaling in the
-  captured-size readout is still open.
+  a Windows machine running OBS, so left unbuilt rather than guessed at. Also open: Windows
+  display scaling in the captured-size readout, quit on close instead of living in the Dock, and a
+  Windows-specific app icon -- `build/icon.png` (shared by `mac.icon`/`win.icon` in `package.json`)
+  is shaped the way macOS wants an icon supplied (padding, pre-rounded corners -- Apple's own
+  convention, not a mistake), but Windows doesn't share that convention and expects a full-bleed
+  icon; using the same file there will look like a small icon floating in visible empty space next
+  to other apps' Taskbar/Start Menu icons. The Coffee Pub team's transparent, no-background variant
+  is the likely starting point for a proper Windows-shaped icon once that's worth doing.
+  The tray icon (`src/assets/trayTemplate.png`/`trayTemplate@2x.png`) briefly tried a real color
+  icon once the Coffee Pub team supplied a proper brandmark set, then reverted back to a template
+  image (still auto-tinted, but a dedicated white template asset now, not the original placeholder)
+  -- a fixed color stood out against the monochrome menu bar extras everyone else's apps show, so
+  matching the system won out over showing the brand's actual color there. The app icon itself
+  (`build/icon.png`, the Dock/dmg/window icon) and the in-app wordmark (`src/assets/logo.png`,
+  `src/assets/wordmark-white.png`) do carry the real brand colors -- just not the menu bar.
 
 ## Documentation
 
