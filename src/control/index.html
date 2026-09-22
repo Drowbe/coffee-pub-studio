@@ -40,7 +40,7 @@
     <section class="tab-panel" id="tab-metadata">
       <div class="card">
         <h2>Metadata</h2>
-        <p class="hint">Your own Text, Number, or Text+Number values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. A Text field can also compose other fields into one value ("{sessionParty} {sessionSeason}{sessionEpisode} - {sessionCampaign} - {sessionTitle}"), the same <code>{field}</code> syntax as the Recording Filename format -- use its own <i class="fa-solid fa-circle-info" aria-hidden="true"></i> button to insert one instead of typing the key by hand; a plain value with no <code>{...}</code> in it is unaffected. Renaming isn't supported; delete a field and create a new one instead.</p>
+        <p class="hint">Your own Text, Number, Text+Number, or Prompt values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. A Text field can also compose other fields into one value ("{sessionParty} {sessionSeason}{sessionEpisode} - {sessionCampaign} - {sessionTitle}"), the same <code>{field}</code> syntax as the Recording Filename format -- use its own <i class="fa-solid fa-circle-info" aria-hidden="true"></i> button to insert one instead of typing the key by hand; a plain value with no <code>{...}</code> in it is unaffected. A Prompt field has no value here at all -- running any automation that touches it (directly, from Studio's own step editor, or from an external caller like Herald) always asks for a fresh answer first, or refuses to run; that's the only way a Prompt field's value ever changes. Renaming isn't supported; delete a field and create a new one instead.</p>
         <div id="metadata-quick-add" class="metadata-quick-add"></div>
         <div id="metadata-fields" class="metadata-fields"></div>
         <p class="hint" id="metadata-fields-empty">No metadata fields yet.</p>
@@ -64,6 +64,7 @@
               <option value="textNumber">Text + Number</option>
               <option value="numberText">Number + Text</option>
               <option value="checkbox">Checkbox</option>
+              <option value="prompt">Prompt</option>
             </select>
           </label>
           <label class="field field-inline" id="metadata-new-separator-field" hidden>

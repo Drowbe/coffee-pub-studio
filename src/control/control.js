@@ -280,6 +280,7 @@ function composeMetadataFieldValue(field) {
   }
   if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
   if (field.type === 'text') return expandTemplatePreview(String(field.value), new Set([field.key]));
+  if (field.type === 'prompt') return field.value ? `${field.value} (last answer)` : '(answered when the automation runs)';
   return String(field.value);
 }
 
@@ -378,8 +379,7 @@ function renderMetadataFields() {
       pickerToggle.addEventListener('click', () => toggleDataFieldPicker(pickerPanel, valueInput));
 
       valueEls.push(valueInput, pickerToggle, pickerPanel);
-    } else {
-      // Number only, by elimination -- every other type is handled above.
+    } else if (field.type === 'number') {
       valueInput = document.createElement('input');
       valueInput.type = 'number';
       valueInput.className = 'metadata-field-value';
@@ -387,6 +387,11 @@ function renderMetadataFields() {
       valueInput.spellcheck = false;
       valueEls.push(valueInput);
     }
+    // "prompt" falls through with no editable input at all -- there's
+    // nothing here to edit; its only value comes from answering it as part
+    // of running whatever rule set requires it (see collectRequiredPrompts,
+    // src/main.js). editSave below is never shown for this type, so
+    // isEditing never actually becomes true for it in practice.
 
     const key = document.createElement('span');
     key.className = 'metadata-field-key hint';
@@ -463,7 +468,10 @@ function renderMetadataFields() {
       scheduleSave();
     });
 
-    row.append(label, ...valueEls, key, editSave, moveUp, moveDown, remove);
+    // A "prompt" field has nothing here to edit -- its only value comes
+    // from answering it at run time -- so it gets no edit/save button at
+    // all, same reasoning as skipping the value input above.
+    row.append(label, ...valueEls, key, ...(field.type === 'prompt' ? [] : [editSave]), moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
   });
   renderQuickAdd();
@@ -581,7 +589,9 @@ metadataEls.addConfirm.addEventListener('click', () => {
     : { ...base, value: type === 'number' ? 0 : type === 'checkbox' ? false : '' };
   config.metadataFields = [...(config.metadataFields || []), field];
   metadataEls.addForm.hidden = true;
-  editingMetadataFieldId = field.id;
+  // A "prompt" field has no value to land straight in edit mode for --
+  // see renderMetadataFields, which gives it no edit affordance at all.
+  editingMetadataFieldId = type === 'prompt' ? null : field.id;
   renderMetadataFields();
   updateFilenamePreview();
   scheduleSave();
@@ -2511,6 +2521,47 @@ function dataFieldGroups() {
   return groups;
 }
 
+// Renderer-side mirror of collectRequiredPrompts (src/main.js) -- same
+// reasoning as every other dual copy in this file (resolveDataField/
+// previewDataField, formatSessionTemplate/expandTemplatePreview): the Run
+// Automation button needs this to show a real dialog *before* even calling
+// automationsTestEvent, not just to display whatever error the IPC call's
+// own real enforcement throws back. That real enforcement is the actual
+// gate; this copy only makes the UI pleasant.
+function collectRequiredPromptsPreview(ruleSet, allRuleSets, metadataFields, seenRuleSets = new Set(), out = new Set()) {
+  if (seenRuleSets.has(ruleSet.id)) return out;
+  const nextSeenRuleSets = new Set(seenRuleSets).add(ruleSet.id);
+
+  const addKey = (key, fieldChain = new Set()) => {
+    if (!key || fieldChain.has(key)) return;
+    const field = metadataFields.find((f) => f.key === key);
+    if (!field) return;
+    if (field.type === 'prompt') {
+      out.add(key);
+      return;
+    }
+    if (field.type === 'text') addTemplate(String(field.value), new Set(fieldChain).add(key));
+  };
+  const addTemplate = (template, fieldChain = new Set()) => {
+    for (const m of String(template || '').matchAll(/\{([A-Za-z][A-Za-z0-9]*)\}/g)) addKey(m[1], fieldChain);
+  };
+
+  for (const step of ruleSet.steps) {
+    if (step.type !== 'action') continue;
+    if ((step.action === 'setText' || step.action === 'setMetadataField') && step.valueType === 'dataField') {
+      addKey(step.dataField || (step.action === 'setMetadataField' ? 'value' : 'text'));
+    } else if (step.action === 'applySessionFilename') {
+      addTemplate((config && config.session && config.session.filenameFormat) || '');
+    } else if (step.action === 'uploadToYouTube') {
+      for (const f of [step.titleField, step.descriptionField, step.categoryField, step.visibilityField]) addKey(f);
+    } else if (step.action === 'runRuleSet' && step.param) {
+      const target = allRuleSets.find((r) => r.id === step.param);
+      if (target) collectRequiredPromptsPreview(target, allRuleSets, metadataFields, nextSeenRuleSets, out);
+    }
+  }
+  return out;
+}
+
 // The subset of dataFieldGroups() that makes sense for a checkbox-only
 // slot (uploadToYouTube's "Made for kids") -- only Metadata itself can
 // ever be "checkbox"-typed, so this skips Date & Time and every
@@ -3301,8 +3352,28 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
         return;
       }
     }
+    // A "prompt" Metadata field is a harder requirement than an external
+    // Data Field above -- there is no way to run past it with a blank, real
+    // trigger or not (see METADATA_FIELD_TYPES's comment, src/config.js),
+    // so Studio's own Run Automation button has to ask too, walking into
+    // any nested runRuleSet step the same way collectRequiredPrompts
+    // (src/main.js) does. One question at a time rather than a JSON blob --
+    // unlike external test data, a real answer here gets written into the
+    // field for keeps, not just used for this one test run.
+    const prompts = {};
+    const requiredPrompts = collectRequiredPromptsPreview(ruleSet, config.automations.ruleSets, config.metadataFields || []);
+    for (const key of requiredPrompts) {
+      const field = (config.metadataFields || []).find((f) => f.key === key);
+      const answer = await promptModal(`This rule set needs a value for "${(field && field.label) || key}" to run:`, '');
+      if (answer === null) return; // cancelled
+      if (!answer.trim()) {
+        reportError(new Error(`"${(field && field.label) || key}" needs a real answer -- run cancelled.`));
+        return;
+      }
+      prompts[key] = answer;
+    }
     try {
-      status.automations = await api.automationsTestEvent(ruleSet.event, data);
+      status.automations = await api.automationsTestEvent(ruleSet.event, data, prompts);
       renderAutomationsStatus();
       setSaveState(`Ran "${ruleSet.event}"`);
     } catch (err) {

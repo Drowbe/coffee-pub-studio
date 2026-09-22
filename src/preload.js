@@ -67,7 +67,7 @@ contextBridge.exposeInMainWorld('coffeePub', {
   tavernViewUrl: (key, kind) => ipcRenderer.invoke('tavern:viewUrl', key, kind),
   tavernOpenManage: () => ipcRenderer.invoke('tavern:openManage'),
   automationsSetSettings: (settings) => ipcRenderer.invoke('automations:setSettings', settings),
-  automationsTestEvent: (eventName, data) => ipcRenderer.invoke('automations:testEvent', eventName, data),
+  automationsTestEvent: (eventName, data, prompts) => ipcRenderer.invoke('automations:testEvent', eventName, data, prompts),
   automationsCancelRuleSet: (id) => ipcRenderer.invoke('automations:cancelRuleSet', id),
   automationsRunSteps: (steps) => ipcRenderer.invoke('automations:runSteps', steps),
   automationsPickTextFile: () => ipcRenderer.invoke('automations:pickTextFile'),

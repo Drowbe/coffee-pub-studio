@@ -69,13 +69,28 @@ Content-Type: application/json
   `applySessionFilename`'s `{title}`/`{campaign}` placeholders come from. Sending whatever is
   cheaply available (a scene name, a combat id) beyond what a rule set actually uses still costs
   nothing.
+- `prompts` (object, optional) answers whatever a matched rule set's `prompts` (see
+  `GET /capabilities` below) says it needs -- `{"sessionTitle": "Darn Skarn"}`. **Checked before
+  anything else happens**: if any matched rule set (or anything it reaches via a `runRuleSet` step,
+  recursively) requires a "prompt"-type Metadata field and this object doesn't supply a real
+  (non-blank) value for every one of them, the whole request is refused --
+  `400 {"error": "Missing required prompt value(s): Title"}` -- and nothing is recorded or
+  dispatched. This check happens synchronously, before the response, unlike everything else about
+  this endpoint. A satisfied call writes each supplied value into its field immediately, so every
+  step in the run that follows reads it -- but this is re-checked on *every* call, unconditionally;
+  a Metadata field's currently-stored value is never treated as "already answered," so answering
+  once does not exempt a later call to the same event from answering again. See "Metadata field
+  types" below for what makes a field require this at all.
 - The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
-  request), 401 (missing or wrong token), or 404 (wrong path or method) otherwise.
+  request, including a failed prompts check above), 401 (missing or wrong token), or 404 (wrong
+  path or method) otherwise.
 - A 200 means Studio accepted and logged the event, not that a matched rule set's sequence
   succeeded, or even finished -- rule set dispatch is asynchronous and independent of this
   response, runs every matched rule set at once (one does not wait for another), and a step that
   fails (OBS not connected, a scene that does not exist) is logged on Studio's side and does not
-  stop the rest of that rule set's sequence.
+  stop the rest of that rule set's sequence. The `prompts` check above is the one exception to
+  "asynchronous and independent" -- it has to happen before the response, since the whole point is
+  refusing to run at all, not running with a blank.
 - The body is capped at 16 KB and must be valid JSON with a string `event` field, or the request
   is rejected before anything is recorded.
 
@@ -117,7 +132,9 @@ or guess either:
     { "action": "wakeAudio", "label": "Wake audio (every open window)", "param": null, "paramType": "none", "group": "Studio Control" }
   ],
   "ruleSets": [
-    { "name": "Combat Start", "group": "Combat", "event": "combat:start" }
+    { "name": "Combat Start", "group": "Combat", "event": "combat:start" },
+    { "name": "Begin Session Recording", "group": "Recording", "event": "session:StartRecording",
+      "prompts": [{ "key": "sessionTitle", "label": "Title" }] }
   ],
   "scenes": [
     { "name": "1. Title Sequence", "current": false },
@@ -125,7 +142,7 @@ or guess either:
   ],
   "sources": ["Window: Game (CP Studio)", "Region: Stream>Chat Feed (CP Studio)"],
   "metadataFields": [
-    { "key": "sessionTitle", "label": "Title", "type": "text" },
+    { "key": "sessionTitle", "label": "Title", "type": "prompt" },
     { "key": "sessionSeason", "label": "Season", "type": "textNumber" }
   ]
 }
@@ -150,26 +167,54 @@ Studio's own card in that state.
 
 `metadataFields` is every Metadata field configured on Studio's Session tab right now -- its
 `key` (what a `metadataField`-typed `param` actually needs), `label` (what a human named it), and
-`type` (`"text"`, `"number"`, `"textNumber"`, `"numberText"`, or `"checkbox"`). This is what makes
-`incrementMetadataField`/`decrementMetadataField`/`setMetadataField` genuinely usable by an
-external caller instead of only from Studio's own step editor: without it, a module like Herald
-would have to hardcode a field key it was told out of band (`"sessionTitle"`), which breaks the
-moment it talks to a different Studio setup where the person running it named things differently.
-With it, a caller can build its own settings picker -- "Which Studio field should hold the Title?"
--- filtered to whichever `type` its own action needs (`setMetadataField` only ever accepts
-`"text"`; increment/decrement only accept `"number"`/`"textNumber"`/`"numberText"`), populated
-from this list, the same way Studio's own rule-set editor already filters its Metadata-field
-picker by type. Read fresh from config on every capabilities request, same as `ruleSets` above --
-not cached, so a field renamed or deleted on Studio's Session tab shows up (or disappears) the
-next time a caller re-checks.
+`type` (`"text"`, `"number"`, `"textNumber"`, `"numberText"`, `"checkbox"`, or `"prompt"` -- see
+"Prompt fields" below). This is what makes `incrementMetadataField`/`decrementMetadataField`/
+`setMetadataField` genuinely usable by an external caller instead of only from Studio's own step
+editor: without it, a module like Herald would have to hardcode a field key it was told out of
+band (`"sessionTitle"`), which breaks the moment it talks to a different Studio setup where the
+person running it named things differently. With it, a caller can build its own settings picker --
+"Which Studio field should hold the Title?" -- filtered to whichever `type` its own action needs
+(`setMetadataField` only ever accepts `"text"`; increment/decrement only accept `"number"`/
+`"textNumber"`/`"numberText"`), populated from this list, the same way Studio's own rule-set
+editor already filters its Metadata-field picker by type. Read fresh from config on every
+capabilities request, same as `ruleSets` below -- not cached, so a field renamed or deleted on
+Studio's Session tab shows up (or disappears) the next time a caller re-checks.
 
 `ruleSets` is whatever is actually configured and enabled on the Automations tab right now: each
-one's `name`, `group`, and the `event` that fires it -- not its internal step sequence, which is
-Studio's own business. A caller can use this to build a menu of rule sets grouped the same way
+one's `name`, `group`, `event`, and `prompts` -- not its internal step sequence, which is Studio's
+own business. A caller can use this to build a menu of rule sets grouped the same way
 (`"Combat" > "Combat Start"`), where clicking one simply POSTs its `event` to
 `/api/automations/event` -- the same request an automatic trigger would send, and the same way a
 manual "run this rule set now" and an automatic trigger both work. It is also useful for
 validating that an event name is wired to something before sending it.
+
+`prompts` is every `"prompt"`-type Metadata field this rule set needs answered to run -- `{key,
+label}`, same shape as `metadataFields` entries. A caller doesn't need to inspect a rule set's
+steps or understand what any of them do: an empty array means "just POST the event," a non-empty
+one means "collect an answer for each label, then POST the event with those answers in `prompts`
+(see below), or the request will be refused." This is computed by walking the rule set's actual
+steps -- including recursively into anything it reaches via a `runRuleSet` step -- so a rule set
+like `"Begin Session Recording"` in the example above correctly shows `sessionTitle` as required
+even though nothing in its own steps mentions that key directly; only a rule set it calls does.
+
+## Prompt fields: fields with no value except by asking
+
+A Metadata field's `type` can be `"prompt"` -- stored and resolved exactly like `"text"`, with one
+restriction: it has no other way to get a value. It isn't editable on Studio's own Session tab, and
+`setMetadataField` refuses to target one directly (Text only). The *only* way a Prompt field's
+value ever changes is by supplying it in `prompts` on the exact `POST /api/automations/event` call
+that triggers a rule set needing it -- see that endpoint above. This is enforced unconditionally,
+every single call: a Prompt field's currently-stored value is never treated by Studio as "already
+answered," so answering it once does not exempt a later call to the same event from answering it
+again. Whether that means asking a human again, or silently resupplying a value the caller itself
+already has in hand from earlier, is entirely up to the caller -- Studio's own contract stays the
+same either way.
+
+This is the intended replacement for hardcoding a Metadata field mapping in a module's own
+settings: rather than Herald's settings screen asking "which Studio field is Title?" once, up
+front, Herald's *menu* can be fully generic -- list whatever `GET /capabilities` returns, and for
+any rule set with a non-empty `prompts`, ask for those labels right before firing it. Neither
+Herald nor its settings screen ever needs to know a specific key like `"sessionTitle"` exists.
 
 ## POST /api/automations/action
 

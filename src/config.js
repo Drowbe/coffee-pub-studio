@@ -459,7 +459,12 @@ function sanitizeSession(input) {
 }
 
 const METADATA_FIELD_LIMITS = { maxFields: 50, maxLabelLen: 60, maxKeyLen: 60, maxValueLen: 500, maxSeparatorLen: 20 };
-const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText', 'checkbox'];
+// "Prompt" is Text-shaped in storage (see sanitizeMetadataField's fallthrough
+// below) but has no other way to get a value: it is never editable on the
+// Session tab and setMetadataField refuses it (Text only) -- the only write
+// path is answering the prompt as part of running whatever rule set actually
+// needs it. See collectRequiredPrompts/checkAndApplyPrompts (src/main.js).
+const METADATA_FIELD_TYPES = ['text', 'number', 'textNumber', 'numberText', 'checkbox', 'prompt'];
 const METADATA_PADDING_OPTIONS = [0, 2, 3, 4];
 
 // Data Field keys Studio itself resolves specially (src/main.js's

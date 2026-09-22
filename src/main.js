@@ -672,7 +672,11 @@ function resolveDataField(key, eventData, chain = new Set()) {
     // which keys are already being expanded on this branch so a field that
     // references itself, directly or through another Text field, comes
     // back blank instead of recursing forever.
-    if (field.type === 'text') {
+    // "prompt" is stored exactly like Text (see sanitizeMetadataField,
+    // src/config.js) and gets the same {token} expansion when read -- the
+    // only thing that makes it different is how it gets its value in the
+    // first place (see checkAndApplyPrompts below), not how it reads back.
+    if (field.type === 'text' || field.type === 'prompt') {
       if (chain.has(key)) return '';
       return formatSessionTemplate(String(field.value), eventData, new Set(chain).add(key));
     }
@@ -737,6 +741,93 @@ function resolveMetadataFieldValue(stepContext, eventData) {
     return resolveDataField(stepContext.dataField || 'value', eventData);
   }
   return stepContext.value || ''; // "literal", and the default for anything unrecognised
+}
+
+// Finds every "prompt"-type Metadata field a rule set's steps would touch if
+// it ran right now, walking into any nested runRuleSet target the same way
+// actually running the rule set would (cycle-guarded, same idea as
+// runRuleSet's own `chain`) -- this is what lets GET /capabilities'
+// per-rule-set `prompts` list (and the run-time gate below) be correct for
+// a rule set like "Begin Session Recording" that never references
+// sessionTitle directly, only through the "Set Session Info" rule set it
+// calls via runRuleSet. A static, dry-run mirror of the same {token}/
+// Text-field-composition walk resolveDataField/formatSessionTemplate do at
+// read time -- it doesn't call them, since it needs to *find* prompt keys
+// rather than produce a final string, but it follows the identical
+// structure so it can't drift out of sync with what actually gets read.
+function collectRequiredPrompts(ruleSet, allRuleSets, metadataFields, seenRuleSets = new Set(), out = new Set()) {
+  if (seenRuleSets.has(ruleSet.id)) return out;
+  const nextSeenRuleSets = new Set(seenRuleSets).add(ruleSet.id);
+
+  const addKey = (key, fieldChain = new Set()) => {
+    if (!key || fieldChain.has(key)) return;
+    const field = metadataFields.find((f) => f.key === key);
+    if (!field) return; // evergreen or unknown to Studio -- never a prompt
+    if (field.type === 'prompt') {
+      out.add(key);
+      return;
+    }
+    if (field.type === 'text') addTemplate(String(field.value), new Set(fieldChain).add(key));
+  };
+  const addTemplate = (template, fieldChain = new Set()) => {
+    for (const m of String(template || '').matchAll(/\{([A-Za-z][A-Za-z0-9]*)\}/g)) addKey(m[1], fieldChain);
+  };
+
+  for (const step of ruleSet.steps) {
+    if (step.type !== 'action') continue;
+    if ((step.action === 'setText' || step.action === 'setMetadataField') && step.valueType === 'dataField') {
+      addKey(step.dataField || (step.action === 'setMetadataField' ? 'value' : 'text'));
+    } else if (step.action === 'applySessionFilename') {
+      // The *current* filename template, same one applySessionFilename
+      // itself would actually read at run time.
+      const { filenameFormat } = configStore.get().session;
+      if (filenameFormat) addTemplate(filenameFormat);
+    } else if (step.action === 'uploadToYouTube') {
+      for (const f of [step.titleField, step.descriptionField, step.categoryField, step.visibilityField]) addKey(f);
+    } else if (step.action === 'runRuleSet' && step.param) {
+      const target = allRuleSets.find((r) => r.id === step.param);
+      if (target) collectRequiredPrompts(target, allRuleSets, metadataFields, nextSeenRuleSets, out);
+    }
+  }
+  return out;
+}
+
+// The enforcement half of collectRequiredPrompts: a rule set that touches a
+// "prompt" field cannot run without a fresh answer supplied in the exact
+// same call that triggers it -- there is no other way for a prompt field to
+// get a value at all (see METADATA_FIELD_TYPES's comment, src/config.js),
+// so this is the only gate that matters, and it has to run before anything
+// actually fires. Called synchronously from the automations.js /event
+// handler (before the event is even recorded) and from the
+// 'automations:testEvent' IPC handler below, so a missing answer means the
+// request never dispatches anything at all -- not "dispatches with a
+// blank." A satisfied call writes each supplied answer into its field the
+// same way setMetadataField does, before the rule set's own steps run, so
+// every step downstream -- this run and any future one -- reads the fresh
+// value already in place.
+function checkAndApplyPrompts(event, providedPrompts) {
+  const current = configStore.get();
+  const { ruleSets } = current.automations;
+  const matched = ruleSets.filter((r) => r.enabled && r.event === event);
+  const required = new Set();
+  for (const ruleSet of matched) {
+    for (const key of collectRequiredPrompts(ruleSet, ruleSets, current.metadataFields)) required.add(key);
+  }
+  if (!required.size) return { ok: true };
+
+  const provided = providedPrompts && typeof providedPrompts === 'object' ? providedPrompts : {};
+  const missing = [...required].filter((key) => typeof provided[key] !== 'string' || !provided[key]);
+  if (missing.length) {
+    const labels = missing.map((key) => (current.metadataFields.find((f) => f.key === key) || {}).label || key);
+    return { ok: false, error: `Missing required prompt value(s): ${labels.join(', ')}` };
+  }
+
+  configStore.save({
+    ...current,
+    metadataFields: current.metadataFields.map((f) => (required.has(f.key) ? { ...f, value: provided[f.key] } : f)),
+  });
+  broadcastStatus();
+  return { ok: true };
 }
 
 // One step's action -> the OBS or Studio call it makes. `param` is the
@@ -1132,9 +1223,24 @@ async function syncAutomationsServer() {
     await automations.start({
       port: a.port,
       getToken: () => configStore.get().automations.token,
-      getRuleSets: () => configStore.get().automations.ruleSets,
+      // Annotated with `prompts` here (rather than automations.js computing
+      // it) since collectRequiredPrompts and configStore both live on this
+      // side -- automations.js just passes each rule set's own `prompts`
+      // straight through to GET /capabilities.
+      getRuleSets: () => {
+        const { ruleSets } = configStore.get().automations;
+        const { metadataFields } = configStore.get();
+        return ruleSets.map((r) => ({
+          ...r,
+          prompts: [...collectRequiredPrompts(r, ruleSets, metadataFields)].map((key) => ({
+            key,
+            label: (metadataFields.find((f) => f.key === key) || {}).label || key,
+          })),
+        }));
+      },
       actions: [...AUTOMATIONS_ACTION_SCHEMA, ...STUDIO_ACTION_SCHEMA],
       runAction: (action, param, data) => runAutomationAction(action, param, data),
+      checkPrompts: (event, prompts) => checkAndApplyPrompts(event, prompts),
       getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
       getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
       getMetadataFields: () => configStore.get().metadataFields,
@@ -2571,10 +2677,18 @@ function registerIpc() {
   // Herald POST uses, so the automations.on('event', ...) listener runs the
   // same rule-matching path -- lets the tab be exercised end to end without
   // Foundry or Herald in the loop. Fire-and-forget, same as a real call:
-  // rule failures are logged, not thrown back at the caller.
-  ipcMain.handle('automations:testEvent', (_event, eventName, data) => {
+  // rule failures are logged, not thrown back at the caller. `prompts` gets
+  // the exact same synchronous gate the real HTTP endpoint does
+  // (checkAndApplyPrompts) -- Studio's own Run Automation button is not a
+  // side door around a rule set's prompt requirements, and the renderer
+  // (buildStepRow's Run Automation click handler) already collects answers
+  // before calling this, same as it already collects test data for an
+  // externally-registered field.
+  ipcMain.handle('automations:testEvent', (_event, eventName, data, prompts) => {
     const event = typeof eventName === 'string' ? eventName.trim().slice(0, 60) : '';
     if (!event) throw new Error('Enter an event name.');
+    const result = checkAndApplyPrompts(event, prompts && typeof prompts === 'object' ? prompts : {});
+    if (!result.ok) throw new Error(result.error);
     automations.recordEvent(event, data && typeof data === 'object' ? data : {});
     return fullStatus().automations;
   });

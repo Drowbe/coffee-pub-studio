@@ -58,6 +58,7 @@ class AutomationsServer extends EventEmitter {
     this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
     this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
     this.getMetadataFields = null; // () => the currently configured Metadata fields -- same endpoint
+    this.checkPrompts = null; // (event, prompts) => {ok, error?} -- see POST /api/automations/event
     this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
@@ -114,7 +115,7 @@ class AutomationsServer extends EventEmitter {
   // one-time "trust this" exception is tied to the actual certificate, and
   // a fresh one on every launch would mean re-clicking through the warning
   // every time.
-  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getMetadataFields, getObsStatus }) {
+  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getMetadataFields, checkPrompts, getObsStatus }) {
     await this.stop();
     if (!getToken()) {
       this.setState('error', 'Set a token before enabling Automations.');
@@ -136,6 +137,7 @@ class AutomationsServer extends EventEmitter {
     this.getScenes = getScenes || null;
     this.getSources = getSources || null;
     this.getMetadataFields = getMetadataFields || null;
+    this.checkPrompts = checkPrompts || null;
     this.getObsStatus = getObsStatus || null;
     await new Promise((resolve) => {
       const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
@@ -160,6 +162,7 @@ class AutomationsServer extends EventEmitter {
     this.getScenes = null;
     this.getSources = null;
     this.getMetadataFields = null;
+    this.checkPrompts = null;
     this.getObsStatus = null;
     if (!this.server) {
       if (this.state !== 'stopped') this.setState('stopped', '');
@@ -231,9 +234,15 @@ class AutomationsServer extends EventEmitter {
       // rule set exists and what event fires it (so a menu click can just
       // POST that same event to /api/automations/event), not its internal
       // step sequence.
+      // `prompts` (which "prompt"-type Metadata fields this rule set -- or
+      // anything it calls via runRuleSet -- would need answered to run) is
+      // computed on the main-process side (collectRequiredPrompts,
+      // src/main.js, via getRuleSets above) and just passed through here,
+      // same reasoning as everything else in this response: this server
+      // has no config or rule-set-graph knowledge of its own.
       const ruleSets = (this.getRuleSets ? this.getRuleSets() : [])
         .filter((r) => r.enabled)
-        .map((r) => ({ name: r.name, group: r.group, event: r.event }));
+        .map((r) => ({ name: r.name, group: r.group, event: r.event, prompts: r.prompts || [] }));
       // Same reasoning as scenes/sources just below: a paramType of
       // "metadataField" (incrementMetadataField/decrementMetadataField/
       // setMetadataField) only says the KIND of value an action's `param`
@@ -302,6 +311,19 @@ class AutomationsServer extends EventEmitter {
         const event = typeof body.event === 'string' ? body.event.trim().slice(0, 60) : '';
         if (!event) return send(400, { error: '"event" is required' });
         const data = body.data && typeof body.data === 'object' ? body.data : {};
+        // Checked synchronously, before the event is even recorded -- a
+        // matched rule set (or anything it reaches via runRuleSet) that
+        // touches a "prompt" Metadata field cannot run without a fresh
+        // answer supplied right here, in `prompts`, in this same call (see
+        // checkAndApplyPrompts, src/main.js). Unlike everything else about
+        // this endpoint, that check -- and its 400 on failure -- happens
+        // before the response, not after: the whole point is refusing to
+        // fire at all, not firing with a blank.
+        if (this.checkPrompts) {
+          const prompts = body.prompts && typeof body.prompts === 'object' ? body.prompts : {};
+          const result = this.checkPrompts(event, prompts);
+          if (!result.ok) return send(400, { error: result.error });
+        }
         this.recordEvent(event, data);
         send(200, { ok: true });
       });

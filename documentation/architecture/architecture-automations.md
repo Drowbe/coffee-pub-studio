@@ -453,6 +453,17 @@ from config every request, same treatment `ruleSets` already gets) -- see "GET
 hardcoding a guess, the same way Studio's own rule-set editor already turns this into a dropdown
 rather than a name typed blind.
 
+That settings-picker approach was then superseded, not layered alongside, by a better design: a
+new `"prompt"` Metadata field type with no value except by answering it, `GET /capabilities`'s
+`ruleSets` gaining a recursively-computed `prompts` list (walking into any nested `runRuleSet`
+target, so a rule set that only *transitively* touches a prompt field -- `"Begin Session
+Recording"` via its call to `"Set Session Info"`, say -- still reports it correctly), and
+`POST /api/automations/event` refusing to run at all unless every required prompt is answered in
+that same call. This turns "Herald pre-configures a field mapping for concepts it invents" into
+"Herald asks Studio what a rule set needs, generically, every time" -- full design, the exact
+recursion problem this raised, and what was verified live (including the "answered once doesn't
+exempt a later call" semantics) in `documentation/plans/plan-automation-prompts.md`.
+
 The Metadata card itself has no inline bump buttons -- removed deliberately, since their presence
 implied a human needs to click one every time, when the entire point of Increment/Decrement as a
 Studio action is that a rule set does the bumping with nobody touching the card at all. Each row is
