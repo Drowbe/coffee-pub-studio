@@ -1137,6 +1137,7 @@ async function syncAutomationsServer() {
       runAction: (action, param, data) => runAutomationAction(action, param, data),
       getScenes: () => (obs.connected ? obs.listScenes() : Promise.resolve([])),
       getSources: () => (obs.connected ? obs.listSourceNames() : Promise.resolve([])),
+      getMetadataFields: () => configStore.get().metadataFields,
       getObsStatus: () => {
         const o = obs.status();
         return {

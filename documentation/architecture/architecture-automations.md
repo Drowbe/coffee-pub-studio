@@ -438,6 +438,21 @@ correctly by `applySessionFilename`; an unknown field key, a non-Text field, and
 each failed with the same `500 {error}` shape increment/decrement already use, and left the target
 field untouched.
 
+One gap this surfaced immediately: a `param` naming a Metadata field's `key` only works for a
+caller that already knows the key, and nothing ever told an external caller what it was --
+`incrementMetadataField`/`decrementMetadataField` got away with this because they're only ever
+wired up *inside* Studio's own step editor, by a human who already sees the field list there.
+`setMetadataField` breaks that assumption the moment a module like Herald calls it directly with
+no Studio human in the loop, hardcoding a key it was told out of band -- which breaks silently the
+moment it talks to a different Studio setup with differently-named fields. Fixed by giving
+`GET /api/automations/capabilities` a `metadataFields` array (`key`/`label`/`type`, read fresh
+from config every request, same treatment `ruleSets` already gets) -- see "GET
+/api/automations/capabilities" in `api-automations.md`. Wired through `automations.js`'s existing
+`getX()` callback pattern (`getMetadataFields`, alongside `getScenes`/`getSources`), supplied by
+`syncAutomationsServer` in `main.js`. Lets a caller build its own settings picker instead of
+hardcoding a guess, the same way Studio's own rule-set editor already turns this into a dropdown
+rather than a name typed blind.
+
 The Metadata card itself has no inline bump buttons -- removed deliberately, since their presence
 implied a human needs to click one every time, when the entire point of Increment/Decrement as a
 Studio action is that a rule set does the bumping with nobody touching the card at all. Each row is

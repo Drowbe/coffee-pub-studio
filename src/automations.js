@@ -57,6 +57,7 @@ class AutomationsServer extends EventEmitter {
     this.runAction = null; // (action, param, data) => Promise -- see POST /api/automations/action
     this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
     this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
+    this.getMetadataFields = null; // () => the currently configured Metadata fields -- same endpoint
     this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
@@ -113,7 +114,7 @@ class AutomationsServer extends EventEmitter {
   // one-time "trust this" exception is tied to the actual certificate, and
   // a fresh one on every launch would mean re-clicking through the warning
   // every time.
-  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getObsStatus }) {
+  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getMetadataFields, getObsStatus }) {
     await this.stop();
     if (!getToken()) {
       this.setState('error', 'Set a token before enabling Automations.');
@@ -134,6 +135,7 @@ class AutomationsServer extends EventEmitter {
     this.runAction = runAction || null;
     this.getScenes = getScenes || null;
     this.getSources = getSources || null;
+    this.getMetadataFields = getMetadataFields || null;
     this.getObsStatus = getObsStatus || null;
     await new Promise((resolve) => {
       const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
@@ -157,6 +159,7 @@ class AutomationsServer extends EventEmitter {
     this.runAction = null;
     this.getScenes = null;
     this.getSources = null;
+    this.getMetadataFields = null;
     this.getObsStatus = null;
     if (!this.server) {
       if (this.state !== 'stopped') this.setState('stopped', '');
@@ -231,6 +234,22 @@ class AutomationsServer extends EventEmitter {
       const ruleSets = (this.getRuleSets ? this.getRuleSets() : [])
         .filter((r) => r.enabled)
         .map((r) => ({ name: r.name, group: r.group, event: r.event }));
+      // Same reasoning as scenes/sources just below: a paramType of
+      // "metadataField" (incrementMetadataField/decrementMetadataField/
+      // setMetadataField) only says the KIND of value an action's `param`
+      // takes, not which ones actually exist -- without this, a caller
+      // wanting setMetadataField would have to hardcode a field key it
+      // guessed or was told out of band, which breaks the moment it talks
+      // to a different Studio setup with different field names. `type` is
+      // included so a caller can filter to what a given action actually
+      // accepts (setMetadataField: "text" only; increment/decrement:
+      // "number" or the two compound types) the same way Studio's own step
+      // editor's picker already does.
+      const metadataFields = (this.getMetadataFields ? this.getMetadataFields() : []).map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type,
+      }));
       // Live OBS round trips: an action's paramType ("scene"/"source") only
       // says what KIND of value it takes, not which ones actually exist --
       // without this a caller knows sceneSwitch wants a scene name but not
@@ -239,7 +258,7 @@ class AutomationsServer extends EventEmitter {
       (async () => {
         const scenes = this.getScenes ? await this.getScenes().catch(() => []) : [];
         const sources = this.getSources ? await this.getSources().catch(() => []) : [];
-        send(200, { actions: this.actions, ruleSets, scenes, sources });
+        send(200, { actions: this.actions, ruleSets, scenes, sources, metadataFields });
       })();
       return;
     }

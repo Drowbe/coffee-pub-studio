@@ -123,7 +123,11 @@ or guess either:
     { "name": "1. Title Sequence", "current": false },
     { "name": "3. PLAY VIEW", "current": true }
   ],
-  "sources": ["Window: Game (CP Studio)", "Region: Stream>Chat Feed (CP Studio)"]
+  "sources": ["Window: Game (CP Studio)", "Region: Stream>Chat Feed (CP Studio)"],
+  "metadataFields": [
+    { "key": "sessionTitle", "label": "Title", "type": "text" },
+    { "key": "sessionSeason", "label": "Season", "type": "textNumber" }
+  ]
 }
 ```
 
@@ -143,6 +147,21 @@ fresh on every capabilities request (a real round trip, not cached), so `scenes[
 reflects whichever scene is live right now, matching Studio's own OBS Control card highlighting
 it. Empty arrays, not an error, when OBS isn't connected -- there is nothing to offer yet, same as
 Studio's own card in that state.
+
+`metadataFields` is every Metadata field configured on Studio's Session tab right now -- its
+`key` (what a `metadataField`-typed `param` actually needs), `label` (what a human named it), and
+`type` (`"text"`, `"number"`, `"textNumber"`, `"numberText"`, or `"checkbox"`). This is what makes
+`incrementMetadataField`/`decrementMetadataField`/`setMetadataField` genuinely usable by an
+external caller instead of only from Studio's own step editor: without it, a module like Herald
+would have to hardcode a field key it was told out of band (`"sessionTitle"`), which breaks the
+moment it talks to a different Studio setup where the person running it named things differently.
+With it, a caller can build its own settings picker -- "Which Studio field should hold the Title?"
+-- filtered to whichever `type` its own action needs (`setMetadataField` only ever accepts
+`"text"`; increment/decrement only accept `"number"`/`"textNumber"`/`"numberText"`), populated
+from this list, the same way Studio's own rule-set editor already filters its Metadata-field
+picker by type. Read fresh from config on every capabilities request, same as `ruleSets` above --
+not cached, so a field renamed or deleted on Studio's Session tab shows up (or disappears) the
+next time a caller re-checks.
 
 `ruleSets` is whatever is actually configured and enabled on the Automations tab right now: each
 one's `name`, `group`, and the `event` that fires it -- not its internal step sequence, which is
