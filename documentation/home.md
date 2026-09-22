@@ -3,6 +3,8 @@
 **Audience:** anyone deciding whether to install Coffee Pub Studio, or looking for where to read
 more about it.
 
+![Coffee Pub Studio](assets/wordmark-card.png)
+
 The production side of the Coffee Pub suite: a standalone macOS and Windows app that wraps any
 web page in a fixed-size Chromium window so OBS can capture it as its own source, and keeps that
 OBS source cropped, pointed and in sync. It's optimized for running FoundryVTT sessions but not

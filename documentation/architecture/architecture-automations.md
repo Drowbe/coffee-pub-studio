@@ -294,8 +294,9 @@ rule set, not to let a *later* step react to it.
 
 `runIf` (`src/config.js`, step sanitizer -- `"always"`/`"onSuccess"`/`"onFailure"`, default
 `"always"`) is a small, deliberately narrow answer: not a general if/then over arbitrary conditions
-(the "if `data.player` is Nik Melok" kind of thing TODO.md already lists as a real idea, not built)
--- just "did the *previous stage* succeed or fail." Only meaningful on a step that opens its own
+(matching on a field inside an event's own `data`, not merely whether the previous stage succeeded
+or failed -- a real idea, not built) -- just "did the *previous stage* succeed or fail." Only
+meaningful on a step that opens its own
 stage (`and: false`); a step joining the current stage via `and` has no distinct "previous" of its
 own, so the step editor (`buildStepRow`, `src/control/control.js`) hides the control whenever `and`
 is on, showing it right next to the With/After toggle otherwise -- same visual language (a small

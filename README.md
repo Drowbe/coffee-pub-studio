@@ -1,4 +1,7 @@
-# Coffee Pub Studio
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="src/assets/wordmark-white.png">
+  <img src="documentation/assets/wordmark.png" alt="Coffee Pub Studio" width="480">
+</picture>
 
 The production side of the Coffee Pub suite: a standalone macOS and Windows app that wraps any
 web page in a fixed-size Chromium window so OBS can capture it as its own source, and keeps that
