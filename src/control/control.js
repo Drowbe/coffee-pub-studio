@@ -867,7 +867,18 @@ function applyConfig(next) {
   if (document.activeElement !== obsPortEl) obsPortEl.value = String(config.obs.port);
   if (document.activeElement !== sessionFilenameFormatEl) sessionFilenameFormatEl.value = config.session.filenameFormat;
   updateFilenamePreview();
-  renderMetadataFields();
+  // renderMetadataFields rebuilds every row from scratch, including
+  // whichever one is mid-edit -- a fresh <input> reading field.value (the
+  // just-arrived server value) replaces the one the user's actually typing
+  // or stepping through, discarding anything not yet saved. Only the
+  // explicit Save checkmark calls scheduleSave (a stepper click or a
+  // keystroke alone doesn't), and OBS's own status polling broadcasts
+  // roughly every 2 seconds while connected, so a broadcast landing
+  // mid-edit -- entirely plausible, not a rare race -- silently reverted
+  // whatever was being typed before it was ever saved. Same reasoning
+  // already applied to appWinEls.list below; skip the whole rebuild while
+  // any row is being edited, same as that.
+  if (!editingMetadataFieldId) renderMetadataFields();
   if (firstLoad || (JSON.stringify(config.appWindows) !== appWinSignature && !isEditing(appWinEls.list))) renderAppWindows();
   applyTavernConfig();
   applyAutomationsConfig(firstLoad);
