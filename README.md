@@ -208,6 +208,7 @@ src/dock/              Edge dock page (HTML, CSS, JS); src/dock-preload.js bridg
 src/parking.js         Geometry for parking windows off a free display edge
 src/bar/               The bar at the top of each window (HTML, CSS, JS); add per-window controls here
 build/icon.png         App icon: the Coffee Pub brandmark (src/assets/logo.png)
+src/assets/tray.png     Menu bar icon (@2x alongside it); a real color icon, not a template image
 ```
 
 ## Troubleshooting
