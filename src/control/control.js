@@ -1580,6 +1580,15 @@ api.onStatus((next) => {
   automationsObsWasConnected = obsConnected;
 });
 
+// The showToast Studio action's own push -- main.js sends this whenever
+// that step runs, whether or not this window happens to be open at the
+// time (see runAutomationAction's 'showToast' case). Styled as an error
+// toast: the action exists mainly to surface something that needs a human
+// to go handle manually (a failed upload, say), and every showToast call
+// is also logged to the Connections activity feed regardless, so nothing
+// is lost if this window wasn't open to catch it live.
+api.onToast((message) => showToast(message, { type: 'error' }));
+
 // ---------------------------------------------------------------------------
 // Tavern
 // ---------------------------------------------------------------------------
@@ -2098,6 +2107,7 @@ const STUDIO_ACTIONS = [
   { value: 'decrementMetadataField', label: 'Decrement a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'setMetadataField', label: 'Set a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'clearMetadataField', label: 'Clear a Prompt field back to blank', paramType: 'metadataField', group: 'Studio Control' },
+  { value: 'showToast', label: 'Show a toast in Studio', paramType: 'text', group: 'Studio Control' },
   { value: 'uploadToYouTube', label: 'Upload the recording to YouTube', paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 
@@ -2870,7 +2880,34 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
     mainRow.appendChild(actionSelect);
 
     const meta = actions.find((a) => a.value === step.action) || actions[0];
-    if (meta && meta.paramType !== 'none' && meta.paramType !== 'ruleSet' && meta.paramType !== 'metadataField' && meta.paramType !== 'youtubeUpload') {
+    // showToast's param is free text (a message), not a picker -- a plain
+    // input rather than the live-options <select> every other paramType
+    // renders below. {token}s are expanded the same way a filename
+    // template is (formatSessionTemplate, src/main.js), so the picker's
+    // "Insert a Data Field" info button is offered here too.
+    if (meta && meta.paramType === 'text') {
+      const paramInput = document.createElement('input');
+      paramInput.type = 'text';
+      paramInput.className = 'automation-step-value';
+      paramInput.placeholder = 'Message — {sessionTitle} to insert a Data Field';
+      paramInput.value = step.param || '';
+      paramInput.dataset.sfield = 'param';
+      paramInput.spellcheck = false;
+
+      const pickerToggle = document.createElement('button');
+      pickerToggle.type = 'button';
+      pickerToggle.className = 'btn btn-small btn-icon';
+      pickerToggle.title = 'Insert a Data Field';
+      pickerToggle.setAttribute('aria-label', 'Insert a Data Field');
+      pickerToggle.innerHTML = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>';
+
+      const pickerPanel = document.createElement('div');
+      pickerPanel.className = 'datafield-picker';
+      pickerPanel.hidden = true;
+      pickerToggle.addEventListener('click', () => toggleDataFieldPicker(pickerPanel, paramInput));
+
+      mainRow.append(paramInput, pickerToggle, pickerPanel);
+    } else if (meta && meta.paramType !== 'none' && meta.paramType !== 'ruleSet' && meta.paramType !== 'metadataField' && meta.paramType !== 'youtubeUpload') {
       const options = optionsForParamType(meta.paramType);
       const paramSelect = document.createElement('select');
       paramSelect.dataset.sfield = 'param';

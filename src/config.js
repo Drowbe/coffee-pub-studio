@@ -222,7 +222,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 const STUDIO_ACTIONS = [
   'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
   'applySessionFilename', 'runRuleSet', 'incrementMetadataField', 'decrementMetadataField',
-  'setMetadataField', 'clearMetadataField', 'uploadToYouTube',
+  'setMetadataField', 'clearMetadataField', 'showToast', 'uploadToYouTube',
 ];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
@@ -255,6 +255,12 @@ const STUDIO_ACTION_SCHEMA = [
   // answered it last. Placed wherever a prompted value's own episode/
   // session is actually over -- Studio has no notion of that on its own.
   { action: 'clearMetadataField', label: 'Clear a Prompt field back to blank', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
+  // param is free text, not a picker -- a toast message, expanded through
+  // the same {token} composition applySessionFilename's template gets
+  // (formatSessionTemplate, src/main.js). paramType "text" gets a plain
+  // input in the step editor rather than the dropdown every other
+  // paramType renders (see buildStepRow, src/control/control.js).
+  { action: 'showToast', label: 'Show a toast in Studio', param: 'message', paramType: 'text', group: 'Studio Control' },
   // No single `param` -- five named slots instead (titleField/
   // descriptionField/categoryField/madeForKidsField/visibilityField, each a
   // Metadata field key; madeForKidsField must point at a "checkbox" field

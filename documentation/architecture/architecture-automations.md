@@ -322,6 +322,34 @@ On Success was skipped, and the field the On Success branch would have written w
 untouched; a `[Wait]` stage placed between a successful first step and an On Success-gated third step
 did not reset the tracked outcome -- the gated step still ran.
 
+### `showToast`, and a real chaining gotcha it surfaced
+
+Raised directly as `runIf`'s first real use: a toast in Studio's own control panel when a YouTube
+upload fails, so it doesn't just sit quietly in the Connections log until someone happens to check.
+`showToast` (`param`: the message, `{token}`-expanded through `formatSessionTemplate` the same way
+`applySessionFilename`'s template already is) pushes an IPC `'toast'` event to `controlWindow` if
+it's open (silently a no-op otherwise -- a toast with nobody to show it to just doesn't display) and
+always logs to the Connections activity feed regardless, so nothing's lost if the window wasn't open
+at the moment. `paramType: "text"` is new too (`src/config.js`'s schema, `src/control/control.js`'s
+step editor) -- every other action's `param` is a picker; this is the first one that's genuinely
+free text, so the step editor needed its own plain-input branch instead of the `<select>` every
+other `paramType` renders, reusing the same "Insert a Data Field" picker a Text Metadata field's own
+value input already has.
+
+Wiring it into the real `"Upload to Youtube"` rule set surfaced a genuine correctness trap in
+`runIf` chaining: the natural-looking order -- upload, then the toast (On Failure), then
+`clearMetadataField` (On Success) -- is wrong. `showToast` itself always *succeeds* (it doesn't
+throw), so if it sat between the upload and the clear step, its own successful completion would
+overwrite `lastOutcome` back to `'success'` right before the clear step's own gate checks it,
+erasing the upload's real failure. The fix is ordering, not code: **`clearMetadataField` (On
+Success) has to come immediately after the upload, and `showToast` (On Failure) last** -- when the
+upload fails, the On Success clear step is skipped (its gate isn't met), which leaves `lastOutcome`
+untouched per `runRuleSet`'s "skipped stages don't touch the tracked outcome" rule (see above), so
+the toast at the end still correctly sees the *original* failure, not whatever the clear step (which
+never ran) would have produced. This is exactly the "skip preserves outcome, not merely 'true skips
+straight to the next thing'" design already verified above -- this is its first real payoff, not a
+new mechanism.
+
 ## A plain Number field's own zero-padding
 
 A second real gap the same review surfaced: a Text+Number/Number+Text field's own number segment

@@ -158,7 +158,8 @@ request itself needs.
 `group` on each is meant for building a menu -- `"Controls"`, `"Scenes"`, `"Sources"`, or
 `"Studio Control"` -- grouped the same way Studio's own OBS Control card is laid out. `paramType`
 says what kind of thing `param` holds (`"scene"`, `"source"`, `"ruleSet"`, `"metadataField"`,
-`"youtubeUpload"`, or `"none"`) -- `youtubeUpload` (`uploadToYouTube` alone) is the one exception to
+`"text"`, `"youtubeUpload"`, or `"none"`) -- `"text"` (`showToast` alone, currently) means `param` is
+free text, not a picker value; `youtubeUpload` (`uploadToYouTube` alone) is the one exception to
 "one param": it has five named fields instead (see the Studio actions table below), not
 discoverable or callable meaningfully via this API at all -- Studio's own step editor is the only
 place that builds it. `scenes` and `sources` below are the actual live values to offer for those two kinds, the same way Studio's own
@@ -370,6 +371,7 @@ disconnected:
 | `incrementMetadataField` / `decrementMetadataField` | Adds or subtracts 1 from a Metadata field (`param`, its `key`) -- a plain Number field's value, or a Text+Number/Number+Text field's number segment. Fails with a clear error if the field doesn't exist or isn't a Number-shaped type |
 | `setMetadataField` | Writes an explicit value into a Text-type Metadata field (`param`, its `key`), replacing whatever was there -- the persistence increment/decrement give Number fields, generalized to an explicit set. This is what lets a value outlive a single request: set a Metadata field now, and a *later, separate* call (a different event, run minutes afterward) that reads the same field back -- `applySessionFilename`'s `{sessionTitle}`, say, or `uploadToYouTube`'s `descriptionField` -- sees it. Fails with a clear error if the field doesn't exist or isn't Text-shaped (a Number/Text+Number/Number+Text field already has increment/decrement; a checkbox's only sensible values are boolean) |
 | `clearMetadataField` | Resets a Prompt-type Metadata field (`param`, its `key`) back to blank -- the other half of "Prompt fields" above: what makes a field ask fresh again the *next* time it's needed, instead of an old answer silently satisfying every future run forever. Fails with a clear error if the field doesn't exist or isn't Prompt-shaped |
+| `showToast` | Pops a toast in Studio's own control panel (`param`, the message -- free text, `{token}`-expanded the same way `applySessionFilename`'s template is) for whoever happens to be looking at it right now. A no-op, not a failure, if Studio's window isn't open; always logged to the Connections activity feed either way. The natural pairing is a rule set's own conditional steps (see "Sequences, delays, and running steps together" below) -- On Failure, say, for something that needs a human to go handle manually -- but nothing here requires that pairing |
 | `uploadToYouTube` | Uploads a recording (the most recent one OBS reported, unless the step overrides it) to YouTube. Not driven by `param` at all -- five separate Metadata field keys instead (`titleField`, `descriptionField`, `categoryField`, `madeForKidsField`, `visibilityField`), configured on the step, not passable through this API. No playlist support -- see `architecture-automations.md`'s "Uploading a recording to YouTube" for why |
 
 `setMetadataField`'s value, on a direct `POST /api/automations/action` call, comes from `data.value`

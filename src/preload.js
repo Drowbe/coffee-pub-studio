@@ -85,4 +85,9 @@ contextBridge.exposeInMainWorld('coffeePub', {
     ipcRenderer.on('status', listener);
     return () => ipcRenderer.removeListener('status', listener);
   },
+  onToast: (callback) => {
+    const listener = (_event, message) => callback(message);
+    ipcRenderer.on('toast', listener);
+    return () => ipcRenderer.removeListener('toast', listener);
+  },
 });

@@ -1006,6 +1006,26 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
     }
     case 'uploadToYouTube':
       return runYouTubeUpload(stepContext || {}, eventData, ruleSetId);
+    // Pops a toast in Studio's own control panel, right now, for whoever
+    // happens to be looking at it -- the natural pairing for runIf's
+    // "onFailure" (a failed YouTube upload, say, that needs a human to go
+    // handle manually), though nothing here requires that pairing. `param`
+    // is the message, {token}-expanded the same way a filename template or
+    // a Text Metadata field's value already is, so a step can say
+    // something like "Upload failed for {sessionTitle}". Silently a no-op
+    // if the control window isn't open -- a toast with nobody to show it
+    // to just doesn't display, not an error -- but it's always logged to
+    // the Connections activity feed too, so it's still visible later even
+    // if nobody was watching at the moment.
+    case 'showToast': {
+      if (!param) throw new Error('showToast needs a message.');
+      const message = formatSessionTemplate(param, eventData);
+      if (controlWindow && !controlWindow.isDestroyed()) {
+        controlWindow.webContents.send('toast', message);
+      }
+      logActivity('Automations', `Toast: ${message}`, 'error');
+      return;
+    }
     default:
       throw new Error(`Unknown action: ${action}`);
   }
