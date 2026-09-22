@@ -280,7 +280,7 @@ function composeMetadataFieldValue(field) {
   }
   if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
   if (field.type === 'text') return expandTemplatePreview(String(field.value), new Set([field.key]));
-  if (field.type === 'prompt') return field.value ? `${field.value} (last answer)` : '(answered when the automation runs)';
+  if (field.type === 'prompt') return field.value ? `${field.value} (last answer)` : 'Prompted when the automation runs';
   return String(field.value);
 }
 
