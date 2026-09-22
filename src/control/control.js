@@ -1591,6 +1591,19 @@ api.onStatus((next) => {
 // feed regardless, so nothing is lost if neither notice was seen live.
 api.onToast((message) => showToast(message, { type: 'error' }));
 
+// showToast's real OS notification (main.js, the electron.Notification
+// module) shows only once macOS has actually granted this app permission
+// -- and on macOS that first-use system prompt is tied to the standard Web
+// Notification API's own permission request, not anything the main
+// process's Notification class triggers on its own. Requesting it here,
+// once, at startup, whenever it hasn't been decided yet ('default') is
+// what gets that system dialog to actually appear on a fresh install,
+// instead of the app silently going without permission forever. A no-op
+// once the person has answered it, either way.
+if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
 // ---------------------------------------------------------------------------
 // Tavern
 // ---------------------------------------------------------------------------
@@ -3469,16 +3482,25 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       }
     }
     // A "prompt" Metadata field is a harder requirement than an external
-    // Data Field above -- there is no way to run past it with a blank, real
+    // Data Field above -- there is no way to run past it while blank, real
     // trigger or not (see METADATA_FIELD_TYPES's comment, src/config.js),
     // so Studio's own Run Automation button has to ask too, walking into
     // any nested runRuleSet step the same way collectRequiredPrompts
-    // (src/main.js) does. One question at a time rather than a JSON blob --
-    // unlike external test data, a real answer here gets written into the
-    // field for keeps, not just used for this one test run.
+    // (src/main.js) does. Same blank-check checkAndApplyPrompts itself
+    // uses server-side: a required field that already holds a value is
+    // left alone here, not re-asked just because this rule set touches it
+    // -- asking again every time would defeat the entire point of a
+    // Prompt field's persistence (see checkAndApplyPrompts's own comment).
+    // One question at a time rather than a JSON blob -- unlike external
+    // test data, a real answer here gets written into the field for keeps,
+    // not just used for this one test run.
     const prompts = {};
     const requiredPrompts = collectRequiredPromptsPreview(ruleSet, config.automations.ruleSets, config.metadataFields || []);
-    for (const key of requiredPrompts) {
+    const stillBlank = [...requiredPrompts].filter((key) => {
+      const field = (config.metadataFields || []).find((f) => f.key === key);
+      return !(field && typeof field.value === 'string' && field.value);
+    });
+    for (const key of stillBlank) {
       const field = (config.metadataFields || []).find((f) => f.key === key);
       const answer = await promptModal(`This rule set needs a value for "${(field && field.label) || key}" to run:`, '');
       if (answer === null) return; // cancelled
