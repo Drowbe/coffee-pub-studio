@@ -796,6 +796,22 @@ function collectRequiredPrompts(ruleSet, allRuleSets, metadataFields, seenRuleSe
   return out;
 }
 
+// Whether a Prompt field currently has no answer -- the one thing that
+// actually makes it "required" right now, as opposed to merely "touched by
+// this rule set's steps" (which is all collectRequiredPrompts itself knows).
+// Shared by checkAndApplyPrompts (enforcement) and getRuleSets's own
+// `prompts` annotation below (GET /capabilities, i.e. discovery) so the two
+// can never drift apart the way they did live: capabilities kept listing a
+// field as required after it had already been answered and persisted --
+// checkAndApplyPrompts correctly let the run through regardless (it did its
+// own blank check), but a caller like Herald, reasonably reading
+// capabilities' `prompts` to decide whether to show a dialog, had no way to
+// know the field didn't actually need asking again.
+function isPromptFieldBlank(metadataFields, key) {
+  const field = metadataFields.find((f) => f.key === key);
+  return !(field && typeof field.value === 'string' && field.value);
+}
+
 // The enforcement half of collectRequiredPrompts: a rule set that touches a
 // "prompt" field cannot run while that field is genuinely blank, without a
 // fresh answer supplied in the exact same call that triggers it -- there is
@@ -832,10 +848,7 @@ function checkAndApplyPrompts(event, providedPrompts) {
   if (!required.size) return { ok: true };
 
   const provided = providedPrompts && typeof providedPrompts === 'object' ? providedPrompts : {};
-  const isBlank = (key) => {
-    const field = current.metadataFields.find((f) => f.key === key);
-    return !(field && typeof field.value === 'string' && field.value);
-  };
+  const isBlank = (key) => isPromptFieldBlank(current.metadataFields, key);
   const missing = [...required].filter((key) => !(typeof provided[key] === 'string' && provided[key]) && isBlank(key));
   if (missing.length) {
     const labels = missing.map((key) => (current.metadataFields.find((f) => f.key === key) || {}).label || key);
@@ -1329,16 +1342,26 @@ async function syncAutomationsServer() {
       // Annotated with `prompts` here (rather than automations.js computing
       // it) since collectRequiredPrompts and configStore both live on this
       // side -- automations.js just passes each rule set's own `prompts`
-      // straight through to GET /capabilities.
+      // straight through to GET /capabilities. Filtered through
+      // isPromptFieldBlank -- a field collectRequiredPrompts found this rule
+      // set touches but that already holds a value is NOT included, same as
+      // checkAndApplyPrompts's own enforcement already treats it. Without
+      // this, capabilities kept advertising a field as required forever
+      // after it was first answered, even though firing the event with no
+      // answer for it would have succeeded anyway -- a caller reasonably
+      // trusting `prompts` to decide whether to show a dialog had no way to
+      // know that.
       getRuleSets: () => {
         const { ruleSets } = configStore.get().automations;
         const { metadataFields } = configStore.get();
         return ruleSets.map((r) => ({
           ...r,
-          prompts: [...collectRequiredPrompts(r, ruleSets, metadataFields)].map((key) => ({
-            key,
-            label: (metadataFields.find((f) => f.key === key) || {}).label || key,
-          })),
+          prompts: [...collectRequiredPrompts(r, ruleSets, metadataFields)]
+            .filter((key) => isPromptFieldBlank(metadataFields, key))
+            .map((key) => ({
+              key,
+              label: (metadataFields.find((f) => f.key === key) || {}).label || key,
+            })),
         }));
       },
       actions: [...AUTOMATIONS_ACTION_SCHEMA, ...STUDIO_ACTION_SCHEMA],

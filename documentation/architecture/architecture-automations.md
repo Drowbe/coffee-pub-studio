@@ -557,8 +557,24 @@ Recording"` via its call to `"Set Session Info"`, say -- still reports it correc
 `POST /api/automations/event` refusing to run at all unless every required prompt is answered in
 that same call. This turns "Herald pre-configures a field mapping for concepts it invents" into
 "Herald asks Studio what a rule set needs, generically, every time" -- full design, the exact
-recursion problem this raised, and what was verified live (including the "answered once doesn't
-exempt a later call" semantics) in `documentation/plans/plan-automation-prompts.md`.
+recursion problem this raised, and (after an initial "answered once doesn't exempt a later call"
+version was corrected to today's blank-check semantics -- a field already holding a value is
+satisfied without being re-asked, see the "Addendum: blank-check semantics and
+clearMetadataField" section below for why that changed) what was verified live in
+`documentation/plans/plan-automation-prompts.md`.
+
+`prompts`' *discovery* half (what `GET /capabilities` reports) and its *enforcement* half (what
+`POST /event` actually requires) are computed by two different call sites sharing
+`collectRequiredPrompts` -- and for one release, they quietly disagreed: enforcement correctly
+did its own blank check (`isBlank` in `checkAndApplyPrompts`) and let an already-answered field's
+run through with no `prompts` needed, but discovery never got the same treatment, so
+`GET /capabilities` kept listing a field as required forever after it was first answered. Caught
+live: Herald, reasonably trusting `prompts` to decide whether to show a dialog, kept re-prompting
+for a title that Studio's own enforcement would have accepted without it. Fixed by extracting the
+blank check into one shared `isPromptFieldBlank`, used by both call sites, so discovery and
+enforcement can't drift apart like that again -- verified with the exact repro shape (answer a
+field, confirm `prompts` drops it immediately; clear it, confirm it reappears; answer it again,
+confirm it drops again).
 
 The Metadata card itself has no inline bump buttons -- removed deliberately, since their presence
 implied a human needs to click one every time, when the entire point of Increment/Decrement as a

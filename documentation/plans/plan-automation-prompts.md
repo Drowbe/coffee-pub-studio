@@ -171,3 +171,35 @@ back to `""`; fired again with no `prompts` -> `400` again, confirming a cleared
 demanding a fresh answer; `clearMetadataField`'s own validation (unknown field, a non-Prompt field,
 a missing `param`) each failed the same `500 {error}` shape every other action-validation error
 uses, and left the target field untouched.
+
+### Addendum: discovery and enforcement had quietly drifted apart
+
+Caught from a real Herald repro, reported live: a title was answered at "Begin Session Recording,"
+recording started fine, and "End Session Recording" still prompted for it again a moment later --
+looking exactly like the original bug the blank-check fix above was supposed to have already
+solved. It was a different bug with the same symptom. `checkAndApplyPrompts` (enforcement, what
+`POST /event` actually checks) had the blank-check fix; `GET /capabilities`'s own `prompts`
+annotation (discovery, what a caller like Herald reads to decide whether to show a dialog at all)
+never got the same treatment -- it kept listing a field as required forever after it was first
+answered, computed purely from `collectRequiredPrompts`'s static "does this rule set's steps touch
+this key" walk, with no check of the field's actual current value. Verified with an isolated
+repro matching the real shape exactly (a Start-equivalent rule set writing a field, a
+Stop-equivalent rule set reading it): the value was confirmed to persist correctly and firing Stop
+with no `prompts` succeeded (enforcement was fine, as expected) -- but `GET /capabilities`
+immediately after still listed the field as required regardless, proving discovery was the actual
+bug, not persistence.
+
+Fixed by extracting the blank check into one shared `isPromptFieldBlank(metadataFields, key)`
+(`src/main.js`), used by both `checkAndApplyPrompts` and the `getRuleSets` callback that builds
+`GET /capabilities`'s `prompts`, so the two paths read the same field state through the same
+function and can't independently drift again. Re-verified the full cycle on the same fixture:
+answered -> `prompts` immediately empty; `clearMetadataField` -> `prompts` lists it again;
+answered again -> empty again.
+
+This is also a general lesson worth naming, not just a one-off bug: any time the same "is this
+actually still required" question gets asked from two different code paths (an HTTP response body
+a caller reads to decide whether to act, versus the enforcement that runs when they do act), they
+need to share the literal check, not two hand-written copies of it -- the renderer's own
+`collectRequiredPromptsPreview` (Run Automation's pre-flight dialog) already had its own blank
+filter added in an earlier fix for the identical reason, and this is the same class of drift,
+just server-side.
