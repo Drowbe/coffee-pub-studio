@@ -2,6 +2,31 @@
 
 Things agreed on but not built yet, roughly in order.
 
+## App windows
+
+- **App windows, phase 1 is built and confirmed on macOS: capture and keep-pointed only.** A separate
+  `appWindows` config list (not a web-window "view" -- those are tied to Electron windows Studio
+  owns) with a saved match rule (app + title substring against OBS's own window list) and a managed
+  OBS source, re-pointed on every sync alongside the web windows. Not yet built:
+  - **Cropping is built as manual numbers** (Left/Top/Right/Bottom, plus a "Trim title bar"
+    button and a Show cursor toggle) -- confirmed working live on macOS. **Still open: a drag-to-select
+    crop picker and named regions for app windows.** The region picker takes its snapshot from
+    Studio's own page; an app window would need a snapshot from `desktopCapturer`, which means
+    Studio needs its own Screen Recording permission (unchecked whether it has it). Capture
+    method is deliberately fixed at Window Capture.
+  - **Windows.** OBS uses `window_capture` with a `Title:Class:Exe` string instead of a numeric
+    ID, so source creation and re-pointing need a second path -- the same gap already listed under
+    Known issues for web windows.
+  - **Moving/resizing/docking another app's window.** Needs Accessibility permission (macOS) or
+    Win32 calls; deliberately out of scope.
+  - **First use needs an existing window source.** OBS only exposes its window list through an
+    existing input; with none, the picker says so instead of listing.
+  - **Confirmed working live on macOS**: pick, Add to OBS, and re-pointing on sync. Two things
+    it surfaced and fixed: card handlers edited a stale copy of the entry after a save round-trip
+    (they now look it up by id), and matching by app name alone could land on an app's hidden,
+    untitled helper window, leaving a source with nothing selected (it now prefers the exact
+    window picked, then a titled match, and the tab shows which window is being captured).
+
 ## Tavern
 
 Bigger Tavern-side design work (multi-admin "who drives the stream," multiple simultaneous
@@ -44,20 +69,73 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   (`/api/automations/event`, token-authed), matched against user-configured, named and grouped
   rule sets, each a numbered sequence of OBS and Studio actions and delays (steps marked AND run
   together instead of waiting) -- verified live end to end, including a real OBS WebSocket round
-  trip. The Automations tab also works as a plain manual OBS remote with no Foundry module
-  involved, and a Studio Control card exposes Studio's own commands (wake audio, start/stop/dock
-  all windows, sync OBS) opt-in per command. Full HTTP contract and a worked Herald example
-  (`combatStart` via Blacksmith's `HookManager`) are on the wiki, at `api-automations`. What's
-  still open: nothing on Herald's side actually calls this yet -- that's a real feature to build
-  in `coffee-pub-herald`, not just a settings toggle, and the hook names in that example are a
-  suggested starting point, not verified against a live v14 client the way the rest of Herald's
-  own wiki insists on. Also open here: only `event`/`data` are read today, no Studio -> Foundry
-  direction exists (not needed for the stated goals: "Herald tells Studio" and "Studio drives OBS
-  directly" both only need this one direction), and there is no conditional ("if/then") trigger --
-  a rule set matches on the event name alone, never on a field inside `data` (e.g. "if the event's
-  `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching, not
-  just a delay-then-hide step sequence, and nothing sends payload data structured enough to match
-  against yet, so it stays an idea, not a build, until a real use case does.
+  trip, and against a real Herald build: Herald now calls `/capabilities` and `/event`, hit and
+  helped fix the `rules` -> `ruleSets` rename, and 4 real rule sets are configured and firing.
+  The Automations tab also works as a plain manual OBS remote with no Foundry module involved,
+  and Studio's own commands (wake audio, start/stop/dock all windows, sync OBS, apply the session
+  filename) are available the same as any OBS action -- no separate opt-in, the automations token
+  is the only gate, same as everything else here. Full HTTP contract and a worked Herald example
+  (`combatStart` via Blacksmith's
+  `HookManager`) are on the wiki, at `api-automations`. Still open: a bare action (`sceneSwitch`,
+  `setText`, and so on) is only reachable via a matching rule set or a direct
+  `POST /api/automations/action` call -- there is still no conditional ("if/then") trigger, where
+  a rule set would match on a field inside an event's `data`, not just the event name alone (e.g.
+  "if `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching,
+  not just a delay-then-hide step sequence, and stays an idea, not a build, until a real use case
+  needs it.
+- ~~**Herald-driven text sources, and Studio-managed season/episode.**~~ `setText` writes a value
+  from an event's own `data` into a named OBS text source (which key of `data` is configurable
+  per step, so one event can drive two different sources); `applySessionFilename` applies a
+  template to OBS's own recording Filename Formatting. Full design and what was verified live
+  (every write captured and restored) in
+  `documentation/plans/plan-session-text-and-youtube-upload.md`. The season/episode-tracking half
+  of this (a dedicated Episode card, `incrementEpisode`, `applyEpisodeText`) was later retired --
+  see the next item.
+- ~~**Studio-defined metadata fields, and multi-module Data Field registration.**~~ The Session
+  tab's Metadata card lets the person running Studio create their own Text, Number, or Text+Number
+  values (a campaign name, a countdown, "Chapter 5"), each registered into the same "Data Field"
+  dropdown a connected module's own fields already populate, alongside built-in evergreen fields
+  (today's date/time). Doing this surfaced that `POST /api/automations/fields` wholesale-replaced
+  the entire registered list on every call; fixed to scope replacement per module (a required
+  `module` field in the request body) so a second connected module can't wipe out the first's
+  fields -- a breaking API change, published to the wiki ahead of the Studio-side implementation
+  landing. Full design and what was verified live in
+  `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated Episode card
+  (season/episode as their own tracked numbers, separate from this system) redundant -- see the
+  item above. A Number field's "+1"/"-1" Data Field suffix (a mutation hiding inside a read) was
+  later retired in favor of explicit `incrementMetadataField`/`decrementMetadataField` Studio
+  actions, once it caused a real double-increment bug -- see the addendum in that same plan file
+  and "Composing rule sets" in `architecture-automations.md`.
+- **A rule-set stage's concurrent steps can race on `configStore`.** Noticed while building the
+  Increment/Decrement actions above, not fixed: a stage's steps run together via `Promise.all`
+  (`runRuleSet`, `src/main.js`), and any two of them that both read-modify-write
+  `configStore` state (two Increment steps for different Metadata fields in the same `and`-joined
+  stage, say) can race -- both read the same "before" state, and whichever saves second silently
+  overwrites the first's change rather than merging it. Worked around for the one place it matters
+  today by keeping the two Increment steps this session added to "Set Session Info" as separate
+  sequential stages (`and: false`) instead of one concurrent one, but the engine itself has no
+  guard against a user building a rule set that hits this. A real fix (an in-process mutex around
+  `configStore.save`, or making the read-modify-write atomic some other way) needs its own design
+  pass, not a quick patch here.
+- ~~**Naming convention enforcement for Window Source names.**~~ Done: Window Source now gets the
+  same treatment as Region -- a `.name-compose` chip splits the fixed `Window: `/` (CP Studio)`
+  wrapper from the editable label, the field only ever edits the label, and saving always composes
+  the full name (`commitWindowSourceName`, `WINDOW_SOURCE_NAME_RE`, `src/control/control.js`). A
+  legacy or adopted name that doesn't match the pattern displays unwrapped until next edited, then
+  gets wrapped like everything else -- auto-adoption itself is untouched, so an adopted hand-made
+  OBS name never risks diverging from what's actually in OBS. The unclaimed-name datalist this
+  field used to offer was dropped along with it, since suggesting full wrapped or hand-made names
+  into a label-only field no longer made sense.
+- ~~**Automated YouTube upload.**~~ Confirmed working end-to-end against the real API, including a
+  real completed upload (`uploadToYouTube`, a Studio action, opt-in rule-set step only, never
+  automatic) -- device-flow OAuth, the resumable upload endpoint, title/description/privacy all
+  confirmed live. **No playlist support** -- tried, then removed after Google's device-code endpoint
+  rejected the broader OAuth scope playlist support needs ("Invalid device flow scope"), a live-
+  confirmed Google restriction on this auth flow, not a bug here; add an upload to a playlist by
+  hand afterward in YouTube Studio. See "Uploading a recording to YouTube" in
+  `documentation/architecture/architecture-automations.md` for the full account, including what
+  else was found live (a UI bug in the device-code link, the Metadata Quick Add feature it led to,
+  and the Google Auth Platform console UI's actual layout).
 - **Unify the control panel's design system.** Fixing the CP Tavern tab's layout surfaced a
   pattern: styling for the same kind of thing (a sub-section heading partway down a card, a
   divider row, spacing around a title) kept getting re-declared per instance instead of shared,

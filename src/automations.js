@@ -54,13 +54,37 @@ class AutomationsServer extends EventEmitter {
     this.getToken = null;
     this.getRuleSets = null; // () => the currently configured rule sets -- see GET /api/automations/capabilities
     this.actions = []; // the static action vocabulary Studio supports, same endpoint
-    this.runAction = null; // (action, param) => Promise -- see POST /api/automations/action
+    this.runAction = null; // (action, param, data) => Promise -- see POST /api/automations/action
     this.getScenes = null; // () => Promise<[{name, current}]> -- live OBS scene list, same endpoint
     this.getSources = null; // () => Promise<[string]> -- live OBS source names, same endpoint
+    this.getMetadataFields = null; // () => the currently configured Metadata fields -- same endpoint
+    this.checkPrompts = null; // (event, prompts) => {ok, error?} -- see POST /api/automations/event
     this.getObsStatus = null; // () => {obsConnected, recording, recordingPaused, streaming, scene} -- see GET /api/automations/status
     this.certPem = ''; // this server's own leaf cert, PEM -- see trustsOwnAutomationsCert() in main.js
     this.caCertPem = ''; // the CA that signed it, PEM -- served at GET /ca.crt
     this.events = []; // recent received events, newest first -- the tab's own log
+    // Data fields a connected module has told us it will send, via
+    // POST /api/automations/fields -- Map<module, [{key, label}]>, keyed by
+    // the caller's own `module` name so one module registering never wipes
+    // out another's (a flat wholesale-replace was fine with exactly one
+    // caller in mind; it stopped being fine the moment a second one showed
+    // up -- see plan-session-metadata-fields.md). In memory only, same as
+    // `events`: reset on restart, repopulated once a module reconnects and
+    // re-registers. Lets a setText step's "Data Field" picker be a real
+    // dropdown of what a module says it provides, instead of a name typed
+    // blind against an undocumented contract.
+    this.registeredFieldsByModule = new Map();
+  }
+
+  // The flat, merged view every consumer (status(), the Data Field
+  // dropdown) actually wants -- every module's fields concatenated, each
+  // tagged with which module sent it.
+  registeredFields() {
+    const out = [];
+    for (const [module, fields] of this.registeredFieldsByModule) {
+      for (const f of fields) out.push({ ...f, source: module });
+    }
+    return out;
   }
 
   status() {
@@ -70,6 +94,7 @@ class AutomationsServer extends EventEmitter {
       port: this.port,
       addresses: this.state === 'listening' ? lanAddresses() : [],
       events: this.events,
+      registeredFields: this.registeredFields(),
     };
   }
 
@@ -90,7 +115,7 @@ class AutomationsServer extends EventEmitter {
   // one-time "trust this" exception is tied to the actual certificate, and
   // a fresh one on every launch would mean re-clicking through the warning
   // every time.
-  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getObsStatus }) {
+  async start({ port, getToken, certDir, getRuleSets, actions, runAction, getScenes, getSources, getMetadataFields, checkPrompts, getObsStatus }) {
     await this.stop();
     if (!getToken()) {
       this.setState('error', 'Set a token before enabling Automations.');
@@ -111,6 +136,8 @@ class AutomationsServer extends EventEmitter {
     this.runAction = runAction || null;
     this.getScenes = getScenes || null;
     this.getSources = getSources || null;
+    this.getMetadataFields = getMetadataFields || null;
+    this.checkPrompts = checkPrompts || null;
     this.getObsStatus = getObsStatus || null;
     await new Promise((resolve) => {
       const server = https.createServer({ key: cert.key, cert: cert.cert }, (req, res) => this.handle(req, res));
@@ -134,6 +161,8 @@ class AutomationsServer extends EventEmitter {
     this.runAction = null;
     this.getScenes = null;
     this.getSources = null;
+    this.getMetadataFields = null;
+    this.checkPrompts = null;
     this.getObsStatus = null;
     if (!this.server) {
       if (this.state !== 'stopped') this.setState('stopped', '');
@@ -205,9 +234,31 @@ class AutomationsServer extends EventEmitter {
       // rule set exists and what event fires it (so a menu click can just
       // POST that same event to /api/automations/event), not its internal
       // step sequence.
+      // `prompts` (which "prompt"-type Metadata fields this rule set -- or
+      // anything it calls via runRuleSet -- would need answered to run) is
+      // computed on the main-process side (collectRequiredPrompts,
+      // src/main.js, via getRuleSets above) and just passed through here,
+      // same reasoning as everything else in this response: this server
+      // has no config or rule-set-graph knowledge of its own.
       const ruleSets = (this.getRuleSets ? this.getRuleSets() : [])
         .filter((r) => r.enabled)
-        .map((r) => ({ name: r.name, group: r.group, event: r.event }));
+        .map((r) => ({ name: r.name, group: r.group, event: r.event, prompts: r.prompts || [] }));
+      // Same reasoning as scenes/sources just below: a paramType of
+      // "metadataField" (incrementMetadataField/decrementMetadataField/
+      // setMetadataField) only says the KIND of value an action's `param`
+      // takes, not which ones actually exist -- without this, a caller
+      // wanting setMetadataField would have to hardcode a field key it
+      // guessed or was told out of band, which breaks the moment it talks
+      // to a different Studio setup with different field names. `type` is
+      // included so a caller can filter to what a given action actually
+      // accepts (setMetadataField: "text" only; increment/decrement:
+      // "number" or the two compound types) the same way Studio's own step
+      // editor's picker already does.
+      const metadataFields = (this.getMetadataFields ? this.getMetadataFields() : []).map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type,
+      }));
       // Live OBS round trips: an action's paramType ("scene"/"source") only
       // says what KIND of value it takes, not which ones actually exist --
       // without this a caller knows sceneSwitch wants a scene name but not
@@ -216,7 +267,7 @@ class AutomationsServer extends EventEmitter {
       (async () => {
         const scenes = this.getScenes ? await this.getScenes().catch(() => []) : [];
         const sources = this.getSources ? await this.getSources().catch(() => []) : [];
-        send(200, { actions: this.actions, ruleSets, scenes, sources });
+        send(200, { actions: this.actions, ruleSets, scenes, sources, metadataFields });
       })();
       return;
     }
@@ -260,6 +311,19 @@ class AutomationsServer extends EventEmitter {
         const event = typeof body.event === 'string' ? body.event.trim().slice(0, 60) : '';
         if (!event) return send(400, { error: '"event" is required' });
         const data = body.data && typeof body.data === 'object' ? body.data : {};
+        // Checked synchronously, before the event is even recorded -- a
+        // matched rule set (or anything it reaches via runRuleSet) that
+        // touches a "prompt" Metadata field cannot run without a fresh
+        // answer supplied right here, in `prompts`, in this same call (see
+        // checkAndApplyPrompts, src/main.js). Unlike everything else about
+        // this endpoint, that check -- and its 400 on failure -- happens
+        // before the response, not after: the whole point is refusing to
+        // fire at all, not firing with a blank.
+        if (this.checkPrompts) {
+          const prompts = body.prompts && typeof body.prompts === 'object' ? body.prompts : {};
+          const result = this.checkPrompts(event, prompts);
+          if (!result.ok) return send(400, { error: result.error });
+        }
         this.recordEvent(event, data);
         send(200, { ok: true });
       });
@@ -304,13 +368,68 @@ class AutomationsServer extends EventEmitter {
           return send(400, { error: `Unknown or currently disabled action: ${action}` });
         }
         const param = typeof body.param === 'string' ? body.param.trim().slice(0, 200) : '';
+        // Optional, for an action like setText that needs a value beyond
+        // param -- mirrors /event's own {event, data} shape. setText reads
+        // data.text by default (there's no per-request field-name override
+        // here the way a saved rule-set step's own dataField gives it).
+        const data = body.data && typeof body.data === 'object' ? body.data : undefined;
         if (!this.runAction) return send(500, { error: 'Studio is not ready to run actions.' });
         try {
-          await this.runAction(action, param);
+          await this.runAction(action, param, data);
           send(200, { ok: true });
         } catch (err) {
           send(500, { error: describeError(err) });
         }
+      });
+      return;
+    }
+
+    // Lets a connected module declare what it will actually put in a
+    // future POST /event's `data` -- the other half of the discovery
+    // GET /capabilities already gives a caller about Studio. Wholesale
+    // replaces whatever that SAME module (by its own declared `module`
+    // name) had registered before -- "here is my current full list", not
+    // "add to the list" -- so a module can just call this once at connect
+    // time, or again whenever its own fields change, without needing to
+    // track what it registered last time. Scoped per module rather than
+    // one flat list: a flat replace was fine with exactly one caller in
+    // mind, and stops being fine the moment a second module registers.
+    if (req.method === 'POST' && url === '/api/automations/fields') {
+      if (!authed()) return send(401, { error: 'Unauthorized' });
+      let size = 0;
+      const chunks = [];
+      let tooBig = false;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > MAX_BODY_BYTES) {
+          tooBig = true;
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', () => {
+        if (tooBig) return;
+        let body;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        } catch (err) {
+          return send(400, { error: 'Invalid JSON' });
+        }
+        const module = typeof body.module === 'string' ? body.module.trim().slice(0, 60) : '';
+        if (!module) return send(400, { error: '"module" is required' });
+        const fields = Array.isArray(body.fields) ? body.fields : [];
+        const sanitized = fields
+          .filter((f) => f && typeof f.key === 'string' && f.key.trim())
+          .slice(0, 100)
+          .map((f) => {
+            const key = f.key.trim().slice(0, 60);
+            const label = typeof f.label === 'string' && f.label.trim() ? f.label.trim().slice(0, 120) : key;
+            return { key, label };
+          });
+        this.registeredFieldsByModule.set(module, sanitized);
+        this.emit('status', this.status());
+        send(200, { ok: true, fields: sanitized });
       });
       return;
     }

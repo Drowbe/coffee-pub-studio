@@ -25,15 +25,72 @@
   </header>
 
   <nav class="tabs" id="tabs">
-    <button class="tab" data-tab="session" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Session</button>
+    <!-- Internal tab key "metadata" is the visible "Session" tab (this session's own data) --
+         same mismatch as "tavern" already being labeled "CP Tavern". -->
+    <button class="tab" data-tab="configuration" type="button"><span class="dot" id="obs-dot" title="OBS connection"></span>Configuration</button>
+    <button class="tab" data-tab="metadata" type="button">Session</button>
     <button class="tab" data-tab="automations" id="automations-tab" type="button" hidden><span class="dot" id="automations-dot" title="Automations server"></span>Automations</button>
     <button class="tab" data-tab="tavern" id="tavern-tab" type="button" hidden><span class="dot" id="tavern-dot" title="Tavern connection"></span>CP Tavern</button>
     <span id="view-tabs" class="view-tabs"></span>
+    <span id="appwin-tabs" class="view-tabs"></span>
     <button class="tab tab-add" data-tab="add" type="button" title="Add a window">+</button>
   </nav>
 
   <main>
-    <section class="tab-panel" id="tab-session">
+    <section class="tab-panel" id="tab-metadata">
+      <div class="card">
+        <h2>Metadata</h2>
+        <p class="hint">Your own Text, Number, Text+Number, or Prompt values ("Chapter 5", "5 Days Left") -- usable from any automation's "Data Field" picker, a Number segment offering "+1"/"-1" the same as a plain Number field. A Text field can also compose other fields into one value ("{sessionParty} {sessionSeason}{sessionEpisode} - {sessionCampaign} - {sessionTitle}"), the same <code>{field}</code> syntax as the Recording Filename format -- use its own <i class="fa-solid fa-circle-info" aria-hidden="true"></i> button to insert one instead of typing the key by hand; a plain value with no <code>{...}</code> in it is unaffected. A Prompt field has no value here at all -- running any automation that touches it (directly, from Studio's own step editor, or from an external caller like Herald) always asks for a fresh answer first, or refuses to run; that's the only way a Prompt field's value ever changes. Renaming isn't supported; delete a field and create a new one instead.</p>
+        <div id="metadata-quick-add" class="metadata-quick-add"></div>
+        <div id="metadata-fields" class="metadata-fields"></div>
+        <p class="hint" id="metadata-fields-empty">No metadata fields yet.</p>
+        <div class="row" id="metadata-add-form" hidden>
+          <label class="field field-inline">
+            <span>Label</span>
+            <input id="metadata-new-label" type="text" spellcheck="false" placeholder="Campaign">
+          </label>
+          <label class="field field-inline" title="Sets the field's key prefix -- sessionCampaign vs. youtubeCampaign">
+            <span>Category</span>
+            <select id="metadata-new-category">
+              <option value="session" selected>Session</option>
+              <option value="youtube">YouTube</option>
+            </select>
+          </label>
+          <label class="field field-inline">
+            <span>Type</span>
+            <select id="metadata-new-type">
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="textNumber">Text + Number</option>
+              <option value="numberText">Number + Text</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="prompt">Prompt</option>
+            </select>
+          </label>
+          <label class="field field-inline" id="metadata-new-separator-field" hidden>
+            <span>Separator</span>
+            <input id="metadata-new-separator" type="text" spellcheck="false" size="4" placeholder="none">
+            <span id="metadata-new-separator-hint" class="hint"></span>
+          </label>
+          <label class="field field-inline" id="metadata-new-padding-field" hidden>
+            <span>Padding</span>
+            <select id="metadata-new-padding">
+              <option value="0">No padding</option>
+              <option value="2">2 digits (01)</option>
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
+            </select>
+          </label>
+          <button id="metadata-add-confirm" class="btn btn-primary btn-small" type="button">Add</button>
+          <button id="metadata-add-cancel" class="btn btn-small" type="button">Cancel</button>
+        </div>
+        <div class="row">
+          <button id="metadata-add" class="btn btn-small" type="button">New</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-configuration">
       <div class="card">
         <h2>Connections</h2>
         <div class="connections-board" id="connections-board">
@@ -52,7 +109,45 @@
             <span class="connection-name">Automations</span>
             <span class="connection-state hint"></span>
           </div>
+          <div class="connection-chip" data-connection="youtube">
+            <span class="dot"></span>
+            <span class="connection-name">YouTube</span>
+            <span class="connection-state hint"></span>
+          </div>
         </div>
+        <div class="activity-log-box">
+          <div id="connections-activity" class="activity-log"></div>
+          <p class="hint" id="connections-activity-empty">No activity yet.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>OBS Control</h2>
+          </div>
+          <div class="view-actions">
+            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene and source list from OBS">Refresh</button>
+          </div>
+        </div>
+        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS. The same actions are what a rule set on the Automations tab, or a capabilities caller, can trigger.</p>
+        <div class="card-subsection"><span class="field-label">Controls</span></div>
+        <div class="row">
+          <button id="automations-start-recording" class="btn" type="button">Start Recording</button>
+          <button id="automations-pause-recording" class="btn" type="button">Pause Recording</button>
+          <button id="automations-resume-recording" class="btn" type="button" hidden>Resume Recording</button>
+          <button id="automations-stop-recording" class="btn" type="button">Stop Recording</button>
+          <span class="tag" id="automations-recording-tag" hidden>RECORDING</span>
+          <span class="tag tag-dim" id="automations-paused-tag" hidden>PAUSED</span>
+        </div>
+        <div class="row">
+          <button id="automations-start-streaming" class="btn" type="button">Start Streaming</button>
+          <button id="automations-stop-streaming" class="btn" type="button">Stop Streaming</button>
+          <span class="tag" id="automations-streaming-tag" hidden>STREAMING</span>
+        </div>
+        <div class="card-subsection"><span class="field-label">Scenes</span></div>
+        <div class="row automations-scene-buttons" id="automations-scenes"></div>
+        <p class="hint" id="automations-obs-status">OBS is not connected.</p>
       </div>
 
       <div class="card">
@@ -308,6 +403,69 @@
           <p class="hint" id="automations-status">Not enabled.</p>
         </div>
       </div>
+
+      <div class="card">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>YouTube</h2>
+            <span class="tag" id="youtube-tag" hidden>CONNECTED</span>
+          </div>
+        </div>
+        <p class="hint">The Studio Control action <strong>Upload the recording to YouTube</strong> uploads the most recent recording (or a specific file, per step) using whichever Metadata fields you wire to that step's Title/Description/Category/"Made for kids"/Visibility slots -- Category and Visibility fall back to the defaults below when left unset. Add it as a rule-set step on the Automations tab wherever you want it; it never runs on its own. There is no playlist option: adding a video to a playlist needs a broader permission Google's sign-in flow rejects outright for this kind of app ("Invalid device flow scope", confirmed live) -- add uploads to a playlist by hand afterward in YouTube Studio.</p>
+        <details class="cert-trust-help">
+          <summary>How to get a Client ID and Secret (Google Cloud Console, one-time setup)</summary>
+          <ol class="hint">
+            <li>Open <a href="#" id="youtube-open-api-library">console.cloud.google.com</a> and pick or create a project, then click <strong>Enable</strong> for the <strong>YouTube Data API v3</strong>.</li>
+            <li>Open the <a href="#" id="youtube-open-consent-screen">OAuth consent screen</a> page for that project. Fill in an app name and your email, and add the scope <code>.../auth/youtube.upload</code>. Leave <strong>Publishing status</strong> as <strong>Testing</strong> -- this is for your own use, and Google's full verification review (needed for "In production") is a slow process not worth going through for that.</li>
+            <li>Add your own Google account as a <strong>Test user</strong> -- Google has two different layouts for this depending on your account, so look in both places: the classic page has a <strong>Test users</strong> section right there; the newer "Google Auth Platform" redesign moves it to a separate <strong>Audience</strong> tab in its left sidebar. <strong>Skipping this step is the single most common failure</strong> -- without it, signing in fails with "Error 403: access_denied" even though everything else is set up correctly.</li>
+            <li>Open the <a href="#" id="youtube-open-credentials">Credentials</a> page (or, in the newer layout, the <strong>Clients</strong> tab in that same left sidebar) → <strong>Create Credentials</strong> → <strong>OAuth client ID</strong>. For <strong>Application type</strong>, choose <strong>"TVs and Limited Input devices"</strong> specifically -- "Desktop app" and "Web application" won't work with the sign-in flow below.</li>
+            <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> it gives you into the two fields below.</li>
+          </ol>
+        </details>
+        <div class="row">
+          <label class="check">
+            <input id="youtube-enabled" type="checkbox">
+            <span>Enable YouTube upload</span>
+          </label>
+        </div>
+        <div id="youtube-settings">
+          <div class="row">
+            <label class="field field-inline field-wide">
+              <span>Client ID</span>
+              <input id="youtube-client-id" type="text" spellcheck="false" placeholder="xxxxxxxxxxxx.apps.googleusercontent.com">
+            </label>
+            <button id="youtube-open-credentials-2" class="btn btn-small btn-icon" type="button" title="Open the Google Cloud Console credentials page" aria-label="Open the Google Cloud Console credentials page"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></button>
+          </div>
+          <div class="row">
+            <label class="field field-inline field-wide">
+              <span>Client Secret</span>
+              <input id="youtube-client-secret" type="password" autocomplete="off" placeholder="not set">
+            </label>
+            <button id="youtube-save-secret" class="btn btn-small" type="button" hidden>Save secret</button>
+          </div>
+          <div class="row">
+            <button id="youtube-connect" class="btn btn-primary" type="button">Connect</button>
+            <button id="youtube-disconnect" class="btn btn-danger" type="button" hidden>Disconnect</button>
+            <span class="hint" id="youtube-status"></span>
+          </div>
+          <p class="hint" id="youtube-device-code" hidden></p>
+          <div class="row">
+            <label class="field field-inline">
+              <span>Default privacy</span>
+              <select id="youtube-privacy">
+                <option value="private">Private</option>
+                <option value="unlisted">Unlisted</option>
+                <option value="public">Public</option>
+              </select>
+            </label>
+            <label class="field field-inline">
+              <span>Category ID</span>
+              <input id="youtube-category" type="text" size="4" spellcheck="false" placeholder="20">
+            </label>
+            <span class="hint">Both are defaults -- a step's own Visibility/Category fields, when set, override these for that run. 20 = Gaming, 24 = Entertainment, 27 = Education.</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="tab-panel" id="tab-tavern" hidden>
@@ -360,51 +518,27 @@
 
     <section class="tab-panel" id="tab-automations" hidden>
       <div class="card">
-        <div class="view-head">
-          <div class="view-head-left">
-            <h2>OBS Control</h2>
-          </div>
-          <div class="view-actions">
-            <button id="automations-refresh-scenes" class="btn" type="button" title="Re-read the scene and source list from OBS">Refresh</button>
-          </div>
-        </div>
-        <p class="hint">Works with or without any Foundry module connected — a manual remote for OBS. The same actions are what a rule set below, or a capabilities caller, can trigger.</p>
-        <div class="card-subsection"><span class="field-label">Controls</span></div>
+        <h2>Recording Filename</h2>
+        <p class="hint">The Studio Control action <strong>Apply the session filename format to OBS</strong> writes the format below into OBS's own Filename Formatting setting whenever a rule set (or a direct API call) runs it -- add it as a step wherever you want it applied. <code>{title}</code>/<code>{campaign}</code> come from whatever triggered the rule set, any Metadata field on the Session tab works too by its own data field key (<code>{sessionCampaign}</code>, <code>{sessionDaysLeft}</code>, ...), and OBS's own <code>%</code>-style macros pass through untouched.</p>
         <div class="row">
-          <button id="automations-start-recording" class="btn" type="button">Start Recording</button>
-          <button id="automations-pause-recording" class="btn" type="button">Pause Recording</button>
-          <button id="automations-resume-recording" class="btn" type="button" hidden>Resume Recording</button>
-          <button id="automations-stop-recording" class="btn" type="button">Stop Recording</button>
-          <span class="tag" id="automations-recording-tag" hidden>RECORDING</span>
-          <span class="tag tag-dim" id="automations-paused-tag" hidden>PAUSED</span>
+          <label class="field field-inline field-wide">
+            <span>Filename format</span>
+            <input id="session-filename-format" type="text" spellcheck="false" placeholder="{sessionCampaign} - {campaign} - %CCYY-%MM-%DD">
+          </label>
+          <button id="session-filename-fields-toggle" class="btn btn-small btn-icon" type="button" title="Insert a Data Field" aria-label="Insert a Data Field"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
         </div>
-        <div class="row">
-          <button id="automations-start-streaming" class="btn" type="button">Start Streaming</button>
-          <button id="automations-stop-streaming" class="btn" type="button">Stop Streaming</button>
-          <span class="tag" id="automations-streaming-tag" hidden>STREAMING</span>
-        </div>
-        <div class="card-subsection"><span class="field-label">Scenes</span></div>
-        <div class="row automations-scene-buttons" id="automations-scenes"></div>
-        <p class="hint" id="automations-obs-status">OBS is not connected.</p>
-      </div>
-
-      <div class="card">
-        <div class="view-head">
-          <div class="view-head-left">
-            <h2>Studio Control</h2>
-          </div>
-        </div>
-        <p class="hint">Off by default. Tick a command to let it be triggered by a rule set's steps below or discovered by a capabilities caller. These reach into Studio itself, not OBS.</p>
-        <div id="automations-studio-actions" class="automations-studio-actions"></div>
+        <div class="datafield-picker" id="session-filename-fields-panel" hidden></div>
+        <p class="hint filename-preview" id="session-filename-preview"></p>
       </div>
 
       <div class="card">
         <div class="view-head">
           <div class="view-head-left">
             <h2>Rule sets</h2>
+            <span class="hint" id="automations-rulesets-count"></span>
           </div>
           <div class="view-actions">
-            <button id="automations-add-ruleset" class="btn btn-primary btn-icon" type="button" title="Add rule set" aria-label="Add rule set"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+            <button id="automations-add-ruleset" class="btn btn-primary" type="button" title="Add rule set"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Add Ruleset</button>
           </div>
         </div>
         <p class="hint">Each rule set runs its own numbered sequence when its event arrives. A step marked AND fires together with the step before it instead of waiting for it.</p>
@@ -415,10 +549,10 @@
       <div class="card">
         <div class="view-head">
           <div class="view-head-left">
-            <h2>Test &amp; Recent Events</h2>
+            <h2>Test Events</h2>
           </div>
         </div>
-        <p class="hint">Fires an event through the same path a real Foundry call would, without needing OBS or Foundry connected — useful for trying out a rule set.</p>
+        <p class="hint">Smoke test one of the events above to simulate the end-to-end connection. Recent activity, including this, shows in Connections on the Session tab.</p>
         <div class="row">
           <label class="field field-inline">
             <span>Event</span>
@@ -426,18 +560,26 @@
           </label>
           <button id="automations-send-test" class="btn" type="button">Send test event</button>
         </div>
-        <div id="automations-events" class="automations-events"></div>
-        <p class="hint" id="automations-events-empty">No events received yet.</p>
       </div>
     </section>
 
     <section id="views" class="views"></section>
+    <section id="appwins" class="views"></section>
   </main>
+
+  <!-- The "+" tab's chooser: web windows and app windows are added the same
+       way, by asking what kind. Positioned under the button by control.js. -->
+  <div id="add-menu" class="add-menu" hidden>
+    <button type="button" class="btn" data-kind="web"><i class="fa-solid fa-globe" aria-hidden="true"></i> Web window</button>
+    <button type="button" class="btn" data-kind="app"><i class="fa-solid fa-window-maximize" aria-hidden="true"></i> App window</button>
+  </div>
 
   <footer class="statusbar">
     <span id="save-state">All changes saved</span>
     <span id="app-info"></span>
   </footer>
+
+  <div id="toast-container" aria-live="polite"></div>
 
   <template id="view-template">
     <section class="view-tab tab-panel">
@@ -605,12 +747,16 @@
   <template id="ruleset-template">
     <article class="card region-card ruleset-card">
       <header class="region-head">
+        <button class="btn btn-small btn-icon" data-action="toggle-collapse-ruleset" type="button" title="Collapse or expand" aria-label="Collapse or expand"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
         <label class="check" title="Disabled rule sets are ignored even while their event keeps arriving">
           <input type="checkbox" data-rsfield="enabled">
         </label>
         <input class="ruleset-name" data-rsfield="name" type="text" maxlength="60" placeholder="Rule set name">
         <span class="ruleset-group-label">Group</span>
         <input class="ruleset-group" data-rsfield="group" type="text" maxlength="40" placeholder="optional">
+        <span class="hint ruleset-step-count" data-role="step-count"></span>
+        <button class="btn btn-small btn-icon" data-action="move-ruleset-up" type="button" title="Move up" aria-label="Move up"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+        <button class="btn btn-small btn-icon" data-action="move-ruleset-down" type="button" title="Move down" aria-label="Move down"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
       </header>
       <div class="region-body">
         <div class="row">
@@ -625,7 +771,7 @@
           <button class="btn btn-small btn-icon" data-action="add-delay" type="button" title="Add delay" aria-label="Add delay"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></button>
         </div>
         <div class="row ruleset-footer">
-          <button class="btn btn-small" data-action="test-ruleset" type="button" title="Send a test event for this rule set's own event"><i class="fa-solid fa-vial" aria-hidden="true"></i> Test</button>
+          <button class="btn btn-small" data-action="run-ruleset" type="button" title="Runs this rule set now by sending its event"><i class="fa-solid fa-play" aria-hidden="true"></i> Run Automation</button>
           <button class="btn btn-small btn-primary" data-action="save-ruleset" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
           <button class="btn btn-small btn-danger" data-action="delete-ruleset" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Delete</button>
         </div>
@@ -661,6 +807,17 @@
             <button id="picker-save" class="btn btn-primary" type="button">Save region</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="prompt-modal-overlay" hidden>
+    <div class="modal">
+      <p class="modal-message" id="prompt-modal-message"></p>
+      <textarea id="prompt-modal-input" class="modal-textarea" spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button id="prompt-modal-cancel" class="btn btn-small" type="button">Cancel</button>
+        <button id="prompt-modal-ok" class="btn btn-primary btn-small" type="button">OK</button>
       </div>
     </div>
   </div>

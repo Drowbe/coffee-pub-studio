@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('coffeePub', {
   obsStopStreaming: () => ipcRenderer.invoke('obs:stopStreaming'),
   setWindowSource: (id, patch) => ipcRenderer.invoke('windowSource:set', id, patch),
   addWindowSource: (id) => ipcRenderer.invoke('windowSource:add', id),
+  appWindowsList: () => ipcRenderer.invoke('appWindows:list'),
+  appWindowsAdd: (id) => ipcRenderer.invoke('appWindows:add', id),
+  appWindowsRename: (id, name) => ipcRenderer.invoke('appWindows:rename', id, name),
   obsCreateRegionSource: (id, regionId) => ipcRenderer.invoke('obs:createRegionSource', id, regionId),
   obsRemoveSource: (inputName) => ipcRenderer.invoke('obs:removeSource', inputName),
   setRegionEnabled: (id, regionId, enabled) => ipcRenderer.invoke('regions:setEnabled', id, regionId, enabled),
@@ -64,11 +67,27 @@ contextBridge.exposeInMainWorld('coffeePub', {
   tavernViewUrl: (key, kind) => ipcRenderer.invoke('tavern:viewUrl', key, kind),
   tavernOpenManage: () => ipcRenderer.invoke('tavern:openManage'),
   automationsSetSettings: (settings) => ipcRenderer.invoke('automations:setSettings', settings),
-  automationsTestEvent: (eventName, data) => ipcRenderer.invoke('automations:testEvent', eventName, data),
+  automationsTestEvent: (eventName, data, prompts) => ipcRenderer.invoke('automations:testEvent', eventName, data, prompts),
+  automationsCancelRuleSet: (id) => ipcRenderer.invoke('automations:cancelRuleSet', id),
   automationsRunSteps: (steps) => ipcRenderer.invoke('automations:runSteps', steps),
+  automationsPickTextFile: () => ipcRenderer.invoke('automations:pickTextFile'),
+  youtubeSetSettings: (settings) => ipcRenderer.invoke('youtube:setSettings', settings),
+  youtubeSetClientSecret: (secret) => ipcRenderer.invoke('youtube:setClientSecret', secret),
+  youtubeConnect: () => ipcRenderer.invoke('youtube:connect'),
+  youtubeDisconnect: () => ipcRenderer.invoke('youtube:disconnect'),
+  youtubePickVideoFile: () => ipcRenderer.invoke('youtube:pickVideoFile'),
+  youtubeOpenApiLibrary: () => ipcRenderer.invoke('youtube:openApiLibrary'),
+  youtubeOpenConsentScreen: () => ipcRenderer.invoke('youtube:openConsentScreen'),
+  youtubeOpenCredentials: () => ipcRenderer.invoke('youtube:openCredentials'),
+  youtubeOpenVerificationUrl: () => ipcRenderer.invoke('youtube:openVerificationUrl'),
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('status', listener);
     return () => ipcRenderer.removeListener('status', listener);
+  },
+  onToast: (callback) => {
+    const listener = (_event, message) => callback(message);
+    ipcRenderer.on('toast', listener);
+    return () => ipcRenderer.removeListener('toast', listener);
   },
 });

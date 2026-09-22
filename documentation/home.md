@@ -26,6 +26,8 @@ OBS window-capture source management is not yet wired up on Windows; see
 - [Automations API](api/api-automations.md) -- let a Foundry module drive OBS through Studio.
 - [Automations architecture](architecture/architecture-automations.md) -- how the Automations
   feature is built and why.
+- [Design tokens](designsystem/design-tokens.md) and [Design components](designsystem/design-components.md)
+  -- the control panel's own colors, layout tokens, and reusable UI patterns.
 
 See the [repository README](https://github.com/Drowbe/coffee-pub-studio) for requirements and
 how to get the app.
