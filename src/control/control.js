@@ -305,6 +305,19 @@ function renderMetadataFields() {
     const row = document.createElement('div');
     row.className = 'metadata-field-row';
 
+    // Category (Session vs. YouTube) isn't its own stored property -- it's
+    // just which key prefix "New" gave the field at creation (see
+    // uniqueMetadataKey/metadataEls.addConfirm) -- but with a dozen-plus
+    // fields on screen at once, that prefix buried inside "(youtubeTitle)"
+    // reads as one more parenthetical, not a category. A small circle
+    // leading the row, same visual language as an automation step's own
+    // number badge, makes it scannable at a glance instead.
+    const isYoutubeField = field.key.startsWith('youtube');
+    const categoryBadge = document.createElement('span');
+    categoryBadge.className = `metadata-field-category metadata-field-category-${isYoutubeField ? 'youtube' : 'session'}`;
+    categoryBadge.textContent = isYoutubeField ? 'Y' : 'S';
+    categoryBadge.title = isYoutubeField ? 'YouTube' : 'Session';
+
     const label = document.createElement('span');
     label.className = 'metadata-field-label';
     label.textContent = `${field.label}:`;
@@ -478,7 +491,7 @@ function renderMetadataFields() {
     // A "prompt" field has nothing here to edit -- its only value comes
     // from answering it at run time -- so it gets no edit/save button at
     // all, same reasoning as skipping the value input above.
-    row.append(label, ...valueEls, key, ...(field.type === 'prompt' ? [] : [editSave]), moveUp, moveDown, remove);
+    row.append(categoryBadge, label, ...valueEls, key, ...(field.type === 'prompt' ? [] : [editSave]), moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
   });
   renderQuickAdd();
