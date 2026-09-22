@@ -1580,13 +1580,15 @@ api.onStatus((next) => {
   automationsObsWasConnected = obsConnected;
 });
 
-// The showToast Studio action's own push -- main.js sends this whenever
-// that step runs, whether or not this window happens to be open at the
-// time (see runAutomationAction's 'showToast' case). Styled as an error
-// toast: the action exists mainly to surface something that needs a human
-// to go handle manually (a failed upload, say), and every showToast call
-// is also logged to the Connections activity feed regardless, so nothing
-// is lost if this window wasn't open to catch it live.
+// The showToast Studio action's own in-app push -- a second, more
+// immediate layer for whoever already has this window open when the step
+// runs; the primary mechanism is a real OS notification, sent
+// independently by main.js (Notification.isSupported(), the
+// 'showToast' case), which reaches someone who isn't looking at Studio at
+// all right now. Styled as an error toast: the action exists mainly to
+// surface something that needs a human to go handle manually (a failed
+// upload, say), and every call is also logged to the Connections activity
+// feed regardless, so nothing is lost if neither notice was seen live.
 api.onToast((message) => showToast(message, { type: 'error' }));
 
 // ---------------------------------------------------------------------------
@@ -2107,7 +2109,7 @@ const STUDIO_ACTIONS = [
   { value: 'decrementMetadataField', label: 'Decrement a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'setMetadataField', label: 'Set a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'clearMetadataField', label: 'Clear a Prompt field back to blank', paramType: 'metadataField', group: 'Studio Control' },
-  { value: 'showToast', label: 'Show a toast in Studio', paramType: 'text', group: 'Studio Control' },
+  { value: 'showToast', label: 'Send a notification', paramType: 'text', group: 'Studio Control' },
   { value: 'uploadToYouTube', label: 'Upload the recording to YouTube', paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 

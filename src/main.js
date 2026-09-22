@@ -3,7 +3,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage, Notification } = require('electron');
 const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA, STUDIO_ACTION_SCHEMA } = require('./config');
 const { ObsBridge, parseWindowChoice } = require('./obs');
 const { TavernBridge } = require('./tavern');
@@ -1006,24 +1006,31 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
     }
     case 'uploadToYouTube':
       return runYouTubeUpload(stepContext || {}, eventData, ruleSetId);
-    // Pops a toast in Studio's own control panel, right now, for whoever
-    // happens to be looking at it -- the natural pairing for runIf's
-    // "onFailure" (a failed YouTube upload, say, that needs a human to go
-    // handle manually), though nothing here requires that pairing. `param`
-    // is the message, {token}-expanded the same way a filename template or
-    // a Text Metadata field's value already is, so a step can say
-    // something like "Upload failed for {sessionTitle}". Silently a no-op
-    // if the control window isn't open -- a toast with nobody to show it
-    // to just doesn't display, not an error -- but it's always logged to
-    // the Connections activity feed too, so it's still visible later even
-    // if nobody was watching at the moment.
+    // A real OS notification (Notification Center on macOS, the Action
+    // Center on Windows) -- not just something inside Studio's own window,
+    // since the whole point is reaching someone who isn't looking at
+    // Studio at all right now (a failed YouTube upload that needs a human
+    // to go handle manually, the natural pairing with runIf's "onFailure",
+    // though nothing here requires that pairing). `param` is the message,
+    // {token}-expanded the same way a filename template or a Text Metadata
+    // field's value already is, so a step can say something like "Upload
+    // failed for {sessionTitle}". Also pushes the in-app toast (a second,
+    // more immediate layer for whoever happens to already be looking at
+    // Studio's panel right now) and always logs to the Connections
+    // activity feed, so nothing is lost even if the OS notification itself
+    // is denied, silenced, or missed -- see Notification.isSupported()
+    // below; on a fresh install macOS may need the user to grant Studio
+    // notification permission once, same as any other app.
     case 'showToast': {
       if (!param) throw new Error('showToast needs a message.');
       const message = formatSessionTemplate(param, eventData);
+      if (Notification.isSupported()) {
+        new Notification({ title: 'Coffee Pub Studio', body: message }).show();
+      }
       if (controlWindow && !controlWindow.isDestroyed()) {
         controlWindow.webContents.send('toast', message);
       }
-      logActivity('Automations', `Toast: ${message}`, 'error');
+      logActivity('Automations', `Notification: ${message}`, 'error');
       return;
     }
     default:

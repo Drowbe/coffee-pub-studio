@@ -324,17 +324,24 @@ did not reset the tracked outcome -- the gated step still ran.
 
 ### `showToast`, and a real chaining gotcha it surfaced
 
-Raised directly as `runIf`'s first real use: a toast in Studio's own control panel when a YouTube
-upload fails, so it doesn't just sit quietly in the Connections log until someone happens to check.
-`showToast` (`param`: the message, `{token}`-expanded through `formatSessionTemplate` the same way
-`applySessionFilename`'s template already is) pushes an IPC `'toast'` event to `controlWindow` if
-it's open (silently a no-op otherwise -- a toast with nobody to show it to just doesn't display) and
-always logs to the Connections activity feed regardless, so nothing's lost if the window wasn't open
-at the moment. `paramType: "text"` is new too (`src/config.js`'s schema, `src/control/control.js`'s
-step editor) -- every other action's `param` is a picker; this is the first one that's genuinely
-free text, so the step editor needed its own plain-input branch instead of the `<select>` every
-other `paramType` renders, reusing the same "Insert a Data Field" picker a Text Metadata field's own
-value input already has.
+Raised directly as `runIf`'s first real use: something to notice a YouTube upload failure by, so it
+doesn't just sit quietly in the Connections log until someone happens to check. The first cut pushed
+an in-app toast only -- visible strictly while Studio's own window happens to be open and on screen
+at that exact moment, which misses the actual point: a recording session can run for hours, and
+whoever's running it is not necessarily staring at Studio's Configuration tab when Stop fires and the
+upload happens. Corrected to what "notice this without watching the logs" actually needs: a real OS
+notification (`Notification`, Electron's wrapper around Notification Center on macOS / the Action
+Center on Windows -- `Notification.isSupported()` guards platforms or states where it can't show),
+sent unconditionally alongside the in-app toast (kept as a second, more immediate layer for whoever
+already has the window open), with the Connections activity log as a third, durable fallback if
+neither notice was seen live. `showToast` (`param`: the message, `{token}`-expanded through
+`formatSessionTemplate` the same way `applySessionFilename`'s template already is) never throws just
+because the OS notification couldn't show (unsupported platform, permission not yet granted) -- only
+a missing message is a real error. `paramType: "text"` is new too (`src/config.js`'s schema,
+`src/control/control.js`'s step editor) -- every other action's `param` is a picker; this is the
+first one that's genuinely free text, so the step editor needed its own plain-input branch instead
+of the `<select>` every other `paramType` renders, reusing the same "Insert a Data Field" picker a
+Text Metadata field's own value input already has.
 
 Wiring it into the real `"Upload to Youtube"` rule set surfaced a genuine correctness trap in
 `runIf` chaining: the natural-looking order -- upload, then the toast (On Failure), then
