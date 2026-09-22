@@ -129,3 +129,45 @@ affected folder structure, which they then deleted by hand.
   `"prompt"` was **not** done as part of this change -- that's a real behavior change to their
   live, working configuration (loses the ability to edit them by hand on the Session tab) and
   belongs with actually wiring up Herald's side, not bundled into landing the mechanism itself.
+
+### Addendum: blank-check semantics and `clearMetadataField`
+
+Raised directly after landing the above, from real usage rather than a hypothetical: the user
+actually converted their own `sessionTitle` to `"prompt"`, got asked for a title at
+`"Begin Session Recording"` as expected, answered it -- and then got asked for it *again* at Stop,
+because `"Upload to Youtube"`'s `titleField` points at `youtubeTitle`, a Text field whose value
+composes `{sessionTitle}`. Exactly as designed (the recursive walk correctly found it, and the
+original rule was "answer required every single call, no exceptions") -- but wrong the moment it
+was actually felt: the entire point of a Prompt field's persistence was defeated by asking again
+for something already known, seconds after it was answered.
+
+The fix changes `checkAndApplyPrompts` from "always ask, every call" to "ask only while the field is
+still genuinely blank" -- a required field already holding any value (from an earlier, different
+call) is satisfied without being re-supplied; a value supplied anyway still always overwrites what
+was there, so "update this any time" (the original description use case) is unaffected. This alone
+would have broken the *other* half of the feature, though: with nothing to reset a field back to
+blank, "Begin Session Recording" would stop asking after the very first recording ever, silently
+reusing episode 41's title for episode 42 forever. **`clearMetadataField`** (`src/main.js`,
+`src/config.js`, mirrored in `src/control/control.js`'s action list and its own Metadata-field
+picker, filtered to `"prompt"`-type fields the same way `setMetadataField`'s picker filters to
+`"text"`) is the other half: an explicit action, scoped to Prompt fields only, that resets one back
+to blank. Two `clearMetadataField` steps (for `sessionTitle` and the field the user's Description
+was also converted to, `youtubeDescription`) were added to the end of the user's real
+`"Upload to Youtube"` rule set -- the natural "this episode is over" moment -- so the *next*
+recording asks fresh again. (A step's failure doesn't halt the rest of a rule set's sequence -- see
+"Rule sets and dispatch" -- so these clear unconditionally even if the upload itself fails; a known,
+accepted tradeoff, not chased further here.)
+
+While in there, also fixed a real, separate configuration mistake found by inspecting the same
+step: `titleField`/`descriptionField` on `"Upload to Youtube"` were swapped (`titleField:
+"youtubeDescription"`, `descriptionField: "youtubeTitle"`) -- unrelated to the re-prompt bug (the
+recursive scan would have found `sessionTitle` either way, since it's `titleField`'s own composed
+value either way it's assigned), but wrong regardless and worth catching while already in the file.
+
+Verified live with a second isolated fixture (a fresh throwaway Prompt field and rule set, config
+restored and diffed clean afterward, same as before): answered once -> re-fired with no `prompts`
+-> `200`, value unchanged, not wiped (the actual fix, working); `clearMetadataField` on it -> value
+back to `""`; fired again with no `prompts` -> `400` again, confirming a cleared field goes back to
+demanding a fresh answer; `clearMetadataField`'s own validation (unknown field, a non-Prompt field,
+a missing `param`) each failed the same `500 {error}` shape every other action-validation error
+uses, and left the target field untouched.

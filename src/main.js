@@ -793,18 +793,30 @@ function collectRequiredPrompts(ruleSet, allRuleSets, metadataFields, seenRuleSe
 }
 
 // The enforcement half of collectRequiredPrompts: a rule set that touches a
-// "prompt" field cannot run without a fresh answer supplied in the exact
-// same call that triggers it -- there is no other way for a prompt field to
-// get a value at all (see METADATA_FIELD_TYPES's comment, src/config.js),
-// so this is the only gate that matters, and it has to run before anything
-// actually fires. Called synchronously from the automations.js /event
-// handler (before the event is even recorded) and from the
-// 'automations:testEvent' IPC handler below, so a missing answer means the
-// request never dispatches anything at all -- not "dispatches with a
-// blank." A satisfied call writes each supplied answer into its field the
-// same way setMetadataField does, before the rule set's own steps run, so
-// every step downstream -- this run and any future one -- reads the fresh
-// value already in place.
+// "prompt" field cannot run while that field is genuinely blank, without a
+// fresh answer supplied in the exact same call that triggers it -- there is
+// no other way for a prompt field to get a value at all (see
+// METADATA_FIELD_TYPES's comment, src/config.js), so this is the only gate
+// that matters, and it has to run before anything actually fires. Called
+// synchronously from the automations.js /event handler (before the event is
+// even recorded) and from the 'automations:testEvent' IPC handler below, so
+// a missing answer means the request never dispatches anything at all --
+// not "dispatches with a blank."
+//
+// "Genuinely blank" is the key word: a required field that already holds
+// *any* value (from an earlier, different call) is satisfied without being
+// re-supplied here. This was initially unconditional -- answer required
+// every single call, no exceptions -- but that meant a title answered once
+// at "Begin Session Recording" got demanded again at Stop, purely because
+// "Upload to Youtube" also reads it (via a composed Text field referencing
+// {sessionTitle}); the whole point of a Prompt field's persistence is
+// defeated by re-asking for something already known. A supplied answer
+// still always overwrites whatever's there, so "update this any time" (the
+// original Herald use case for Description) keeps working exactly the same.
+// What resets a field back to blank -- so the *next* recording is asked
+// fresh instead of silently reusing this one's leftover answer forever --
+// is clearMetadataField, a separate explicit action (see
+// runAutomationAction below), not anything here.
 function checkAndApplyPrompts(event, providedPrompts) {
   const current = configStore.get();
   const { ruleSets } = current.automations;
@@ -816,17 +828,27 @@ function checkAndApplyPrompts(event, providedPrompts) {
   if (!required.size) return { ok: true };
 
   const provided = providedPrompts && typeof providedPrompts === 'object' ? providedPrompts : {};
-  const missing = [...required].filter((key) => typeof provided[key] !== 'string' || !provided[key]);
+  const isBlank = (key) => {
+    const field = current.metadataFields.find((f) => f.key === key);
+    return !(field && typeof field.value === 'string' && field.value);
+  };
+  const missing = [...required].filter((key) => !(typeof provided[key] === 'string' && provided[key]) && isBlank(key));
   if (missing.length) {
     const labels = missing.map((key) => (current.metadataFields.find((f) => f.key === key) || {}).label || key);
     return { ok: false, error: `Missing required prompt value(s): ${labels.join(', ')}` };
   }
 
-  configStore.save({
-    ...current,
-    metadataFields: current.metadataFields.map((f) => (required.has(f.key) ? { ...f, value: provided[f.key] } : f)),
-  });
-  broadcastStatus();
+  // Only writes what was actually supplied -- a required field already
+  // satisfied by an existing value and not answered again here is left
+  // exactly as it was, not overwritten with nothing.
+  const toWrite = [...required].filter((key) => typeof provided[key] === 'string' && provided[key]);
+  if (toWrite.length) {
+    configStore.save({
+      ...current,
+      metadataFields: current.metadataFields.map((f) => (toWrite.includes(f.key) ? { ...f, value: provided[f.key] } : f)),
+    });
+    broadcastStatus();
+  }
   return { ok: true };
 }
 
@@ -953,6 +975,28 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
       if (field.type !== 'text') throw new Error(`"${field.label}" isn't a Text field -- nothing to set.`);
       const value = resolveMetadataFieldValue(stepContext, eventData);
       configStore.save({ ...current, metadataFields: current.metadataFields.map((f) => (f.key === param ? { ...f, value } : f)) });
+      broadcastStatus();
+      return;
+    }
+    // Resets a "prompt" field back to blank -- the other half of blank-
+    // check semantics in checkAndApplyPrompts above. Answering a Prompt
+    // field no longer forces a re-answer on every later touch, which means
+    // something has to put it back to blank when its episode/session is
+    // actually over, or the same answer would silently satisfy every
+    // future run forever. Placed as a step wherever that "this is over"
+    // moment actually is (the end of an Upload to Youtube run, say) --
+    // Studio has no notion of "episode over" on its own, so this has to be
+    // deliberate, not automatic. Scoped to "prompt" only, same reasoning
+    // setMetadataField is scoped to "text" only: a plain Text field can
+    // already be set to '' through that action, so a separate action here
+    // would be redundant for it.
+    case 'clearMetadataField': {
+      if (!param) throw new Error('clearMetadataField needs a Metadata field.');
+      const current = configStore.get();
+      const field = current.metadataFields.find((f) => f.key === param);
+      if (!field) throw new Error(`Metadata field not found: ${param}`);
+      if (field.type !== 'prompt') throw new Error(`"${field.label}" isn't a Prompt field -- nothing to clear back to blank.`);
+      configStore.save({ ...current, metadataFields: current.metadataFields.map((f) => (f.key === param ? { ...f, value: '' } : f)) });
       broadcastStatus();
       return;
     }

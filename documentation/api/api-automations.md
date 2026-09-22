@@ -72,15 +72,18 @@ Content-Type: application/json
 - `prompts` (object, optional) answers whatever a matched rule set's `prompts` (see
   `GET /capabilities` below) says it needs -- `{"sessionTitle": "Darn Skarn"}`. **Checked before
   anything else happens**: if any matched rule set (or anything it reaches via a `runRuleSet` step,
-  recursively) requires a "prompt"-type Metadata field and this object doesn't supply a real
-  (non-blank) value for every one of them, the whole request is refused --
+  recursively) requires a "prompt"-type Metadata field that is *currently blank*, and this object
+  doesn't supply a real (non-blank) value for it, the whole request is refused --
   `400 {"error": "Missing required prompt value(s): Title"}` -- and nothing is recorded or
   dispatched. This check happens synchronously, before the response, unlike everything else about
-  this endpoint. A satisfied call writes each supplied value into its field immediately, so every
-  step in the run that follows reads it -- but this is re-checked on *every* call, unconditionally;
-  a Metadata field's currently-stored value is never treated as "already answered," so answering
-  once does not exempt a later call to the same event from answering again. See "Metadata field
-  types" below for what makes a field require this at all.
+  this endpoint. A required field that already holds *any* value (answered by an earlier, different
+  call) is satisfied without being supplied again -- a title answered once at the start of a
+  recording is not demanded a second time just because a later step, in a later call, also reads it.
+  A value supplied here still always overwrites whatever's currently stored, so re-answering (or
+  updating) a field that already has a value works exactly the same as answering it for the first
+  time. See "Metadata field types" below for what makes a field require this at all, and for
+  `clearMetadataField` -- the action that resets a Prompt field back to blank, which is what makes
+  it ask fresh again the *next* time, rather than silently reusing one answer forever.
 - The response is always JSON: `{"ok": true}` on success, `{"error": "..."}` with a 400 (bad
   request, including a failed prompts check above), 401 (missing or wrong token), or 404 (wrong
   path or method) otherwise.
@@ -202,19 +205,29 @@ even though nothing in its own steps mentions that key directly; only a rule set
 A Metadata field's `type` can be `"prompt"` -- stored and resolved exactly like `"text"`, with one
 restriction: it has no other way to get a value. It isn't editable on Studio's own Session tab, and
 `setMetadataField` refuses to target one directly (Text only). The *only* way a Prompt field's
-value ever changes is by supplying it in `prompts` on the exact `POST /api/automations/event` call
-that triggers a rule set needing it -- see that endpoint above. This is enforced unconditionally,
-every single call: a Prompt field's currently-stored value is never treated by Studio as "already
-answered," so answering it once does not exempt a later call to the same event from answering it
-again. Whether that means asking a human again, or silently resupplying a value the caller itself
-already has in hand from earlier, is entirely up to the caller -- Studio's own contract stays the
-same either way.
+value ever changes is by supplying it in `prompts` on a `POST /api/automations/event` call that
+triggers a rule set needing it -- see that endpoint above -- or by `clearMetadataField` resetting it
+back to blank (below).
 
-This is the intended replacement for hardcoding a Metadata field mapping in a module's own
-settings: rather than Herald's settings screen asking "which Studio field is Title?" once, up
-front, Herald's *menu* can be fully generic -- list whatever `GET /capabilities` returns, and for
-any rule set with a non-empty `prompts`, ask for those labels right before firing it. Neither
-Herald nor its settings screen ever needs to know a specific key like `"sessionTitle"` exists.
+A field already holding a value is satisfied without being asked again -- a title answered once
+stays answered until something explicitly clears it, not just until the next call. That "something"
+is **`clearMetadataField`** (`param`: a Prompt field's key), a Studio action like any other,
+available as a rule-set step or via `POST /api/automations/action`: it resets the field straight
+back to blank, with no other effect. Without ever calling it, a Prompt field would only ever be
+asked once, the first time -- every later run touching it would just keep reusing that same answer
+forever, which defeats the point of a Prompt field for anything that's meant to change per
+recording. Placing a `clearMetadataField` step wherever a prompted value's own lifecycle is actually
+over (the end of an upload step, say) is what makes the *next* recording ask fresh again, instead of
+silently carrying the last one's answer forward. Studio has no built-in notion of "this episode is
+over" -- that placement is a deliberate choice on whoever builds the rule set, not something
+inferred automatically.
+
+This whole mechanism is the intended replacement for hardcoding a Metadata field mapping in a
+module's own settings: rather than Herald's settings screen asking "which Studio field is Title?"
+once, up front, Herald's *menu* can be fully generic -- list whatever `GET /capabilities` returns,
+and for any rule set with a non-empty `prompts`, ask for those labels right before firing it, only
+when actually needed (blank), reusing an answer it already has in hand otherwise. Neither Herald nor
+its settings screen ever needs to know a specific key like `"sessionTitle"` exists.
 
 ## POST /api/automations/action
 
@@ -356,6 +369,7 @@ disconnected:
 | `runRuleSet` | Runs another rule set by id (`param`), inline -- its stages run in order same as a real trigger, and the caller's own run doesn't continue until it finishes. Refuses with an error rather than looping if the target is already running further up the same call chain |
 | `incrementMetadataField` / `decrementMetadataField` | Adds or subtracts 1 from a Metadata field (`param`, its `key`) -- a plain Number field's value, or a Text+Number/Number+Text field's number segment. Fails with a clear error if the field doesn't exist or isn't a Number-shaped type |
 | `setMetadataField` | Writes an explicit value into a Text-type Metadata field (`param`, its `key`), replacing whatever was there -- the persistence increment/decrement give Number fields, generalized to an explicit set. This is what lets a value outlive a single request: set a Metadata field now, and a *later, separate* call (a different event, run minutes afterward) that reads the same field back -- `applySessionFilename`'s `{sessionTitle}`, say, or `uploadToYouTube`'s `descriptionField` -- sees it. Fails with a clear error if the field doesn't exist or isn't Text-shaped (a Number/Text+Number/Number+Text field already has increment/decrement; a checkbox's only sensible values are boolean) |
+| `clearMetadataField` | Resets a Prompt-type Metadata field (`param`, its `key`) back to blank -- the other half of "Prompt fields" above: what makes a field ask fresh again the *next* time it's needed, instead of an old answer silently satisfying every future run forever. Fails with a clear error if the field doesn't exist or isn't Prompt-shaped |
 | `uploadToYouTube` | Uploads a recording (the most recent one OBS reported, unless the step overrides it) to YouTube. Not driven by `param` at all -- five separate Metadata field keys instead (`titleField`, `descriptionField`, `categoryField`, `madeForKidsField`, `visibilityField`), configured on the step, not passable through this API. No playlist support -- see `architecture-automations.md`'s "Uploading a recording to YouTube" for why |
 
 `setMetadataField`'s value, on a direct `POST /api/automations/action` call, comes from `data.value`

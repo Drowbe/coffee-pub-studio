@@ -222,7 +222,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 const STUDIO_ACTIONS = [
   'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
   'applySessionFilename', 'runRuleSet', 'incrementMetadataField', 'decrementMetadataField',
-  'setMetadataField', 'uploadToYouTube',
+  'setMetadataField', 'clearMetadataField', 'uploadToYouTube',
 ];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
@@ -249,6 +249,12 @@ const STUDIO_ACTION_SCHEMA = [
   // fixed/file/Data-Field choice when run from a rule set, same three
   // sources setText's own step editor already offers.
   { action: 'setMetadataField', label: 'Set a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
+  // param is a "prompt"-type Metadata field's key -- resets it back to
+  // blank, so a later run that requires it (checkAndApplyPrompts,
+  // src/main.js) is asked fresh instead of silently reusing whatever
+  // answered it last. Placed wherever a prompted value's own episode/
+  // session is actually over -- Studio has no notion of that on its own.
+  { action: 'clearMetadataField', label: 'Clear a Prompt field back to blank', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
   // No single `param` -- five named slots instead (titleField/
   // descriptionField/categoryField/madeForKidsField/visibilityField, each a
   // Metadata field key; madeForKidsField must point at a "checkbox" field

@@ -2087,6 +2087,7 @@ const STUDIO_ACTIONS = [
   { value: 'incrementMetadataField', label: 'Increment a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'decrementMetadataField', label: 'Decrement a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'setMetadataField', label: 'Set a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
+  { value: 'clearMetadataField', label: 'Clear a Prompt field back to blank', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'uploadToYouTube', label: 'Upload the recording to YouTube', paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 
@@ -2889,20 +2890,22 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
     // Increment/Decrement pick a Metadata field by key, filtered to the
     // types a bump means anything for -- a plain Number field's value, or a
     // Text+Number/Number+Text field's number segment. setMetadataField
-    // filters the other way, to Text fields only, matching what
-    // runAutomationAction actually accepts for each (src/main.js). Same
-    // {value, label} shape as the rule-set picker above, not
-    // optionsForParamType's flat name list.
+    // filters to Text fields only, clearMetadataField to Prompt fields
+    // only -- each matching what runAutomationAction actually accepts
+    // (src/main.js). Same {value, label} shape as the rule-set picker
+    // above, not optionsForParamType's flat name list.
     if (meta && meta.paramType === 'metadataField') {
-      const wantsText = step.action === 'setMetadataField';
+      const wantedKind =
+        step.action === 'setMetadataField' ? 'text' : step.action === 'clearMetadataField' ? 'prompt' : 'number';
+      const kindLabel = wantedKind === 'text' ? 'Text' : wantedKind === 'prompt' ? 'Prompt' : 'Number';
       const fields = ((config && config.metadataFields) || []).filter((f) =>
-        wantsText ? f.type === 'text' : f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)
+        wantedKind === 'number' ? f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type) : f.type === wantedKind
       );
       const paramSelect = document.createElement('select');
       paramSelect.dataset.sfield = 'param';
       const blank = document.createElement('option');
       blank.value = '';
-      blank.textContent = fields.length ? 'Choose a Metadata field…' : `No ${wantsText ? 'Text' : 'Number'}-type Metadata fields yet`;
+      blank.textContent = fields.length ? 'Choose a Metadata field…' : `No ${kindLabel}-type Metadata fields yet`;
       paramSelect.appendChild(blank);
       for (const f of fields) {
         const opt = document.createElement('option');
@@ -2914,7 +2917,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
       if (step.param && !fields.some((f) => f.key === step.param)) {
         const opt = document.createElement('option');
         opt.value = step.param;
-        opt.textContent = `[!] ${step.param} — not a ${wantsText ? 'Text' : 'Number'}-type Metadata field`;
+        opt.textContent = `[!] ${step.param} — not a ${kindLabel}-type Metadata field`;
         opt.style.color = 'var(--danger)';
         opt.selected = true;
         paramSelect.appendChild(opt);
