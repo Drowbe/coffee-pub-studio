@@ -88,16 +88,14 @@ p {
   gap: 12px;
 }
 
+/* The wordmark carries the name itself -- no separate <h1>/subtitle next
+   to it any more (see src/control/index.html). Height-constrained, width
+   auto, so its own ~2.4:1 aspect ratio sets the width -- a fixed width
+   here would either stretch it or leave dead space beside it. */
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  height: 40px;
+  width: auto;
   display: block;
-}
-
-.subtitle {
-  color: var(--text-dim);
-  margin-top: 2px;
 }
 
 .topbar-actions {
