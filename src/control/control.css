@@ -921,8 +921,26 @@ select:focus {
   white-space: nowrap;
 }
 
+/* Fixed width, not just nowrap -- "(sessionTitle)" and
+   "(youtubeMadeForKids)" are different lengths, and with
+   .metadata-field-value-display's flex:1 growing to fill whatever's left,
+   letting this vary shifted the edit/move/delete buttons left or right on
+   every row depending on its own key's length. Fixed width (with an
+   ellipsis for the rare key too long to fit) makes the flex split
+   identical across every row, so the buttons after it line up regardless
+   of key length. */
 .metadata-field-key {
+  flex: 0 0 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A "prompt" field's row has no edit button (see renderMetadataFields) --
+   this keeps that row's move/delete buttons in the exact same column as
+   every other row's, instead of shifting left into the gap. */
+.metadata-field-edit-placeholder {
+  visibility: hidden;
 }
 
 .tab-panel[hidden] {
@@ -1336,8 +1354,18 @@ select:focus {
   min-width: 100px;
 }
 
+/* Fixed width, not just nowrap -- "14 steps" vs. "1 step" are different
+   lengths, and with .ruleset-name/.ruleset-group both flex-growing to
+   fill whatever's left in the row, letting this vary shifted the up/down
+   arrows (and slightly, name/group's own edges) a few pixels left or
+   right on every card depending on its step count. Fixed width makes the
+   flex split identical across every card, so everything after it --
+   arrows included -- lines up regardless of step count. */
 .ruleset-step-count {
+  flex: none;
+  width: 52px;
   white-space: nowrap;
+  text-align: right;
 }
 
 .ruleset-group,

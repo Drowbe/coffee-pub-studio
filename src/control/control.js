@@ -425,6 +425,11 @@ function renderMetadataFields() {
     const editSave = document.createElement('button');
     editSave.type = 'button';
     editSave.className = 'btn btn-small btn-icon';
+    // A "prompt" field has nothing to edit here (see above), but the
+    // button still renders -- just hidden, not removed -- so its column
+    // stays the same width as every other row's; only its click handler
+    // and visibility differ.
+    if (field.type === 'prompt') editSave.classList.add('metadata-field-edit-placeholder');
     if (isEditing) {
       editSave.title = 'Save';
       editSave.setAttribute('aria-label', 'Save');
@@ -492,10 +497,7 @@ function renderMetadataFields() {
       scheduleSave();
     });
 
-    // A "prompt" field has nothing here to edit -- its only value comes
-    // from answering it at run time -- so it gets no edit/save button at
-    // all, same reasoning as skipping the value input above.
-    row.append(categoryBadge, label, ...valueEls, key, ...(field.type === 'prompt' ? [] : [editSave]), moveUp, moveDown, remove);
+    row.append(categoryBadge, label, ...valueEls, key, editSave, moveUp, moveDown, remove);
     metadataEls.fields.appendChild(row);
   });
   renderQuickAdd();
