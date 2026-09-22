@@ -192,14 +192,19 @@ own business. A caller can use this to build a menu of rule sets grouped the sam
 manual "run this rule set now" and an automatic trigger both work. It is also useful for
 validating that an event name is wired to something before sending it.
 
-`prompts` is every `"prompt"`-type Metadata field this rule set needs answered to run -- `{key,
-label}`, same shape as `metadataFields` entries. A caller doesn't need to inspect a rule set's
-steps or understand what any of them do: an empty array means "just POST the event," a non-empty
-one means "collect an answer for each label, then POST the event with those answers in `prompts`
-(see below), or the request will be refused." This is computed by walking the rule set's actual
-steps -- including recursively into anything it reaches via a `runRuleSet` step -- so a rule set
-like `"Begin Session Recording"` in the example above correctly shows `sessionTitle` as required
-even though nothing in its own steps mentions that key directly; only a rule set it calls does.
+`prompts` is every `"prompt"`-type Metadata field this rule set genuinely still needs answered
+right now -- `{key, label}`, same shape as `metadataFields` entries. A caller doesn't need to
+inspect a rule set's steps or understand what any of them do: an empty array means "just POST the
+event," a non-empty one means "collect an answer for each label, then POST the event with those
+answers in `prompts` (see below), or the request will be refused." This is computed by walking the
+rule set's actual steps -- including recursively into anything it reaches via a `runRuleSet` step,
+so a rule set like `"Begin Session Recording"` in the example above correctly shows `sessionTitle`
+as required even though nothing in its own steps mentions that key directly, only a rule set it
+calls does -- **then filtered to fields that are currently blank**, the exact same check
+`POST /event`'s own enforcement uses. A field already holding a value from an earlier answer is
+left out here too, not just let through when you fire the event: this list is meant to directly
+drive whether your own UI shows a dialog at all, and it would be actively wrong to show one for
+something that wouldn't actually be required.
 
 ## Prompt fields: fields with no value except by asking
 
