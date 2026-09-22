@@ -2500,14 +2500,16 @@ function refreshTrayMenu() {
 function setupTray() {
   const { menuBarIcon, hideDockIcon } = configStore.get();
   if (menuBarIcon && !tray) {
-    // A real colored icon, not a template image -- a template image is
-    // rendered as a plain black/white silhouette from its alpha channel
-    // alone (macOS auto-tints it for menu bar light/dark), which was the
-    // right call for the old monochrome mark but would throw away this
-    // one's actual color entirely. `@2x` is picked up automatically by
-    // nativeImage from the file alongside this one, same convention as
-    // before.
-    const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
+    // A template image -- macOS renders it as a plain black/white
+    // silhouette from its alpha channel alone, auto-tinting it to match
+    // the menu bar's own light/dark state, the same as every other native
+    // menu bar icon. Tried a real colored icon here briefly; reverted --
+    // a fixed color stood out against the monochrome icons everyone else's
+    // menu bar extras use, rather than reading as "a normal part of the
+    // menu bar." `@2x` is picked up automatically by nativeImage from the
+    // file alongside this one.
+    const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'));
+    icon.setTemplateImage(true);
     tray = new Tray(icon);
     tray.setToolTip(APP_NAME);
     tray.on('double-click', () => createControlWindow());

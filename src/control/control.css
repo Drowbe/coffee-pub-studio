@@ -93,7 +93,7 @@ p {
    auto, so its own ~2.4:1 aspect ratio sets the width -- a fixed width
    here would either stretch it or leave dead space beside it. */
 .brand-mark {
-  height: 40px;
+  height: 56px;
   width: auto;
   display: block;
 }
