@@ -50,7 +50,7 @@ const metadataEls = {
 };
 const METADATA_COMPOUND_TYPES = ['textNumber', 'numberText'];
 // Kept in lockstep with METADATA_FIELD_TYPES in src/config.js.
-const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES, 'checkbox'];
+const METADATA_FIELD_TYPES = ['text', 'number', ...METADATA_COMPOUND_TYPES, 'checkbox', 'prompt'];
 
 // Mirrors resolveDataField in src/main.js, read-only -- a preview must
 // never actually mutate a Number field just because its format string
