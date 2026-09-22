@@ -291,10 +291,24 @@ disconnected:
 | `applySessionFilename` | Writes the Automations tab's Recording Filename card's **Filename format** template into OBS's own Filename Formatting setting. Fails with a clear error rather than doing anything if no template is set |
 | `runRuleSet` | Runs another rule set by id (`param`), inline -- its stages run in order same as a real trigger, and the caller's own run doesn't continue until it finishes. Refuses with an error rather than looping if the target is already running further up the same call chain |
 | `incrementMetadataField` / `decrementMetadataField` | Adds or subtracts 1 from a Metadata field (`param`, its `key`) -- a plain Number field's value, or a Text+Number/Number+Text field's number segment. Fails with a clear error if the field doesn't exist or isn't a Number-shaped type |
+| `setMetadataField` | Writes an explicit value into a Text-type Metadata field (`param`, its `key`), replacing whatever was there -- the persistence increment/decrement give Number fields, generalized to an explicit set. This is what lets a value outlive a single request: set a Metadata field now, and a *later, separate* call (a different event, run minutes afterward) that reads the same field back -- `applySessionFilename`'s `{sessionTitle}`, say, or `uploadToYouTube`'s `descriptionField` -- sees it. Fails with a clear error if the field doesn't exist or isn't Text-shaped (a Number/Text+Number/Number+Text field already has increment/decrement; a checkbox's only sensible values are boolean) |
 | `uploadToYouTube` | Uploads a recording (the most recent one OBS reported, unless the step overrides it) to YouTube. Not driven by `param` at all -- five separate Metadata field keys instead (`titleField`, `descriptionField`, `categoryField`, `madeForKidsField`, `visibilityField`), configured on the step, not passable through this API. No playlist support -- see `architecture-automations.md`'s "Uploading a recording to YouTube" for why |
 
+`setMetadataField`'s value, on a direct `POST /api/automations/action` call, comes from `data.value`
+(a literal string) -- the same shape `setText` uses for `data.text`, just a different key name since
+"the value to store in this field" reads more plainly than reusing `setText`'s own key for an
+unrelated action:
+
+```
+POST https://<studio-host>:<port>/api/automations/action
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"action": "setMetadataField", "param": "sessionTitle", "data": {"value": "Darn Skarn"}}
+```
+
 A Metadata field's `key` isn't listed anywhere in this API today (no endpoint enumerates
-`config.metadataFields`), so in practice these two (and `uploadToYouTube`'s five) are picked from
+`config.metadataFields`), so in practice these (and `uploadToYouTube`'s five) are picked from
 Studio's own step editor, which already has the list, rather than typed blind by an external caller.
 
 `runRuleSet` is really a Studio-internal composition primitive -- built so one rule set's own steps
@@ -311,12 +325,18 @@ The template accepts `{title}`/`{campaign}` (the triggering event's `data.title`
 blank if absent) as fixed names, kept for backward compatibility. Any *other* `{name}` in the
 template is resolved the same way a `setText` step's Data Field picker would: a Studio-defined
 Metadata field by its own key (`{sessionCampaign}`) or an evergreen field (`{sessionTime}`,
-`{sessionDate}`, ...) -- always a plain read. Bumping a Metadata field's value is a separate,
-explicit action (`incrementMetadataField`/`decrementMetadataField`, in the Studio actions table
-below), not something referencing it in a template can trigger. A name that doesn't resolve to
-anything Studio knows about is left as the literal triggering event's `data[name]` if present,
-blank otherwise. OBS's own `%`-style recording macros (`%CCYY`, `%MM`, and so on) in the filename
-format pass through untouched either way -- only `{...}`-bracketed names are ever substituted.
+`{sessionDate}`, ...) -- always a plain read. Changing a Metadata field's value is a separate,
+explicit action (`incrementMetadataField`/`decrementMetadataField`/`setMetadataField`, in the
+Studio actions table below), not something referencing it in a template can trigger. A name that
+doesn't resolve to anything Studio knows about is left as the literal triggering event's
+`data[name]` if present, blank otherwise. OBS's own `%`-style recording macros (`%CCYY`, `%MM`,
+and so on) in the filename format pass through untouched either way -- only `{...}`-bracketed
+names are ever substituted; any value that *is* substituted in, though, has filesystem-reserved
+characters (`\ / : * ? " < > |` and control characters) stripped first -- a Metadata field or an
+evergreen field like `{sessionDate}` (a US-locale date reads `9/18/2026`) can otherwise put a
+literal `/` into the composed string, which OBS then writes as a real directory separator instead
+of text, silently turning one recording into several nested folders. Only the substituted value is
+sanitized; a literal character typed directly into the template itself is left alone.
 
 ## Sequences, delays, and running steps together
 

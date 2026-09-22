@@ -2050,6 +2050,7 @@ const STUDIO_ACTIONS = [
   { value: 'runRuleSet', label: 'Run rule set', paramType: 'ruleSet', group: 'Studio Control' },
   { value: 'incrementMetadataField', label: 'Increment a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'decrementMetadataField', label: 'Decrement a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
+  { value: 'setMetadataField', label: 'Set a Metadata field', paramType: 'metadataField', group: 'Studio Control' },
   { value: 'uploadToYouTube', label: 'Upload the recording to YouTube', paramType: 'youtubeUpload', group: 'Studio Control' },
 ];
 
@@ -2810,18 +2811,21 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
 
     // Increment/Decrement pick a Metadata field by key, filtered to the
     // types a bump means anything for -- a plain Number field's value, or a
-    // Text+Number/Number+Text field's number segment. Same {value, label}
-    // shape as the rule-set picker above, not optionsForParamType's flat
-    // name list.
+    // Text+Number/Number+Text field's number segment. setMetadataField
+    // filters the other way, to Text fields only, matching what
+    // runAutomationAction actually accepts for each (src/main.js). Same
+    // {value, label} shape as the rule-set picker above, not
+    // optionsForParamType's flat name list.
     if (meta && meta.paramType === 'metadataField') {
-      const fields = ((config && config.metadataFields) || []).filter(
-        (f) => f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)
+      const wantsText = step.action === 'setMetadataField';
+      const fields = ((config && config.metadataFields) || []).filter((f) =>
+        wantsText ? f.type === 'text' : f.type === 'number' || METADATA_COMPOUND_TYPES.includes(f.type)
       );
       const paramSelect = document.createElement('select');
       paramSelect.dataset.sfield = 'param';
       const blank = document.createElement('option');
       blank.value = '';
-      blank.textContent = fields.length ? 'Choose a Metadata field…' : 'No Number-type Metadata fields yet';
+      blank.textContent = fields.length ? 'Choose a Metadata field…' : `No ${wantsText ? 'Text' : 'Number'}-type Metadata fields yet`;
       paramSelect.appendChild(blank);
       for (const f of fields) {
         const opt = document.createElement('option');
@@ -2833,7 +2837,7 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
       if (step.param && !fields.some((f) => f.key === step.param)) {
         const opt = document.createElement('option');
         opt.value = step.param;
-        opt.textContent = `[!] ${step.param} — not a Number-type Metadata field`;
+        opt.textContent = `[!] ${step.param} — not a ${wantsText ? 'Text' : 'Number'}-type Metadata field`;
         opt.style.color = 'var(--danger)';
         opt.selected = true;
         paramSelect.appendChild(opt);
@@ -2947,7 +2951,10 @@ function buildStepRow(step, index, number, isFirst, timeableActions, ruleSetId) 
     // (no external caller involved at all), a local file Studio re-reads
     // every run, or a field a connected module has actually registered
     // (never a name typed blind against an undocumented contract).
-    if (step.action === 'setText') {
+    // setMetadataField shares this exact block -- same three-source shape,
+    // just writing into a Metadata field's stored value instead of an OBS
+    // text source (see resolveMetadataFieldValue, src/main.js).
+    if (step.action === 'setText' || step.action === 'setMetadataField') {
       const valueTypeSelect = document.createElement('select');
       valueTypeSelect.className = 'automation-step-valuetype';
       valueTypeSelect.dataset.sfield = 'valueType';
@@ -3263,19 +3270,19 @@ automationsEls.rulesets.addEventListener('click', async (event) => {
       reportError(new Error('Set this rule set\'s event before running it.'));
       return;
     }
-    // A "Data Field" setText step reading one of Studio's own keys (an
-    // evergreen built-in or a Metadata field) needs no outside input at
-    // all -- resolveDataField answers it straight from config, same as a
-    // real trigger would. Only a step reading a key some other module
-    // registers (Herald, Tavern, ...) genuinely depends on whatever
+    // A "Data Field" setText/setMetadataField step reading one of Studio's
+    // own keys (an evergreen built-in or a Metadata field) needs no outside
+    // input at all -- resolveDataField answers it straight from config,
+    // same as a real trigger would. Only a step reading a key some other
+    // module registers (Herald, Tavern, ...) genuinely depends on whatever
     // triggered the run, and that's the only case worth asking about here;
     // "Free Text" and "File" steps are self-contained regardless.
     let data = {};
     const fields = [
       ...new Set(
         ruleSet.steps
-          .filter((s) => s.type === 'action' && s.action === 'setText' && s.valueType === 'dataField')
-          .map((s) => s.dataField || 'text')
+          .filter((s) => s.type === 'action' && (s.action === 'setText' || s.action === 'setMetadataField') && s.valueType === 'dataField')
+          .map((s) => s.dataField || (s.action === 'setMetadataField' ? 'value' : 'text'))
       ),
     ];
     const externalFields = fields.filter((f) => !isStudioOwnedDataField(f));

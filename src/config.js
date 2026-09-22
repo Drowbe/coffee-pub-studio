@@ -222,7 +222,7 @@ const AUTOMATIONS_ACTION_SCHEMA = [
 const STUDIO_ACTIONS = [
   'wakeAudio', 'startAll', 'stopAll', 'dockAll', 'undockAll', 'syncObs',
   'applySessionFilename', 'runRuleSet', 'incrementMetadataField', 'decrementMetadataField',
-  'uploadToYouTube',
+  'setMetadataField', 'uploadToYouTube',
 ];
 const STUDIO_ACTION_SCHEMA = [
   { action: 'wakeAudio', label: 'Wake audio (every open window)', param: null, paramType: 'none', group: 'Studio Control' },
@@ -243,6 +243,12 @@ const STUDIO_ACTION_SCHEMA = [
   // same mutation inside a read (see resolveDataField, src/main.js).
   { action: 'incrementMetadataField', label: 'Increment a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
   { action: 'decrementMetadataField', label: 'Decrement a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
+  // param is a Text-type Metadata field's key; the value to store comes
+  // from `data.value` on a direct POST /api/automations/action call (see
+  // resolveMetadataFieldValue, src/main.js), or from the step's own
+  // fixed/file/Data-Field choice when run from a rule set, same three
+  // sources setText's own step editor already offers.
+  { action: 'setMetadataField', label: 'Set a Metadata field', param: 'field key', paramType: 'metadataField', group: 'Studio Control' },
   // No single `param` -- five named slots instead (titleField/
   // descriptionField/categoryField/madeForKidsField/visibilityField, each a
   // Metadata field key; madeForKidsField must point at a "checkbox" field

@@ -716,6 +716,29 @@ function resolveTextValue(stepContext, eventData) {
   return stepContext.value || ''; // "literal", and the default for anything unrecognised
 }
 
+// setMetadataField's own value, same three-source shape as resolveTextValue
+// just above (fixed/file/event-data-field) -- but for a direct
+// `POST /api/automations/action` call (no stepContext), it reads
+// `data.value` rather than `data.text`, since "the value to store in this
+// field" reads more plainly than reusing setText's own key name for an
+// unrelated action.
+function resolveMetadataFieldValue(stepContext, eventData) {
+  if (!stepContext) {
+    return eventData && typeof eventData.value === 'string' ? eventData.value : '';
+  }
+  if (stepContext.valueType === 'file') {
+    try {
+      return fs.readFileSync(stepContext.filePath, 'utf8').trim();
+    } catch (err) {
+      throw new Error(`Could not read text file "${stepContext.filePath}": ${err.message}`);
+    }
+  }
+  if (stepContext.valueType === 'dataField') {
+    return resolveDataField(stepContext.dataField || 'value', eventData);
+  }
+  return stepContext.value || ''; // "literal", and the default for anything unrecognised
+}
+
 // One step's action -> the OBS or Studio call it makes. `param` is the
 // step's own value: a scene name for sceneSwitch, a source name for
 // sourceShow/sourceHide/sourceToggle/setText, ignored otherwise.
@@ -815,6 +838,30 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
       else if (field.type === 'textNumber' || field.type === 'numberText') patch = { number: field.number + delta };
       else throw new Error(`"${field.label}" isn't a Number field -- nothing to ${delta > 0 ? 'increment' : 'decrement'}.`);
       configStore.save({ ...current, metadataFields: current.metadataFields.map((f) => (f.key === param ? { ...f, ...patch } : f)) });
+      broadcastStatus();
+      return;
+    }
+    // Writes an explicit value into a Text-type Metadata field's stored
+    // `value` -- the persistence increment/decrement give Number fields,
+    // generalized to an explicit set rather than +/-1. This is what lets a
+    // value survive between two separate calls (a title set before
+    // recording starts, read minutes later when the filename is applied; a
+    // description updated at any point, read later still when a YouTube
+    // upload step runs) -- something no other action did before this one,
+    // since setText writes an OBS text *source*, not Studio's own stored
+    // state. Scoped to "text" only, deliberately: a Number/textNumber/
+    // numberText field already has an explicit action that owns it
+    // (increment/decrement), and a checkbox field's only sensible values
+    // are boolean, not a string one of this action's own three sources
+    // would produce.
+    case 'setMetadataField': {
+      if (!param) throw new Error('setMetadataField needs a Metadata field.');
+      const current = configStore.get();
+      const field = current.metadataFields.find((f) => f.key === param);
+      if (!field) throw new Error(`Metadata field not found: ${param}`);
+      if (field.type !== 'text') throw new Error(`"${field.label}" isn't a Text field -- nothing to set.`);
+      const value = resolveMetadataFieldValue(stepContext, eventData);
+      configStore.save({ ...current, metadataFields: current.metadataFields.map((f) => (f.key === param ? { ...f, value } : f)) });
       broadcastStatus();
       return;
     }

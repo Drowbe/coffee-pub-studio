@@ -403,6 +403,41 @@ key was read; now it's only wherever an Increment/Decrement step was deliberatel
 the actual point: composing the bump into one rule set, called from one place (`runRuleSet`), makes
 "exactly once" something you can arrange, not something you have to hope stays true.
 
+### `setMetadataField`: an explicit set, for Text fields
+
+Increment/decrement gives a Number-shaped field persistence across separate calls (bump it now,
+read the bumped value later). Nothing gave a Text field the same until `setMetadataField`, added
+for a Herald use case that needed exactly this: prompt for a title before recording starts (used
+later, by a *different* call, in the filename), and let the description be updated independently
+at any point up to Stop (used later still, by the YouTube upload step). Both need somewhere durable
+to land between "when it's set" and "when it's read" -- `data` on a triggering event doesn't
+survive past that one request, so a Text field's own `resolveDataField` read was never going to be
+enough on its own; something had to be able to write one.
+
+`setMetadataField` mirrors increment/decrement's shape (`param` is the field's `key`) but takes an
+explicit value instead of a fixed ±1, and is scoped the other way: Text fields only, rejecting
+Number/Text+Number/Number+Text (which already have their own action) and checkbox (whose only
+sensible values are boolean, not a string this action's sources would produce) with the same "throw
+a clear error rather than silently doing nothing" posture increment/decrement already established.
+
+The value itself reuses `setText`'s existing three-source shape --literal/file/Data-Field-- almost
+verbatim: `resolveMetadataFieldValue` (`src/main.js`) is `resolveTextValue`'s logic copied rather
+than parameterized, differing only in what a direct API call (no step context) reads literally --
+`data.value`, not `setText`'s `data.text`, since "the value to store in this field" reads more
+plainly than reusing an unrelated action's own key name. The step editor's own value-source block
+(`buildStepRow`) is shared between the two actions outright, not copied, since the UI genuinely is
+identical either way. The Metadata-field picker (`buildStepRow`) filters by action -- Number/
+compound types for Increment/Decrement, Text only for `setMetadataField` -- the same
+`METADATA_COMPOUND_TYPES` split the picker already made, just inverted for this one case.
+
+Verified live against the real automations HTTP server: `setMetadataField` on `sessionTitle`
+(including a value containing its own literal `/`, to confirm a Metadata field's stored value is
+never itself sanitized -- only what a *filename* template substitutes is, see the note under
+"POST /api/automations/action" in `api-automations.md`) landed in `config.json` and was read back
+correctly by `applySessionFilename`; an unknown field key, a non-Text field, and a missing `param`
+each failed with the same `500 {error}` shape increment/decrement already use, and left the target
+field untouched.
+
 The Metadata card itself has no inline bump buttons -- removed deliberately, since their presence
 implied a human needs to click one every time, when the entire point of Increment/Decrement as a
 Studio action is that a rule set does the bumping with nobody touching the card at all. Each row is
