@@ -15,6 +15,13 @@ automatically** to reconnect at every launch.
 The password is stored encrypted with the macOS keychain, like the OBS password. The stream key
 the sources use is fetched from the server at sign-in and never has to be copied.
 
+If the account has two-step sign-in turned on (or the server requires it for everyone), a
+**Two-step code** field appears after **Sign in** -- enter the six-digit code from your
+authenticator app and click **Verify**, or **Cancel** to back out. Studio remembers that it
+verified for 30 days, so it isn't asked again until then. If the account hasn't set up two-step
+sign-in yet, Studio can't do that part -- sign in once in a browser to set it up, then come back
+and sign in here as usual.
+
 ## Source sizes
 
 The **Participant source** is their video, or a still image when the camera is off, with the
