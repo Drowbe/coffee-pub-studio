@@ -154,13 +154,16 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   integer window ID -- a different input kind, a different settings shape, and a different way of
   resolving "this app window" to "this OBS capture target" -- and is genuinely untestable without
   a Windows machine running OBS, so left unbuilt rather than guessed at. Also open: Windows
-  display scaling in the captured-size readout, quit on close instead of living in the Dock, and a
-  Windows-specific app icon -- `build/icon.png` (shared by `mac.icon`/`win.icon` in `package.json`)
-  is shaped the way macOS wants an icon supplied (padding, pre-rounded corners -- Apple's own
-  convention, not a mistake), but Windows doesn't share that convention and expects a full-bleed
-  icon; using the same file there will look like a small icon floating in visible empty space next
-  to other apps' Taskbar/Start Menu icons. The Coffee Pub team's transparent, no-background variant
-  is the likely starting point for a proper Windows-shaped icon once that's worth doing.
+  display scaling in the captured-size readout, and quit on close instead of living in the Dock.
+  ~~A Windows-specific app icon.~~ The earlier note here (that `build/icon.png`, shared by
+  `mac.icon`/`win.icon` in `package.json`, was correctly shaped with padding and pre-rounded
+  corners for macOS but wrong for Windows) had the macOS half backwards: current macOS wants a
+  full-bleed square with no baked-in corners or margin -- the system applies its own mask, bevel
+  and shadow -- so the old file was actually ill-shaped for both platforms at once, not just one
+  of them. Replaced (2026-09-25) with full-bleed 1024x1024 art from the Coffee Pub team, no
+  transparency, no pre-rounded corners; correct for macOS by the current convention and, since it
+  no longer has a transparent margin, should read fine on Windows too -- not yet confirmed live on
+  an actual Windows Taskbar, same testability gap as the rest of this section.
   The tray icon (`src/assets/trayTemplate.png`/`trayTemplate@2x.png`) briefly tried a real color
   icon once the Coffee Pub team supplied a proper brandmark set, then reverted back to a template
   image (still auto-tinted, but a dedicated white template asset now, not the original placeholder)
