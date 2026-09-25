@@ -1752,9 +1752,9 @@ $('tavern-sync').addEventListener('click', () => api.tavernSync().catch(reportEr
 $('tavern-room').addEventListener('change', async () => {
   const room = $('tavern-room').value;
   $('tavern-room').blur();
-  config.tavern.room = room;
+  config.tavern.space = room;
   try {
-    status.tavern = await api.tavernSetSettings({ room });
+    status.tavern = await api.tavernSetSettings({ space: room });
   } catch (err) {
     reportError(err);
   }
@@ -1813,7 +1813,7 @@ function renderTavern() {
   // back to Lobby the moment no admin was online, which read as the room
   // randomly changing on its own).
   const rooms = connected ? t.rooms || [] : [];
-  const chosenId = (config && config.tavern.room) || 'lobby';
+  const chosenId = (config && config.tavern.space) || 'lobby';
   const room = rooms.find((r) => r.id === chosenId) || rooms.find((r) => r.isLobby) || rooms[0] || null;
   $('tavern-follow-admin').checked = Boolean(config && config.tavern.followAdmin);
   // Rebuild the list only when it changed, so a room added on the Tavern
@@ -1837,7 +1837,7 @@ function renderTavern() {
   tavernEls.title.textContent = connected && room ? `${t.serverName}: ${room.name}` : 'Room';
   $('tavern-room-desc').textContent = room ? room.description : '';
   const roomImage = $('tavern-room-image');
-  const roomImageUrl = room && room.hasImage ? `${t.url}/img/room/${encodeURIComponent(room.id)}?s=${encodeURIComponent(t.streamKey)}` : '';
+  const roomImageUrl = room && room.hasImage ? `${t.url}/img/space/${encodeURIComponent(room.id)}?s=${encodeURIComponent(t.streamKey)}` : '';
   roomImage.hidden = !roomImageUrl;
   if (roomImageUrl && roomImage.dataset.src !== roomImageUrl) {
     roomImage.dataset.src = roomImageUrl;
