@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld('coffeePub', {
   tavernSetPassword: (password) => ipcRenderer.invoke('tavern:setPassword', password),
   tavernConnect: () => ipcRenderer.invoke('tavern:connect'),
   tavernDisconnect: () => ipcRenderer.invoke('tavern:disconnect'),
+  tavernVerifyMfa: (code) => ipcRenderer.invoke('tavern:verifyMfa', code),
+  tavernCancelMfa: () => ipcRenderer.invoke('tavern:cancelMfa'),
   tavernSync: () => ipcRenderer.invoke('tavern:sync'),
   tavernPublishAll: () => ipcRenderer.invoke('tavern:publishAll'),
   tavernUnpublishAll: (removeFromObs) => ipcRenderer.invoke('tavern:unpublishAll', removeFromObs),

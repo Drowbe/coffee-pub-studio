@@ -294,6 +294,14 @@
           </label>
           <button id="tavern-save-password" class="btn" type="button" hidden>Save password</button>
         </div>
+        <div class="row" id="tavern-mfa-row" hidden>
+          <label class="field field-inline">
+            <span>Two-step code</span>
+            <input id="tavern-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" size="6" placeholder="123456">
+          </label>
+          <button id="tavern-mfa-submit" class="btn btn-primary" type="button">Verify</button>
+          <button id="tavern-mfa-cancel" class="btn" type="button">Cancel</button>
+        </div>
         <div class="card-subsection">
           <h3 class="section-title">Participant Source</h3>
           <div class="row">

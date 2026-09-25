@@ -1634,6 +1634,8 @@ const tavernEls = {
   statusWidth: $('tavern-status-width'),
   statusHeight: $('tavern-status-height'),
   connect: $('tavern-connect'),
+  mfaRow: $('tavern-mfa-row'),
+  mfaCode: $('tavern-mfa-code'),
   tag: $('tavern-tag'),
   dot: $('tavern-dot'),
   status: $('tavern-status'),
@@ -1643,6 +1645,7 @@ const tavernEls = {
   summary: $('tavern-summary'),
   title: $('tavern-title'),
 };
+let tavernMfaAutoFocused = false;
 
 // A Participant source and a Character source are independent OBS sources
 // with their own switch, so they get their own section and their own row
@@ -1740,6 +1743,34 @@ tavernEls.connect.addEventListener('click', async () => {
   renderTavern();
   renderConnectionsBoard();
 });
+async function submitTavernMfaCode() {
+  const code = tavernEls.mfaCode.value.trim();
+  if (!code) return;
+  $('tavern-mfa-submit').disabled = true;
+  try {
+    status.tavern = await api.tavernVerifyMfa(code);
+  } catch (err) {
+    // the status line carries the reason
+  }
+  $('tavern-mfa-submit').disabled = false;
+  tavernEls.mfaCode.value = '';
+  renderTavern();
+  renderConnectionsBoard();
+}
+$('tavern-mfa-submit').addEventListener('click', submitTavernMfaCode);
+tavernEls.mfaCode.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') submitTavernMfaCode();
+});
+$('tavern-mfa-cancel').addEventListener('click', async () => {
+  tavernEls.mfaCode.value = '';
+  try {
+    status.tavern = await api.tavernCancelMfa();
+  } catch (err) {
+    // the status line carries the reason
+  }
+  renderTavern();
+  renderConnectionsBoard();
+});
 $('tavern-manage').addEventListener('click', () => api.tavernOpenManage());
 $('tavern-show-all').addEventListener('click', () => api.tavernShowAll().catch(reportError));
 $('tavern-hide-all').addEventListener('click', () => api.tavernHideAll().catch(reportError));
@@ -1788,11 +1819,27 @@ function renderTavern() {
   const t = status.tavern || { state: 'disconnected', party: [], sync: { inputs: [] } };
   const connected = t.state === 'connected';
   const connecting = t.state === 'connecting';
+  const awaitingCode = t.state === 'mfa';
   tavernEls.tag.hidden = !connected;
   tavernEls.dot.classList.toggle('on', connected);
+  // applyTavernConfig() already hides this button when Tavern itself is
+  // off; awaitingCode only ever adds a reason to hide it, never a reason
+  // to override that and show it.
+  if (awaitingCode) tavernEls.connect.hidden = true;
+  else if (config) tavernEls.connect.hidden = !config.tavern.enabled;
   tavernEls.connect.textContent = connected ? 'Sign out' : connecting ? 'Signing in...' : 'Sign in';
   tavernEls.connect.disabled = connecting;
   tavernEls.connect.classList.toggle('btn-primary', !connected && !connecting);
+  tavernEls.mfaRow.hidden = !awaitingCode;
+  // Focus once on the way in, not on every status broadcast (OBS polling
+  // re-renders every couple of seconds) -- that would yank focus away from
+  // wherever the person clicked next while the row is still showing.
+  if (awaitingCode && !tavernMfaAutoFocused) {
+    tavernEls.mfaCode.focus();
+    tavernMfaAutoFocused = true;
+  } else if (!awaitingCode) {
+    tavernMfaAutoFocused = false;
+  }
   tavernEls.password.placeholder = t.hasPassword ? 'saved' : 'not set';
   $('tavern-manage').disabled = !config || !config.tavern.url;
   const labels = {
@@ -1800,6 +1847,7 @@ function renderTavern() {
     connecting: t.message || 'Signing in...',
     connected: t.message || 'Signed in.',
     error: t.message || 'Sign-in failed.',
+    mfa: t.message || 'Enter the six-digit code from your authenticator app.',
   };
   let text = labels[t.state] || '';
   if (connected && t.version) text += ` Server ${t.version}.`;

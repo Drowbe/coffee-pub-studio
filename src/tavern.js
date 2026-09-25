@@ -14,11 +14,15 @@ class TavernBridge extends EventEmitter {
    * @param {object} options
    * @param {() => {url: string, login: string, autoConnect: boolean}} options.getSettings
    * @param {() => string} options.getPassword
+   * @param {(url: string, login: string) => string} [options.getTrustCookie] the saved `mfa_trust` cookie for this server and account, if any, so a two-step account isn't asked for a code every sign-in
+   * @param {(url: string, login: string, cookie: string) => void} [options.saveTrustCookie] called with '' to clear
    */
-  constructor({ getSettings, getPassword }) {
+  constructor({ getSettings, getPassword, getTrustCookie = () => '', saveTrustCookie = () => {} }) {
     super();
     this.getSettings = getSettings;
     this.getPassword = getPassword;
+    this.getTrustCookie = getTrustCookie;
+    this.saveTrustCookie = saveTrustCookie;
     this.state = 'disconnected';
     this.message = '';
     this.suspended = false;
@@ -26,6 +30,16 @@ class TavernBridge extends EventEmitter {
     this.streamKey = '';
     this.me = null;
     this.branding = null;
+    // The server's `pending` token while a two-step code is outstanding
+    // (POST /api/login answered mfaRequired instead of a session); cleared
+    // once verifyCode() succeeds, the pending token itself expires, or the
+    // attempt is cancelled.
+    this.mfaPending = '';
+    // The most recent response's raw Set-Cookie headers, read right after
+    // request() so verifyCode() can pull the `mfa_trust` cookie out of a
+    // POST /api/login/verify response without request() needing to know
+    // what a caller wants from them.
+    this.lastSetCookie = [];
     this.party = []; // users with live state, as /api/status reports them
     this.rooms = []; // the Lobby and the rooms an admin curated
     this.activeRoom = 'lobby'; // the room the stream currently hears (whoever's admin is in it)
@@ -98,10 +112,18 @@ class TavernBridge extends EventEmitter {
     this.suspended = true;
     this.token = '';
     this.streamKey = '';
+    this.mfaPending = '';
     this.party = [];
     this.rooms = [];
     this.activeRoom = 'lobby';
     this.setState('disconnected', 'Disconnected.');
+  }
+
+  // Backs out of an outstanding two-step prompt without touching
+  // `autoConnect`'s own reconnect schedule the way a full disconnect() does.
+  cancelMfa() {
+    this.mfaPending = '';
+    this.setState('disconnected', 'Sign-in cancelled.');
   }
 
   scheduleReconnect() {
@@ -128,27 +150,25 @@ class TavernBridge extends EventEmitter {
       try {
         const password = this.getPassword();
         if (!login || !password) throw new Error('Enter the admin login and password.');
-        const auth = await this.request('POST', '/api/login', { login, password }, { anonymous: true });
+        // A previously remembered device skips the code entirely; the
+        // server ignores an empty or stale cookie the same as none at all.
+        const trust = this.getTrustCookie(url, login);
+        const auth = await this.request('POST', '/api/login', { login, password }, { anonymous: true, cookie: trust });
+        if (auth.mfaRequired) {
+          if (auth.enrol) {
+            throw new Error('This account needs two-step sign-in set up first. Sign in once in a browser, then try again.');
+          }
+          // No session yet -- verifyCode() finishes this same sign-in once
+          // the person enters the code from their authenticator app.
+          this.mfaPending = auth.pending;
+          this.setState('mfa', 'Enter the six-digit code from your authenticator app.');
+          return;
+        }
+        this.mfaPending = '';
         this.token = auth.token;
-        const me = await this.request('GET', '/api/me');
-        // The Magpie rename splits the old single 'admin' role into 'owner'
-        // (an environment's own admin) and 'admin' (the host's stand-in) --
-        // Studio's sign-in check always meant either of those, never
-        // 'member' or 'guest', so both are accepted here.
-        if (!isElevatedRole(me.user.role)) throw new Error(`${me.user.displayName} is not an admin on this server.`);
-        this.me = me.user;
-        this.streamKey = me.streamKey || '';
-        // `environmentName` is the rename of `serverName`; read the new name
-        // first and fall back to the old one, so this works against a
-        // server before or after that rename ships. `tableName` is
-        // alias-only now (the renamed API has no table name at all) and
-        // Studio never displayed it, so it's no longer captured.
-        this.branding = { serverName: me.environmentName || me.serverName, version: me.version };
-        await this.poll();
-        this.setState('connected', `Signed in to ${this.branding.serverName} as ${me.user.displayName}.`);
-        this.startPolling();
-        this.emit('connected');
+        await this.afterSignIn();
       } catch (err) {
+        this.mfaPending = '';
         this.token = '';
         this.setState('error', describeError(err));
         this.scheduleReconnect();
@@ -161,6 +181,57 @@ class TavernBridge extends EventEmitter {
       this.connecting = null;
     });
     return this.connecting;
+  }
+
+  // Finishes a sign-in once a real token exists, whether it came straight
+  // from POST /api/login or from verifyCode() after a two-step prompt --
+  // both leave `this.token` set the same way, so this is the one place
+  // that reads /api/me, applies the role check and starts polling.
+  async afterSignIn() {
+    const me = await this.request('GET', '/api/me');
+    // The Magpie rename splits the old single 'admin' role into 'owner'
+    // (an environment's own admin) and 'admin' (the host's stand-in) --
+    // Studio's sign-in check always meant either of those, never
+    // 'member' or 'guest', so both are accepted here.
+    if (!isElevatedRole(me.user.role)) throw new Error(`${me.user.displayName} is not an admin on this server.`);
+    this.me = me.user;
+    this.streamKey = me.streamKey || '';
+    // `environmentName` is the rename of `serverName`; read the new name
+    // first and fall back to the old one, so this works against a server
+    // before or after that rename ships. `tableName` is alias-only now
+    // (the renamed API has no table name at all) and Studio never
+    // displayed it, so it's no longer captured.
+    this.branding = { serverName: me.environmentName || me.serverName, version: me.version };
+    await this.poll();
+    this.setState('connected', `Signed in to ${this.branding.serverName} as ${me.user.displayName}.`);
+    this.startPolling();
+    this.emit('connected');
+  }
+
+  // Completes the sign-in connect() paused for a two-step code. The
+  // pending token lasts ten minutes and survives a wrong code, so a retry
+  // reuses it; it does not survive its own expiry, which the server reports
+  // as "sign in again" -- that's the one failure that has to start over
+  // from connect().
+  async verifyCode(code) {
+    if (!this.mfaPending) throw new Error('Not waiting for a code.');
+    const { url, login } = this.getSettings();
+    this.setState('connecting', 'Checking your code...');
+    try {
+      const result = await this.request('POST', '/api/login/verify', { pending: this.mfaPending, code, remember: true }, { anonymous: true });
+      const trustCookie = extractCookieValue(this.lastSetCookie, 'mfa_trust');
+      if (trustCookie) this.saveTrustCookie(url, login, trustCookie);
+      this.mfaPending = '';
+      this.token = result.token;
+      await this.afterSignIn();
+    } catch (err) {
+      const message = describeError(err);
+      if (/sign in again/i.test(message)) this.mfaPending = '';
+      this.token = '';
+      this.setState(this.mfaPending ? 'mfa' : 'error', message);
+      if (!this.mfaPending) this.scheduleReconnect();
+      throw new Error(this.message);
+    }
   }
 
   startPolling() {
@@ -263,10 +334,11 @@ class TavernBridge extends EventEmitter {
     return this.party.filter((u) => room.members.includes(u.key));
   }
 
-  async request(method, pathname, body, { anonymous = false } = {}) {
+  async request(method, pathname, body, { anonymous = false, cookie = '' } = {}) {
     const { url } = this.getSettings();
     const headers = { accept: 'application/json' };
     if (body !== undefined) headers['content-type'] = 'application/json';
+    if (cookie) headers.cookie = cookie;
     if (!anonymous) {
       if (!this.token) throw new Error('Not signed in.');
       headers.authorization = `Bearer ${this.token}`;
@@ -275,6 +347,10 @@ class TavernBridge extends EventEmitter {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(`${url}${pathname}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal });
+      // Read before the body, so a caller (verifyCode(), for the
+      // `mfa_trust` cookie) can inspect it even if the response fails to
+      // parse as JSON below.
+      this.lastSetCookie = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
       let data = {};
       try {
         data = await res.json();
@@ -287,6 +363,17 @@ class TavernBridge extends EventEmitter {
       clearTimeout(timer);
     }
   }
+}
+
+// Pulls `name=value` out of a Set-Cookie header list, dropping the
+// attributes (Path, Max-Age, ...) -- the shape `request()`'s `cookie`
+// option expects to send straight back.
+function extractCookieValue(setCookieHeaders, name) {
+  for (const header of setCookieHeaders || []) {
+    const match = header.match(new RegExp(`^${name}=([^;]+)`));
+    if (match) return `${name}=${match[1]}`;
+  }
+  return '';
 }
 
 // 'owner' (an environment's own admin) or 'admin' (the host's stand-in) --

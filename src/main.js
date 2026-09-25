@@ -133,6 +133,7 @@ let dockExpanded = false;
 
 const OBS_SECRET_PATH = path.join(app.getPath('userData'), 'obs-secret.bin');
 const TAVERN_SECRET_PATH = path.join(app.getPath('userData'), 'tavern-secret.bin');
+const TAVERN_TRUST_PATH = path.join(app.getPath('userData'), 'tavern-trust.bin');
 
 function readSecret(file) {
   try {
@@ -157,6 +158,30 @@ function writeSecret(file, secret) {
 
 const readObsPassword = () => readSecret(OBS_SECRET_PATH);
 const writeObsPassword = (password) => writeSecret(OBS_SECRET_PATH, password);
+
+// The Tavern's "remember this device for 30 days" cookie from a two-step
+// sign-in, keyed by server address and login so switching either forgets
+// the old one rather than sending it somewhere it doesn't belong.
+function tavernTrustKey(url, login) {
+  return `${url}|${login}`;
+}
+function readTavernTrust() {
+  try {
+    return JSON.parse(readSecret(TAVERN_TRUST_PATH) || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+function getTavernTrustCookie(url, login) {
+  return readTavernTrust()[tavernTrustKey(url, login)] || '';
+}
+function saveTavernTrustCookie(url, login, cookie) {
+  const all = readTavernTrust();
+  const key = tavernTrustKey(url, login);
+  if (cookie) all[key] = cookie;
+  else delete all[key];
+  writeSecret(TAVERN_TRUST_PATH, JSON.stringify(all));
+}
 
 // ---------------------------------------------------------------------------
 // Activity log (Connections card, Configuration tab) -- a shared, in-memory record
@@ -250,6 +275,8 @@ const youtubeUploadProgress = new Map();
 const tavern = new TavernBridge({
   getSettings: () => configStore.get().tavern,
   getPassword: () => readSecret(TAVERN_SECRET_PATH),
+  getTrustCookie: getTavernTrustCookie,
+  saveTrustCookie: saveTavernTrustCookie,
 });
 // What the last sync found in OBS, shown on the Tavern tab.
 let tavernSync = { at: 0, inputs: [], created: [], updated: [], renamed: [], missing: [], note: '' };
@@ -2752,6 +2779,14 @@ function registerIpc() {
   });
   ipcMain.handle('tavern:disconnect', async () => {
     await tavern.disconnect();
+    return fullStatus().tavern;
+  });
+  ipcMain.handle('tavern:verifyMfa', async (_event, code) => {
+    await tavern.verifyCode(String(code || ''));
+    return fullStatus().tavern;
+  });
+  ipcMain.handle('tavern:cancelMfa', () => {
+    tavern.cancelMfa();
     return fullStatus().tavern;
   });
   ipcMain.handle('tavern:sync', () => syncTavern());
