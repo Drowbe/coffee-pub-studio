@@ -29,6 +29,17 @@ class TavernBridge extends EventEmitter {
     this.party = []; // users with live state, as /api/status reports them
     this.rooms = []; // the Lobby and the rooms an admin curated
     this.activeRoom = 'lobby'; // the room the stream currently hears (whoever's admin is in it)
+    // The keyed page paths this environment's installed, enabled modules
+    // currently serve (e.g. "view", once the Stream module is on) -- `null`
+    // (not an empty array) until a real poll answers, and stays `null`
+    // forever against a server too old to report this field at all, so
+    // hasViewModule() below can tell "definitely not installed" (an array
+    // without "view" in it) apart from "this server doesn't say" (treated
+    // as "assume it's fine," the same as Studio's behavior before this
+    // field existed -- an older/self-hosted Tavern shouldn't start
+    // showing a false "module missing" warning just because it hasn't
+    // been asked to update).
+    this.pages = null;
     this.pollTimer = null;
     this.reconnectTimer = null;
     this.connecting = null;
@@ -41,14 +52,22 @@ class TavernBridge extends EventEmitter {
       message: this.message,
       url: this.getSettings().url,
       serverName: this.branding?.serverName || '',
-      tableName: this.branding?.tableName || '',
       version: this.branding?.version || '',
       streamKey: this.streamKey,
       party: this.party,
       rooms: this.rooms,
       activeRoom: this.activeRoom,
       lastPoll: this.lastPoll,
+      hasViewModule: this.hasViewModule(),
     };
+  }
+
+  // "Assume yes" when the server hasn't reported `pages` at all (an older
+  // or self-hosted Tavern that predates this field) -- only an explicit
+  // array missing "view" means the Stream module is genuinely off or
+  // uninstalled on this environment. See the `pages` field comment above.
+  hasViewModule() {
+    return this.pages === null || this.pages.includes('view');
   }
 
   get connected() {
@@ -112,10 +131,19 @@ class TavernBridge extends EventEmitter {
         const auth = await this.request('POST', '/api/login', { login, password }, { anonymous: true });
         this.token = auth.token;
         const me = await this.request('GET', '/api/me');
-        if (me.user.role !== 'admin') throw new Error(`${me.user.displayName} is not an admin on this server.`);
+        // The Magpie rename splits the old single 'admin' role into 'owner'
+        // (an environment's own admin) and 'admin' (the host's stand-in) --
+        // Studio's sign-in check always meant either of those, never
+        // 'member' or 'guest', so both are accepted here.
+        if (!isElevatedRole(me.user.role)) throw new Error(`${me.user.displayName} is not an admin on this server.`);
         this.me = me.user;
         this.streamKey = me.streamKey || '';
-        this.branding = { serverName: me.serverName, tableName: me.tableName, version: me.version };
+        // `environmentName` is the rename of `serverName`; read the new name
+        // first and fall back to the old one, so this works against a
+        // server before or after that rename ships. `tableName` is
+        // alias-only now (the renamed API has no table name at all) and
+        // Studio never displayed it, so it's no longer captured.
+        this.branding = { serverName: me.environmentName || me.serverName, version: me.version };
         await this.poll();
         this.setState('connected', `Signed in to ${this.branding.serverName} as ${me.user.displayName}.`);
         this.startPolling();
@@ -160,23 +188,47 @@ class TavernBridge extends EventEmitter {
       key: u.key,
       login: u.login,
       displayName: u.displayName,
-      role: u.role,
+      // See the same normalization in connect(): 'owner' and 'admin' both
+      // mean "the person running the show" to Studio.
+      role: u.role === 'owner' || u.role === 'admin' ? 'admin' : u.role,
       images: u.images,
       player: u.player,
       viewUrl: u.viewUrl,
-      online: u.online,
+      // `online.space` is the rename of `online.room`; fold it into `.room`
+      // here so every other place in Studio that reads `user.online.room`
+      // keeps working unchanged, against either server shape.
+      online: u.online && { ...u.online, room: u.online.space || u.online.room },
     }));
-    this.branding = { serverName: status.serverName, tableName: status.tableName, version: status.version };
+    this.branding = { serverName: status.environmentName || status.serverName, version: status.version };
     this.lastPoll = Date.now();
-    // Servers before rooms existed report none: everyone is in the Lobby.
-    const rooms = Array.isArray(status.rooms) && status.rooms.length
+    // `spaces`/`activeSpace` are the rename of `rooms`/`activeRoom` -- prefer
+    // them, falling back to the old names for a server that hasn't shipped
+    // the rename yet. Row shape (id, name, members, ephemeral, private, ...)
+    // is unchanged either way. Servers before rooms/spaces existed report
+    // neither: everyone is in the Lobby.
+    const spaceRows = Array.isArray(status.spaces) && status.spaces.length
+      ? status.spaces
+      : Array.isArray(status.rooms) && status.rooms.length
       ? status.rooms
-      : [{ id: 'lobby', name: 'Lobby', description: 'Everyone at the table.', members: next.map((u) => u.key), isLobby: true, hasImage: false, profile: 'roleplaying' }];
-    const activeRoom = typeof status.activeRoom === 'string' ? status.activeRoom : 'lobby';
-    const changed = JSON.stringify(next) !== JSON.stringify(this.party) || JSON.stringify(rooms) !== JSON.stringify(this.rooms) || activeRoom !== this.activeRoom;
+      : null;
+    const rooms = spaceRows || [{ id: 'lobby', name: 'Lobby', description: 'Everyone at the table.', members: next.map((u) => u.key), isLobby: true, hasImage: false, profile: 'roleplaying' }];
+    const activeRoom = typeof status.activeSpace === 'string'
+      ? status.activeSpace
+      : typeof status.activeRoom === 'string'
+      ? status.activeRoom
+      : 'lobby';
+    // `null`, not `[]`, when the server doesn't report this field at all --
+    // see the `pages` field comment above for why that distinction matters.
+    const pages = Array.isArray(status.pages) ? status.pages : null;
+    const changed =
+      JSON.stringify(next) !== JSON.stringify(this.party) ||
+      JSON.stringify(rooms) !== JSON.stringify(this.rooms) ||
+      activeRoom !== this.activeRoom ||
+      JSON.stringify(pages) !== JSON.stringify(this.pages);
     this.party = next;
     this.rooms = rooms;
     this.activeRoom = activeRoom;
+    this.pages = pages;
     if (changed) {
       this.emit('party', this.party);
       this.emit('status', this.status());
@@ -235,6 +287,12 @@ class TavernBridge extends EventEmitter {
       clearTimeout(timer);
     }
   }
+}
+
+// 'owner' (an environment's own admin) or 'admin' (the host's stand-in) --
+// the two roles Magpie's rename split the old single 'admin' role into.
+function isElevatedRole(role) {
+  return role === 'admin' || role === 'owner';
 }
 
 function describeError(err) {

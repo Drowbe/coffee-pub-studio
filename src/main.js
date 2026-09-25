@@ -282,7 +282,7 @@ function tavernSourceName(user, kind = 'player', n = 1) {
 // on screen.
 function currentTavernRoom() {
   const t = configStore.get().tavern;
-  return tavern.room(t.room || 'lobby');
+  return tavern.room(t.space || 'lobby');
 }
 function allowsPlayer(room) {
   return !room || room.profile !== 'characters';
@@ -2756,7 +2756,7 @@ function registerIpc() {
   });
   ipcMain.handle('tavern:sync', () => syncTavern());
   ipcMain.handle('tavern:publishAll', async () => {
-    for (const user of tavern.membersOf(configStore.get().tavern.room)) {
+    for (const user of tavern.membersOf(configStore.get().tavern.space)) {
       const entry = playerEntry(configStore.get().tavern, user.key);
       if (!isPublished(entry) && (entry.player || entry.character)) await publishPlayer(user.key);
     }
@@ -2770,7 +2770,7 @@ function registerIpc() {
   // visibility-only -- unlike Publish/Unpublish all, nothing is created or
   // deleted, so a broken source elsewhere is never touched by mistake.
   ipcMain.handle('tavern:hideAll', async () => {
-    for (const user of tavern.membersOf(configStore.get().tavern.room)) {
+    for (const user of tavern.membersOf(configStore.get().tavern.space)) {
       const entry = playerEntry(configStore.get().tavern, user.key);
       const wanted = {};
       if (entry.player) wanted.player = false;
@@ -2780,7 +2780,7 @@ function registerIpc() {
     return fullStatus().tavern;
   });
   ipcMain.handle('tavern:showAll', async () => {
-    for (const user of tavern.membersOf(configStore.get().tavern.room)) {
+    for (const user of tavern.membersOf(configStore.get().tavern.space)) {
       const entry = playerEntry(configStore.get().tavern, user.key);
       const wanted = {};
       if (entry.source && !entry.player) wanted.player = true;
