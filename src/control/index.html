@@ -832,6 +832,21 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="upload-decision-overlay" hidden>
+    <div class="modal">
+      <p class="modal-message" id="upload-decision-message"></p>
+      <label class="check">
+        <input id="upload-decision-clear" type="checkbox" checked>
+        <span>If I upload it myself, also clear the Title and Description so the next session asks for new ones</span>
+      </label>
+      <div class="modal-actions">
+        <button id="upload-decision-later" class="btn btn-small" type="button">Not now</button>
+        <button id="upload-decision-manual" class="btn btn-small" type="button">I'll upload it myself</button>
+        <button id="upload-decision-upload" class="btn btn-primary btn-small" type="button">Upload now</button>
+      </div>
+    </div>
+  </div>
+
   <script src="control.js"></script>
 </body>
 </html>

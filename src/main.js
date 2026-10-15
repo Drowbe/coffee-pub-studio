@@ -170,17 +170,24 @@ function loadRecordings() {
     return {
       last: d && d.last && typeof d.last.path === 'string' ? { path: d.last.path, recordedAt: Number(d.last.recordedAt) || 0 } : null,
       uploads: d && d.uploads && typeof d.uploads === 'object' ? d.uploads : {},
+      // Recordings the person chose to deal with themselves (see
+      // resolveUploadDecision) -- no longer "never uploaded".
+      handled: d && d.handled && typeof d.handled === 'object' ? d.handled : {},
     };
   } catch (err) {
-    return { last: null, uploads: {} };
+    return { last: null, uploads: {}, handled: {} };
   }
 }
 let recordings = loadRecordings();
 function saveRecordings() {
-  const paths = Object.keys(recordings.uploads);
-  if (paths.length > RECORDINGS_UPLOAD_LIMIT) {
-    paths.sort((a, b) => (recordings.uploads[a].at || 0) - (recordings.uploads[b].at || 0));
-    for (const old of paths.slice(0, paths.length - RECORDINGS_UPLOAD_LIMIT)) delete recordings.uploads[old];
+  for (const key of ['uploads', 'handled']) {
+    const map = recordings[key];
+    const paths = Object.keys(map);
+    if (paths.length > RECORDINGS_UPLOAD_LIMIT) {
+      const when = (p) => (typeof map[p] === 'number' ? map[p] : (map[p] && map[p].at) || 0);
+      paths.sort((a, b) => when(a) - when(b));
+      for (const old of paths.slice(0, paths.length - RECORDINGS_UPLOAD_LIMIT)) delete map[old];
+    }
   }
   try {
     fs.writeFileSync(RECORDINGS_PATH, JSON.stringify(recordings));
@@ -313,6 +320,11 @@ let youtubeConnectState = null;
 // such is what hid this until an upload failed with a bare "Bad Request".
 // Cleared by a fresh connect, a disconnect, or an upload that works.
 let youtubeConnectionExpired = false;
+// Set when a session start was refused because the last recording never
+// uploaded -- what makes the control panel show its upload / do-it-myself
+// choice. Cleared by answering it or closing it (closing it leaves the
+// recording pending, so the next start asks again).
+let pendingUploadDecision = null; // { path, name }
 // ruleSetId -> 0-100, only while that rule set's uploadToYouTube step is
 // actively uploading -- lets the Automations tab show a live progress bar
 // on the specific card doing the upload. See runYouTubeUpload.
@@ -877,6 +889,92 @@ function collectRequiredPrompts(ruleSet, allRuleSets, metadataFields, seenRuleSe
   return out;
 }
 
+// A rule set that starts a recording, directly or through runRuleSet.
+function ruleSetStartsRecording(ruleSet, allRuleSets, seen = new Set()) {
+  if (seen.has(ruleSet.id)) return false;
+  seen.add(ruleSet.id);
+  for (const step of ruleSet.steps || []) {
+    if (step.type !== 'action' || step.enabled === false) continue;
+    if (step.action === 'startRecording') return true;
+    if (step.action === 'runRuleSet' && step.param) {
+      const target = allRuleSets.find((r) => r.id === step.param);
+      if (target && ruleSetStartsRecording(target, allRuleSets, seen)) return true;
+    }
+  }
+  return false;
+}
+
+// The enabled rule sets that upload a recording -- what "upload it now" runs.
+function uploadRuleSets() {
+  return configStore
+    .get()
+    .automations.ruleSets.filter((r) => r.enabled && (r.steps || []).some((s) => s.type === 'action' && s.enabled !== false && s.action === 'uploadToYouTube'));
+}
+
+// The last recording, if it exists on disk and never reached YouTube and
+// was never set aside by hand -- and only when uploading is actually
+// something this setup does (YouTube on, with a rule set that uploads).
+function pendingUpload() {
+  if (!configStore.get().youtube.enabled) return null;
+  const last = recordings.last;
+  if (!last || recordings.uploads[last.path] || recordings.handled[last.path]) return null;
+  if (!fs.existsSync(last.path)) return null;
+  if (!uploadRuleSets().length) return null;
+  return { path: last.path, name: path.basename(last.path) };
+}
+
+function raiseUploadDecision(pending) {
+  const first = !pendingUploadDecision;
+  pendingUploadDecision = { path: pending.path, name: pending.name };
+  broadcastStatus();
+  if (first) {
+    logActivity('YouTube', `A new session was held back: the last recording was never uploaded (${pending.name}).`, 'info');
+    if (Notification.isSupported()) {
+      new Notification({ title: 'Coffee Pub Studio', body: 'The last recording was never uploaded. Open Studio to upload it or set it aside, then start again.' }).show();
+    }
+  }
+}
+
+// The answer to that choice (youtube:resolveUpload). 'upload' runs the
+// upload rule set through the same event path a real trigger takes, so its
+// progress, success steps and failure notice all behave as usual.
+function resolveUploadDecision(choice, clear) {
+  const decision = pendingUploadDecision;
+  if (choice === 'dismiss' || !decision) {
+    pendingUploadDecision = null;
+    broadcastStatus();
+    return;
+  }
+  if (choice === 'upload') {
+    const ruleSet = uploadRuleSets()[0];
+    if (!ruleSet) throw new Error('No rule set uploads to YouTube.');
+    const result = checkAndApplyPrompts(ruleSet.event, {});
+    if (!result.ok) throw new Error(result.error);
+    pendingUploadDecision = null;
+    broadcastStatus();
+    automations.recordEvent(ruleSet.event, {});
+    return;
+  }
+  if (choice === 'manual') {
+    recordings.handled[decision.path] = Date.now();
+    saveRecordings();
+    if (clear) {
+      const current = configStore.get();
+      const keys = new Set();
+      for (const ruleSet of uploadRuleSets()) {
+        for (const key of collectRequiredPrompts(ruleSet, current.automations.ruleSets, current.metadataFields)) keys.add(key);
+      }
+      configStore.save({
+        ...current,
+        metadataFields: current.metadataFields.map((f) => (f.type === 'prompt' && keys.has(f.key) ? { ...f, value: '' } : f)),
+      });
+    }
+    pendingUploadDecision = null;
+    logActivity('YouTube', `Left ${decision.name} for a manual upload${clear ? ' and cleared its title and description' : ''}.`, 'info');
+    broadcastStatus();
+  }
+}
+
 // Whether a Prompt field currently has no answer -- the one thing that
 // actually makes it "required" right now, as opposed to merely "touched by
 // this rule set's steps" (which is all collectRequiredPrompts itself knows).
@@ -922,6 +1020,20 @@ function checkAndApplyPrompts(event, providedPrompts) {
   const current = configStore.get();
   const { ruleSets } = current.automations;
   const matched = ruleSets.filter((r) => r.enabled && r.event === event);
+  // Starting a new session while the last recording never uploaded: hold the
+  // start back and ask what to do with that one first. This runs before any
+  // answers are applied, on purpose -- the new session's title would
+  // otherwise overwrite the old one's before it could be uploaded.
+  if (matched.some((r) => ruleSetStartsRecording(r, ruleSets))) {
+    const pending = pendingUpload();
+    if (pending) {
+      raiseUploadDecision(pending);
+      return {
+        ok: false,
+        error: `The last recording ("${pending.name}") was never uploaded to YouTube. Upload it or set it aside in Coffee Pub Studio, then start again.`,
+      };
+    }
+  }
   const required = new Set();
   for (const ruleSet of matched) {
     for (const key of collectRequiredPrompts(ruleSet, ruleSets, current.metadataFields)) required.add(key);
@@ -1630,7 +1742,7 @@ function fullStatus() {
     appWindows: Object.fromEntries(
       configStore.get().appWindows.map((a) => [a.id, { found: Boolean(appWindowResolved[`app:${a.id}`]), matched: appWindowMatched[`app:${a.id}`] || '', inObs: obs.status().inputs.includes(a.sourceName) }])
     ),
-    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, uploading: youtubeUploadActive, lastRecording: recordings.last ? { name: path.basename(recordings.last.path), uploaded: recordings.uploads[recordings.last.path] ? { url: recordings.uploads[recordings.last.path].url, at: recordings.uploads[recordings.last.path].at } : null } : null, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
+    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, uploading: youtubeUploadActive, pendingDecision: pendingUploadDecision, lastRecording: recordings.last ? { name: path.basename(recordings.last.path), uploaded: recordings.uploads[recordings.last.path] ? { url: recordings.uploads[recordings.last.path].url, at: recordings.uploads[recordings.last.path].at } : null } : null, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
     activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
@@ -2995,6 +3107,10 @@ function registerIpc() {
         youtubeConnectState = null;
         logActivity('YouTube', `Connect failed: ${err.message}`, 'error');
       });
+    return fullStatus().youtube;
+  });
+  ipcMain.handle('youtube:resolveUpload', (_event, choice, clear) => {
+    resolveUploadDecision(String(choice || ''), Boolean(clear));
     return fullStatus().youtube;
   });
   ipcMain.handle('youtube:disconnect', () => {

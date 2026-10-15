@@ -2255,6 +2255,12 @@ function renderYoutubeStatus() {
       ? `Last recording: ${lastRecording.name} -- uploaded ${new Date(lastRecording.uploaded.at).toLocaleString()}: ${lastRecording.uploaded.url}`
       : `Last recording: ${lastRecording.name} -- not uploaded yet.`;
   }
+  const decision = yt.pendingDecision;
+  $('upload-decision-overlay').hidden = !decision;
+  if (decision) {
+    $('upload-decision-message').textContent =
+      `The last recording was never uploaded to YouTube:\n${decision.name}\n\nA new session was held back until you decide what to do with it.`;
+  }
   const uploading = yt.uploading;
   $('upload-progress').hidden = !uploading;
   if (uploading) {
@@ -2301,6 +2307,18 @@ function renderYoutubeStatus() {
     youtubeEls.status.classList.toggle('hint-error', Boolean(yt.expired));
   }
 }
+
+async function resolveUploadDecision(choice) {
+  try {
+    status.youtube = await api.youtubeResolveUpload(choice, $('upload-decision-clear').checked);
+  } catch (err) {
+    reportError(err);
+  }
+  renderYoutubeStatus();
+}
+$('upload-decision-upload').addEventListener('click', () => resolveUploadDecision('upload'));
+$('upload-decision-manual').addEventListener('click', () => resolveUploadDecision('manual'));
+$('upload-decision-later').addEventListener('click', () => resolveUploadDecision('dismiss'));
 
 async function saveYoutubeSettings(patch) {
   config.youtube = { ...config.youtube, ...patch };
