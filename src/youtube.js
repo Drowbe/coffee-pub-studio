@@ -137,7 +137,27 @@ class YouTubeUploader {
       body: formBody({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(googleErrorMessage(data, `Refreshing the YouTube connection failed (${res.status}) -- try disconnecting and reconnecting.`));
+    if (!res.ok) {
+      this.accessToken = '';
+      this.accessTokenExpiresAt = 0;
+      // Google answers an expired or revoked refresh token with
+      // error_description "Bad Request" -- passed through as-is it reads like
+      // the upload itself was malformed and says nothing about what to do.
+      // The usual cause is a Google Cloud OAuth consent screen left in
+      // "Testing", where every refresh token dies after 7 days.
+      if (data.error === 'invalid_grant') {
+        const err = new Error(
+          'YouTube no longer accepts the saved sign-in (it expired or was revoked) -- reconnect YouTube on the Automations tab. ' +
+            'If it keeps expiring within a week, set the Google Cloud OAuth consent screen to "In production": apps left in "Testing" expire every 7 days.'
+        );
+        err.reconnectNeeded = true;
+        throw err;
+      }
+      const detail = googleErrorMessage(data, '');
+      throw new Error(
+        `Refreshing the YouTube connection failed (${res.status}${data.error ? `, ${data.error}` : ''}${detail ? `: ${detail}` : ''}) -- try disconnecting and reconnecting.`
+      );
+    }
     this.accessToken = data.access_token;
     this.accessTokenExpiresAt = Date.now() + (Number(data.expires_in) || 3600) * 1000;
     return this.accessToken;
@@ -295,7 +315,12 @@ class YouTubeUploader {
 }
 
 function googleErrorMessage(data, fallback) {
-  return (data && data.error_description) || (data && data.error && data.error.message) || (typeof data?.error === 'string' ? data.error : '') || fallback;
+  const message = (data && data.error_description) || (data && data.error && data.error.message) || (typeof data?.error === 'string' ? data.error : '') || fallback;
+  // The Data API's own errors carry a machine-readable reason (invalidTitle,
+  // quotaExceeded, ...) that is often the only useful part of a bare
+  // "Bad Request".
+  const reason = data && data.error && Array.isArray(data.error.errors) && data.error.errors[0] && data.error.errors[0].reason;
+  return reason && !message.includes(reason) ? `${message} (${reason})` : message;
 }
 
 // Resolves early (not rejects) once `signal` aborts, so a retry backoff
