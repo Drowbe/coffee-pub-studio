@@ -966,6 +966,7 @@ function renderObs() {
   obsStatusEl.classList.toggle('hint-error', o.state === 'error');
   obsPasswordEl.placeholder = o.hasPassword ? 'saved' : 'not set';
   $('obs-sync').disabled = !connected;
+  $('obs-capture-report').disabled = !connected;
 }
 
 // A chip's state/colour/label, from a service's own {state} shape and
@@ -1554,6 +1555,15 @@ obsPasswordEl.addEventListener('keydown', (event) => {
 });
 obsPasswordEl.addEventListener('input', () => {
   $('obs-save-password').hidden = !obsPasswordEl.value;
+});
+$('obs-capture-report').addEventListener('click', async () => {
+  try {
+    const report = await api.obsCaptureReport();
+    await navigator.clipboard.writeText(report);
+    showToast('Capture report copied');
+  } catch (err) {
+    reportError(err);
+  }
 });
 $('obs-sync').addEventListener('click', async () => {
   try {

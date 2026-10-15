@@ -45,9 +45,10 @@ again, because it is encrypted with a keychain entry named after the app.
 - To build: [Node.js](https://nodejs.org) 18 or newer.
 - OBS Studio 28 or newer.
 
-On Windows, OBS's own window-capture source doesn't yet get the same automatic management macOS
-does -- see [Known issues](documentation/known-issues.md) for the exact gap and how to add the
-window as a source by hand in the meantime.
+On Windows, Studio manages OBS's Window Capture sources the same way it manages macOS Screen
+Capture ones. That support is new and has not yet been confirmed on a real Windows machine -- see
+[Known issues](documentation/known-issues.md) for what to check and how to add a window by hand if
+it misbehaves.
 
 ## Get the app
 

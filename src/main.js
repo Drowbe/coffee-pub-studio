@@ -1771,11 +1771,24 @@ function windowTitle(view) {
   return `${APP_NAME} - ${view.label}`;
 }
 
-// The system window ID macOS assigns to an open, visible view window
-// (changes on every launch), or null when the window is not on screen yet:
-// OBS cannot start a working capture of a window that is not shown.
+// How OBS on Windows names a window: "Title:Class:Executable", with '#' and
+// ':' inside each part escaped (the same encoding OBS itself uses). Every
+// Electron window's class is Chrome_WidgetWin_1 and the executable is this
+// app's own. This is only the fallback for a window OBS has not listed yet
+// (creating the first source) -- once OBS's own window list is available,
+// the value it returns is what gets used.
+function windowsCaptureString(win) {
+  const encode = (part) => String(part).replace(/#/g, '#22').replace(/:/g, '#3A');
+  return `${encode(win.getTitle())}:Chrome_WidgetWin_1:${encode(path.basename(process.execPath))}`;
+}
+
+// The identifier OBS captures an open, visible view window by -- the system
+// window ID on macOS (changes on every launch), a Title:Class:Executable
+// string on Windows -- or null when the window is not on screen yet: OBS
+// cannot start a working capture of a window that is not shown.
 function systemWindowId(win) {
   if (!isAlive(win) || !win.isVisible()) return null;
+  if (process.platform === 'win32') return windowsCaptureString(win);
   const match = /^window:(\d+):/.exec(win.getMediaSourceId() || '');
   return match ? Number.parseInt(match[1], 10) : null;
 }
@@ -2882,9 +2895,9 @@ function registerIpc() {
   // list from (OBS only exposes it through an existing input).
   ipcMain.handle('appWindows:list', async () => {
     if (!obs.connected) throw new Error('Connect to OBS first -- its window list is where this comes from.');
-    const choices = await obs.windowChoices();
+    const choices = await obs.windowChoices({ createProbe: true });
     if (!choices.length) {
-      throw new Error('OBS returned no windows. This needs at least one macOS Screen Capture (window) source to exist already -- add any window source first, then refresh.');
+      throw new Error(`OBS returned no windows. This needs at least one ${obs.backend.label} source to exist already -- add any window source first, then refresh.`);
     }
     return choices
       .filter((c) => typeof c.itemName === 'string' && c.itemName.trim())
@@ -3228,6 +3241,28 @@ function registerIpc() {
     broadcastStatus();
   });
   ipcMain.handle('regions:limits', () => REGION_LIMITS);
+  // What OBS and Studio each see for window capture, as text to paste: the
+  // check for the Windows backend (and a useful thing to attach to any "my
+  // window source points at the wrong window" report).
+  ipcMain.handle('obs:captureReport', async () => {
+    const report = await obs.captureReport();
+    report.studio = {
+      platform: process.platform,
+      executable: path.basename(process.execPath),
+      views: configStore.get().views.map((view) => {
+        const win = viewWindows.get(view.id);
+        return {
+          label: view.label,
+          title: windowTitle(view),
+          open: isAlive(win),
+          captureValue: systemWindowId(win),
+          displayScaleFactor: isAlive(win) ? scaleFactorOf(win) : null,
+          sources: windowSources(view),
+        };
+      }),
+    };
+    return JSON.stringify(report, null, 2);
+  });
   ipcMain.handle('obs:createRegionSource', async (_event, id, regionId) => {
     const view = getView(id);
     const region = configStore.getRegion(id, regionId);
