@@ -83,7 +83,7 @@ class ObsBridge extends EventEmitter {
     this.reconnectTimer = null;
     this.connecting = null;
     this.outputs = { recording: false, recordingPaused: false, recordTime: '', streaming: false, streamTime: '', scene: '' };
-    this.lastRecordingPath = ''; // set by stopRecording() below -- what uploadToYouTube defaults to
+    this.lastRecordingPath = ''; // the most recent recording's file -- what uploadToYouTube defaults to; src/main.js restores it across restarts
     this.pollTimer = null;
 
     this.obs.on('ConnectionClosed', (err) => {
@@ -93,6 +93,15 @@ class ObsBridge extends EventEmitter {
       this.inputs = [];
       this.setState('disconnected', wasConnected ? 'Connection to OBS closed.' : (err && err.message) || '');
       this.scheduleReconnect();
+    });
+    // A recording that ends any way at all -- Studio's own stop action, the
+    // OBS Stop button, a hotkey -- reports the file it wrote here, so the
+    // last recording is known even when Studio did not stop it itself.
+    this.obs.on('RecordStateChanged', (event) => {
+      if (event && event.outputState === 'OBS_WEBSOCKET_OUTPUT_STOPPED' && event.outputPath) {
+        this.lastRecordingPath = event.outputPath;
+        this.emit('recording', event.outputPath);
+      }
     });
     this.obs.on('InputCreated', () => this.refreshInputs().catch(() => {}));
     this.obs.on('InputRemoved', () => this.refreshInputs().catch(() => {}));
@@ -649,7 +658,10 @@ class ObsBridge extends EventEmitter {
     // reliable moment to capture it. uploadToYouTube (src/main.js) reads
     // this when a step doesn't override it with an explicit file.
     const { outputPath } = await this.obs.call('StopRecord');
-    if (outputPath) this.lastRecordingPath = outputPath;
+    if (outputPath) {
+      this.lastRecordingPath = outputPath;
+      this.emit('recording', outputPath);
+    }
   }
 
   async startStreaming() {

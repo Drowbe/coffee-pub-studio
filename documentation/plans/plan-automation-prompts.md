@@ -215,14 +215,15 @@ both answers sat there. The next session's Begin Session Recording asked for no 
 one was still present), and its End Session Recording asked for no Description; the whole session
 recorded and was filed under the last episode's title, and nothing said so.
 
-Not changed in Studio: "Studio has no notion of episode-over on its own, so clearing has to be
-deliberate" (above) still holds, and a retry of a failed upload reading the same title and
-description without being asked again is a feature of it. The hole is in the rule set's own
-failure path, so the guidance is to clear there as well -- after the notification, in its own
-stage, since the notification formats `{sessionTitle}` and a clear in the same stage would race it
-(and two consecutive `onFailure` steps do not chain: the first one's own success resets the
-tracked outcome the second one is gated on, so the failure branch should be a single
-`runRuleSet` of a rule set that does "notify, then clear"). The trade is that retrying that
-upload by hand then asks for Title and Description again, which is the right outcome for a
-session that has been given up on.
+Decision (2026-10-14): Studio does not clear on failure, and the rule set should not either.
+"Studio has no notion of episode-over on its own, so clearing has to be deliberate" (above) still
+holds, and the reason is the retry: a re-upload needs the same title and description, which match
+what is already shown in the video, and asking for them again means remembering them. The cost is
+the stale answers described above when a failed upload is not noticed -- accepted, and softened by
+making the failure visible: Studio now remembers the last recording across restarts and records
+which files have uploaded, and the YouTube card shows whether the last one did. (For reference,
+if clearing on failure is ever wanted: do it in its own stage after the notification, since the
+notification formats `{sessionTitle}`; two consecutive `onFailure` steps do not chain, because the
+first one's own success resets the tracked outcome the second one is gated on, so the failure
+branch should be a single `runRuleSet` that notifies and then clears.)
 

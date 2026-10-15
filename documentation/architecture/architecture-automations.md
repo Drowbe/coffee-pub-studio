@@ -786,6 +786,16 @@ No other code read `obs.js`'s prior `lastSync` field that this replaces function
 (different field, unrelated purpose) -- worth noting only because both are "OBS told us something
 after an action completed" patterns now living in this file.
 
+That value used to live only in memory, so a restart between a session and its upload (installing
+an update, say) lost the file and the upload failed with "No recording to upload". It is now kept
+in `recordings.json` next to the config (`src/main.js`: `last`, plus `uploads`, a path-keyed
+history of every file that has gone up, with its URL and time, capped at 100). `obs.js` also
+listens for `RecordStateChanged`, so a recording stopped from OBS itself, not just Studio's own
+stop action, is remembered. The upload history is what lets Studio say whether the last recording
+ever went up (the YouTube card shows it) and refuse to upload the same default file twice by
+accident; a file set explicitly on the step is allowed to repeat, with a note in the activity log,
+since choosing it is deliberate.
+
 ### Five Data Field slots, not one shared param
 
 Every other action's `param` (or `setText`'s `dataField`) is one value. `uploadToYouTube` needs
@@ -960,7 +970,10 @@ before anyone trusts it against a real recording:
   usual place for that is a step that runs after the upload *succeeds* -- so a failed upload leaves
   the previous session's Title and Description in place, and because a field already holding a
   value counts as answered, Herald does not ask for them again at the next session. Clearing on
-  the failure path as well (after the failure notification, which reads the title first) closes it.
+  the failure path was considered and rejected: a retry needs the same title and description,
+  which match what is already shown in the video itself, and a person would have to remember
+  them. The failure is kept visible instead -- the YouTube card reports whether the last
+  recording uploaded -- and clearing stays a deliberate step.
 - **One real mistake worth recording so it isn't repeated**: clicking "Connect" in Studio to
   inspect the device-code UI while a real approval was already pending invalidated that pending
   code -- `requestDeviceCode` always asks Google for a brand-new code, there is no "just show me
