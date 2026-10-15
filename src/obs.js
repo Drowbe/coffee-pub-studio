@@ -10,6 +10,59 @@ const { OBSWebSocket } = require('obs-websocket-js/json');
 
 const INPUT_KIND = 'screen_capture'; // macOS Screen Capture (ScreenCaptureKit)
 const CAPTURE_TYPE_WINDOW = 1; // settings.type: 0 display, 1 window, 2 application
+const WINDOWS_INPUT_KIND = 'window_capture'; // Windows "Window Capture"
+// window_capture's "priority" setting: 0 match class, 1 title must match,
+// 2 title else same executable. Every Studio window shares one executable and
+// one window class, so anything but "title must match" could quietly capture
+// a different Studio window while the intended one is closed.
+const WINDOWS_PRIORITY_TITLE = 1;
+const PROBE_INPUT_NAME = 'Coffee Pub Probe';
+
+// What differs between OBS on macOS and OBS on Windows when capturing a
+// window. Everything else Studio does to a source -- crop filters, scaling,
+// muting, visibility -- is the same on both. A window is a number on macOS
+// (the system window ID) and a "Title:Class:Executable" string on Windows;
+// in both cases OBS lists the choices itself, and Studio uses the value OBS
+// returns rather than building one.
+const MAC_BACKEND = {
+  name: 'macos',
+  kind: INPUT_KIND,
+  label: 'macOS Screen Capture',
+  // The window a listed input points at, or null when it is not a window capture.
+  readInput(settings) {
+    const type = settings.type === undefined ? CAPTURE_TYPE_WINDOW : settings.type;
+    if (type !== CAPTURE_TYPE_WINDOW) return null;
+    return { window: settings.window || 0, showCursor: Boolean(settings.show_cursor) };
+  },
+  pointSettings: (window) => ({ type: CAPTURE_TYPE_WINDOW, window }),
+  clearSettings: () => ({ type: CAPTURE_TYPE_WINDOW, window: 0 }),
+  createSettings: (window, showCursor) => ({ type: CAPTURE_TYPE_WINDOW, window, show_cursor: showCursor }),
+  cursorSettings: (showCursor) => ({ show_cursor: showCursor }),
+  restartButton: 'reactivate_capture',
+};
+
+const WINDOWS_BACKEND = {
+  name: 'windows',
+  kind: WINDOWS_INPUT_KIND,
+  label: 'Windows Window Capture',
+  readInput(settings) {
+    return {
+      window: typeof settings.window === 'string' ? settings.window : '',
+      showCursor: settings.cursor === undefined ? true : Boolean(settings.cursor),
+    };
+  },
+  pointSettings: (window) => ({ window, priority: WINDOWS_PRIORITY_TITLE }),
+  clearSettings: () => ({ window: '' }),
+  createSettings: (window, showCursor) => ({ window, priority: WINDOWS_PRIORITY_TITLE, cursor: showCursor }),
+  cursorSettings: (showCursor) => ({ cursor: showCursor }),
+  restartButton: null,
+};
+
+// A window value OBS can have returned: a system window ID (macOS) or a
+// Title:Class:Executable string (Windows).
+function isWindowValue(value) {
+  return Number.isInteger(value) || (typeof value === 'string' && value.length > 0);
+}
 const BROWSER_KIND = 'browser_source';
 const CROP_FILTER_KIND = 'crop_filter'; // OBS "Crop/Pad"
 const CROP_FILTER_NAME = 'Coffee Pub Crop';
@@ -23,12 +76,13 @@ const CROP_FILTER_NAME = 'Coffee Pub Crop';
 const DIM_FILTER_NAME = 'Coffee Pub Dim';
 const RECONNECT_MS = 10000;
 
-// OBS lists each capturable window as "[App Name] Window Title". Split it
-// into the two halves; if a future OBS formats it differently, the whole
-// string lands in `title` and matching still works, since it's a substring
-// test against the full label either way.
+// OBS lists each capturable window as "[App Name] Window Title" on macOS and
+// "[app.exe]: Window Title" on Windows. Split it into the two halves; if a
+// future OBS formats it differently, the whole string lands in `title` and
+// matching still works, since it's a substring test against the full label
+// either way.
 function parseWindowChoice(itemName) {
-  const m = /^\[(.+?)\]\s*(.*)$/.exec(String(itemName || ''));
+  const m = /^\[(.+?)\]:?\s*(.*)$/.exec(String(itemName || ''));
   return m ? { app: m[1], title: m[2] } : { app: '', title: String(itemName || '') };
 }
 
@@ -45,7 +99,7 @@ function parseWindowChoice(itemName) {
 function findAppWindowChoice(choices, match) {
   const app = String(match.app || '').toLowerCase();
   const title = String(match.title || '').toLowerCase();
-  const usable = (c) => typeof c.itemName === 'string' && Number.isInteger(c.itemValue);
+  const usable = (c) => typeof c.itemName === 'string' && isWindowValue(c.itemValue);
   if (match.label) {
     const exact = choices.find((c) => usable(c) && c.itemName === match.label);
     if (exact) return exact;
@@ -79,6 +133,8 @@ class ObsBridge extends EventEmitter {
     this.message = '';
     this.suspended = false; // user pressed Disconnect: no auto-reconnect until Connect
     this.obsVersion = '';
+    this.platform = ''; // what OBS reports running on (GetVersion's platform)
+    this.backend = MAC_BACKEND; // chosen from the platform on connect
     this.inputs = []; // window-capture inputs known in OBS: [{ name, window }]
     this.reconnectTimer = null;
     this.connecting = null;
@@ -209,6 +265,10 @@ class ObsBridge extends EventEmitter {
         this.obsVersion = hello.obsWebSocketVersion || '';
         const version = await this.obs.call('GetVersion');
         this.obsVersion = version.obsVersion || this.obsVersion;
+        this.platform = String(version.platform || '');
+        // The window-capture input kind follows the machine OBS runs on; an
+        // unknown platform keeps the macOS behavior this has always had.
+        this.backend = /windows/i.test(this.platform) ? WINDOWS_BACKEND : MAC_BACKEND;
         await this.refreshInputs();
         this.setState('connected', `Connected to OBS ${this.obsVersion}.`);
         this.startPolling();
@@ -225,45 +285,68 @@ class ObsBridge extends EventEmitter {
     return this.connecting;
   }
 
-  // All macOS Screen Capture inputs in window mode, with the window ID each
-  // one currently points at.
+  // All window-capture inputs (macOS Screen Capture in window mode, or
+  // Windows Window Capture), with the window each one currently points at.
   async refreshInputs() {
     if (!this.connected && this.state !== 'connecting') return [];
-    const { inputs } = await this.obs.call('GetInputList', { inputKind: INPUT_KIND });
+    const { inputs } = await this.obs.call('GetInputList', { inputKind: this.backend.kind });
     const result = [];
     for (const input of inputs) {
+      if (input.inputName === PROBE_INPUT_NAME) continue;
       const { inputSettings } = await this.obs.call('GetInputSettings', { inputName: input.inputName });
-      const type = inputSettings.type === undefined ? CAPTURE_TYPE_WINDOW : inputSettings.type;
-      if (type !== CAPTURE_TYPE_WINDOW) continue;
-      result.push({ name: input.inputName, window: inputSettings.window || 0, showCursor: Boolean(inputSettings.show_cursor) });
+      const read = this.backend.readInput(inputSettings);
+      if (!read) continue;
+      result.push({ name: input.inputName, ...read });
     }
     this.inputs = result;
     this.emit('status', this.status());
     return result;
   }
 
-  // OBS's own list of capturable windows: [{ itemName, itemValue }]. Needs at
-  // least one window-capture input to read the property from.
-  async windowChoices() {
-    const probe = this.inputs[0];
-    if (!probe) return [];
-    const { propertyItems } = await this.obs.call('GetInputPropertiesListPropertyItems', {
-      inputName: probe.name,
-      propertyName: 'window',
+  // Runs `fn(inputName)` against an input of the window-capture kind to read
+  // properties from -- OBS only exposes its window list through an existing
+  // input. Uses a real one if there is one. Otherwise, on Windows only and
+  // only when asked to, a hidden temporary input is created and removed
+  // again (macOS has always required a source to exist first, and that is
+  // left as it was).
+  async withProbe(fn, { create = false } = {}) {
+    const existing = this.inputs[0];
+    if (existing) return fn(existing.name);
+    if (!create || this.backend.name !== 'windows') return null;
+    const { currentProgramSceneName } = await this.obs.call('GetCurrentProgramScene');
+    await this.obs.call('CreateInput', {
+      sceneName: currentProgramSceneName,
+      inputName: PROBE_INPUT_NAME,
+      inputKind: this.backend.kind,
+      inputSettings: {},
+      sceneItemEnabled: false,
     });
-    return propertyItems || [];
+    try {
+      return await fn(PROBE_INPUT_NAME);
+    } finally {
+      await this.obs.call('RemoveInput', { inputName: PROBE_INPUT_NAME }).catch(() => {});
+    }
+  }
+
+  // OBS's own list of capturable windows: [{ itemName, itemValue }].
+  async windowChoices({ createProbe = false } = {}) {
+    const items = await this.withProbe(async (inputName) => {
+      const { propertyItems } = await this.obs.call('GetInputPropertiesListPropertyItems', { inputName, propertyName: 'window' });
+      return propertyItems || [];
+    }, { create: createProbe });
+    return items || [];
   }
 
   // The current window ID of whichever open window matches, or null --
   // the same lookup a sync does, exposed for creating an app window's source.
   async findAppWindowId(match) {
-    return findAppWindow(await this.windowChoices().catch(() => []), match);
+    return findAppWindow(await this.windowChoices({ createProbe: true }).catch(() => []), match);
   }
 
   async pointInput(inputName, windowId) {
     await this.obs.call('SetInputSettings', {
       inputName,
-      inputSettings: { type: CAPTURE_TYPE_WINDOW, window: windowId },
+      inputSettings: this.backend.pointSettings(windowId),
       overlay: true,
     });
   }
@@ -272,15 +355,18 @@ class ObsBridge extends EventEmitter {
   // source's properties does. A capture that began while the window was not
   // yet on screen never produces frames until this happens.
   async restartCapture(inputName, windowId) {
-    try {
-      await this.obs.call('PressInputPropertiesButton', { inputName, propertyName: 'reactivate_capture' });
-      return 'button';
-    } catch (err) {
-      // Fallback: clearing and re-setting the window forces a new capture.
-      await this.obs.call('SetInputSettings', { inputName, inputSettings: { type: CAPTURE_TYPE_WINDOW, window: 0 }, overlay: true });
-      await this.pointInput(inputName, windowId);
-      return 'reset';
+    if (this.backend.restartButton) {
+      try {
+        await this.obs.call('PressInputPropertiesButton', { inputName, propertyName: this.backend.restartButton });
+        return 'button';
+      } catch (err) {
+        // fall through to the reset below
+      }
     }
+    // Clearing and re-setting the window forces a new capture.
+    await this.obs.call('SetInputSettings', { inputName, inputSettings: this.backend.clearSettings(), overlay: true });
+    await this.pointInput(inputName, windowId);
+    return 'reset';
   }
 
   // Create or update the crop filter on a region's input. Crop values are in
@@ -400,6 +486,41 @@ class ObsBridge extends EventEmitter {
     }
   }
 
+  // What OBS actually reports about window capture on this machine, for
+  // checking the Windows backend (and anything else) against the real thing:
+  // the platform, which capture kinds exist, every existing capture input's
+  // full settings, OBS's own window list, and the "priority" options.
+  async captureReport() {
+    if (!this.connected) throw new Error('Connect to OBS first.');
+    const report = { platform: this.platform, backend: this.backend.name, kind: this.backend.kind, obsVersion: this.obsVersion };
+    const kinds = await this.obs.call('GetInputKindList', { unversioned: false }).catch(() => ({ inputKinds: [] }));
+    report.captureKinds = (kinds.inputKinds || []).filter((k) => /capture|window|screen/i.test(k));
+    report.inputs = [];
+    const { inputs } = await this.obs.call('GetInputList', { inputKind: this.backend.kind }).catch(() => ({ inputs: [] }));
+    for (const input of inputs) {
+      const { inputSettings } = await this.obs.call('GetInputSettings', { inputName: input.inputName }).catch(() => ({ inputSettings: null }));
+      report.inputs.push({ name: input.inputName, settings: inputSettings });
+    }
+    const probed = await this.withProbe(
+      async (inputName) => {
+        const list = async (propertyName) => {
+          try {
+            const { propertyItems } = await this.obs.call('GetInputPropertiesListPropertyItems', { inputName, propertyName });
+            return propertyItems || [];
+          } catch (err) {
+            return { error: err.message };
+          }
+        };
+        return { windows: await list('window'), priority: await list('priority'), method: await list('method') };
+      },
+      { create: true }
+    );
+    report.windows = probed ? probed.windows : 'no window-capture input exists and one could not be created';
+    report.priorityOptions = probed ? probed.priority : null;
+    report.methodOptions = probed ? probed.method : null;
+    return report;
+  }
+
   // Every input's name, of any kind -- unlike status().inputs (screen_capture
   // only, for the window/region tracking above) or browserInputs() (browser
   // sources only), this is for a plain "does this name exist at all" check
@@ -460,8 +581,8 @@ class ObsBridge extends EventEmitter {
     await this.obs.call('CreateInput', {
       sceneName: currentProgramSceneName,
       inputName,
-      inputKind: INPUT_KIND,
-      inputSettings: { type: CAPTURE_TYPE_WINDOW, window: windowId, show_cursor: showCursor },
+      inputKind: this.backend.kind,
+      inputSettings: this.backend.createSettings(windowId, showCursor),
       sceneItemEnabled: true,
     });
     await this.refreshInputs();
@@ -501,7 +622,7 @@ class ObsBridge extends EventEmitter {
         return chosen ? chosen.itemValue : null;
       }
       const match = choices.find((c) => typeof c.itemName === 'string' && c.itemName.endsWith(view.title));
-      if (match && Number.isInteger(match.itemValue)) return match.itemValue;
+      if (match && isWindowValue(match.itemValue)) return match.itemValue;
       return view.windowId;
     };
 
@@ -537,7 +658,7 @@ class ObsBridge extends EventEmitter {
         if (view.showCursor !== undefined) {
           const seen = this.inputs.find((i) => i.name === name);
           if (seen && Boolean(seen.showCursor) !== Boolean(view.showCursor)) {
-            await this.obs.call('SetInputSettings', { inputName: name, inputSettings: { show_cursor: Boolean(view.showCursor) }, overlay: true }).catch(() => {});
+            await this.obs.call('SetInputSettings', { inputName: name, inputSettings: this.backend.cursorSettings(Boolean(view.showCursor)), overlay: true }).catch(() => {});
           }
         }
         if (!windowId) continue; // window not open or not yet visible
@@ -681,4 +802,4 @@ function describeError(err) {
   return msg;
 }
 
-module.exports = { ObsBridge, INPUT_KIND, BROWSER_KIND, parseWindowChoice, findAppWindow, findAppWindowChoice };
+module.exports = { ObsBridge, INPUT_KIND, WINDOWS_INPUT_KIND, BROWSER_KIND, parseWindowChoice, findAppWindow, findAppWindowChoice };

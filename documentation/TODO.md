@@ -149,11 +149,11 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   uploading the installer alongside the macOS dmg (also on tagged releases), plus a menu fix
   (Hide/Hide Others/Unhide are macOS-only roles now). ~~A SmartScreen note in the README.~~ Done,
   alongside the rest of the README's Windows coverage (Requirements, Get the app, First launch).
-  Recorded as a real gap, not guessed at, in `documentation/known-issues.md`: the OBS side needs
-  `window_capture` (window named by `Title:Class:Exe`) instead of macOS `screen_capture` with an
-  integer window ID -- a different input kind, a different settings shape, and a different way of
-  resolving "this app window" to "this OBS capture target" -- and is genuinely untestable without
-  a Windows machine running OBS, so left unbuilt rather than guessed at. Also open: Windows
+  The OBS side now has a Windows backend (`window_capture`, window named by `Title:Class:Exe`,
+  chosen from the platform OBS reports -- see `documentation/known-issues.md`), built against
+  OBS's documented behavior and a stand-in OBS but **not yet confirmed on a real Windows machine**:
+  run **Copy capture report** (OBS card) there and check the window list formats and that
+  "title must match" never falls back to another Studio window. Also open: Windows
   display scaling in the captured-size readout, and quit on close instead of living in the Dock.
   ~~A Windows-specific app icon.~~ The earlier note here (that `build/icon.png`, shared by
   `mac.icon`/`win.icon` in `package.json`, was correctly shaped with padding and pre-rounded

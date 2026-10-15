@@ -41,6 +41,11 @@ The OBS WebSocket password is stored encrypted with the macOS keychain, separate
 file. The app and OBS have to run on the same Mac, since OBS can only capture windows on its own
 machine.
 
+On Windows the same buttons create OBS **Window Capture** sources instead of macOS Screen Capture
+ones, and the same linking, cropping and scaling apply. Windows support is new; if a source points
+at the wrong window, the OBS card's **Copy capture report** button copies what OBS and Studio each
+see, which is what to include when reporting it.
+
 ## The whole window as an OBS source
 
 Under each window's card sits a **Whole window** card: a switch, the OBS source name, and the

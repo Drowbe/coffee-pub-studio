@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('coffeePub', {
   getAppInfo: () => ipcRenderer.invoke('app:info'),
   tavernSetSettings: (settings) => ipcRenderer.invoke('tavern:setSettings', settings),
   tavernSetPassword: (password) => ipcRenderer.invoke('tavern:setPassword', password),
+  obsCaptureReport: () => ipcRenderer.invoke('obs:captureReport'),
   youtubeResolveUpload: (choice, clear) => ipcRenderer.invoke('youtube:resolveUpload', choice, clear),
   tavernConnect: () => ipcRenderer.invoke('tavern:connect'),
   tavernDisconnect: () => ipcRenderer.invoke('tavern:disconnect'),
