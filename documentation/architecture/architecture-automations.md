@@ -199,7 +199,11 @@ That per-card bar lives inside a collapsible card on one tab, which is a poor pl
 piece of feedback on a process that can run for an hour. `youtubeUploadActive` (`{ title,
 percent }`, `src/main.js`) tracks the upload in flight whether or not a rule set started it, is
 exposed as `youtube.uploading`, and `renderYoutubeStatus` draws it in the footer status bar --
-visible on every tab -- as a label and a thin bar, hidden again when the upload settles.
+visible on every tab. While an upload runs it is the whole bar, on one line that never wraps:
+`Uploading`, a progress bar, the percentage, then the file name, which gives way with an ellipsis
+when the window is narrow. The idle "All changes saved" steps aside for it; an unsaved or failed
+save still shows. Build details (version, commit, Electron, Chromium) live in the Configuration
+tab's About card rather than the status bar.
 
 Each rule-set card can collapse to just its header (`collapsedRulesetIds`, `src/control/control.js`
 -- a `Set`, remembered in `localStorage` the same way `activeTab` is, not sent to the server since

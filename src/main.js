@@ -332,7 +332,7 @@ const youtubeUploadProgress = new Map();
 // The upload in flight, if any, whether or not a rule set started it -- the
 // footer's progress readout (visible on every tab) reads this, where the
 // per-rule-set map above only feeds the one card that's uploading.
-let youtubeUploadActive = null; // { title, percent }
+let youtubeUploadActive = null; // { title, file, percent }
 
 // ---------------------------------------------------------------------------
 // Coffee Pub Tavern (the party's voice and video; each player an OBS source)
@@ -1323,7 +1323,7 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
 
   logActivity('YouTube', `Upload started: "${title}" (${privacyStatus})`, 'info');
   let lastLoggedPercent = -1;
-  youtubeUploadActive = { title, percent: 0 };
+  youtubeUploadActive = { title, file: path.basename(filePath), percent: 0 };
   if (ruleSetId) youtubeUploadProgress.set(ruleSetId, 0);
   broadcastStatus();
   const signal = ruleSetId && ruleSetRunState.get(ruleSetId) ? ruleSetRunState.get(ruleSetId).abort.signal : undefined;
@@ -1333,7 +1333,7 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
       { title: title.slice(0, 100), description, categoryId, privacyStatus, selfDeclaredMadeForKids },
       (fraction) => {
         const percent = Math.floor(fraction * 100);
-        youtubeUploadActive = { title, percent };
+        youtubeUploadActive = { title, file: path.basename(filePath), percent };
         if (ruleSetId) youtubeUploadProgress.set(ruleSetId, percent);
         broadcastStatus();
         if (percent >= lastLoggedPercent + 10) {
