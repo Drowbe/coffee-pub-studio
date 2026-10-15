@@ -525,6 +525,40 @@ select:focus {
   font-size: 11px;
 }
 
+/* The YouTube upload's progress, on every tab -- an upload runs for many
+   minutes and used to show only inside its rule set card. */
+.statusbar-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text);
+}
+
+#upload-progress-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+.statusbar-upload-track {
+  width: 140px;
+  height: 6px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+#upload-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
 #save-state.dirty {
   color: var(--accent);
 }
