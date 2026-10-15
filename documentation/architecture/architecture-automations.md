@@ -721,9 +721,9 @@ way this fails on first setup.
 The setup card itself walks through this rather than assuming it's obvious: a collapsible
 "How to get a Client ID and Secret" (`.cert-trust-help`, the same collapsible class the OBS
 CA-certificate install steps already use, `src/control/index.html`) with three links -- enable the
-YouTube Data API, configure the OAuth consent screen (explicitly telling the person to leave
-**Publishing status** at **Testing** and add themselves as a **Test user**, since Google's full
-verification review is a slow process not worth it for personal use), and create the credentials --
+YouTube Data API, configure the OAuth consent screen (add themselves as a **Test user**, then move
+**Publishing status** to **In production** before connecting -- see "Testing mode expires the
+sign-in after 7 days" below for why that last part is not optional), and create the credentials --
 plus a shortcut icon button next to the Client ID field for anyone who's already done the first two
 steps. All four open a *fixed* Google Cloud Console URL via dedicated IPC handlers
 (`youtube:openApiLibrary`/`openConsentScreen`/`openCredentials`, `src/main.js`, each calling
@@ -937,6 +937,24 @@ before anyone trusts it against a real recording:
   every test user because the app was never submitted for full verification -- Continue past it),
   then the actual scope-grant screen ("Coffee Pub Studio wants access to your Google Account... Manage
   your YouTube videos") which is what the Test User membership actually gates.
+- **Testing mode expires the sign-in after 7 days (found live 2026-10-14).** The setup walkthrough
+  originally told people to leave **Publishing status** at **Testing**, "since full verification is
+  slow". But Google issues refresh tokens to an app in Testing that expire after 7 days, so a
+  connection made on Sept 23 stopped working a week later -- and every upload after that died at the
+  token refresh. Google's answer there is `{"error": "invalid_grant", "error_description": "Bad
+  Request"}`, and `googleErrorMessage` preferred `error_description`, so the log said only "Bad
+  Request", which reads like the upload itself was malformed; the Automations tab kept saying
+  "Connected." because a refresh token was merely *stored*. Three consequences were fixed together:
+  the walkthrough now says to publish the app to **In production** before connecting (no Google
+  review is needed for own use; the "hasn't verified this app" screen is shown once and is
+  expected), `getAccessToken` (`src/youtube.js`) turns `invalid_grant` into a plain "reconnect
+  YouTube" error flagged `reconnectNeeded`, and `src/main.js` flips the card to "expired or revoked
+  -- click Connect" (`youtube.expired` in the status) the first time that happens. A second,
+  separate effect of a failed upload: a Prompt field only resets when something clears it, and the
+  usual place for that is a step that runs after the upload *succeeds* -- so a failed upload leaves
+  the previous session's Title and Description in place, and because a field already holding a
+  value counts as answered, Herald does not ask for them again at the next session. Clearing on
+  the failure path as well (after the failure notification, which reads the title first) closes it.
 - **One real mistake worth recording so it isn't repeated**: clicking "Connect" in Studio to
   inspect the device-code UI while a real approval was already pending invalidated that pending
   code -- `requestDeviceCode` always asks Google for a brand-new code, there is no "just show me

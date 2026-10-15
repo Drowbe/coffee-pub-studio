@@ -203,3 +203,26 @@ need to share the literal check, not two hand-written copies of it -- the render
 `collectRequiredPromptsPreview` (Run Automation's pre-flight dialog) already had its own blank
 filter added in an earlier fix for the identical reason, and this is the same class of drift,
 just server-side.
+
+### Addendum: a failed upload leaves the answers behind (found live 2026-10-14)
+
+The "Upload to Youtube" rule set cleared Title and Description only on its `onSuccess` branch (a
+`runRuleSet` of "Clear Variables"), with an `onFailure` branch that showed a "YouTube Upload Failed.
+Upload it manually" notification and nothing else. Combined with blank-check semantics -- a field
+already holding any value counts as answered -- that left a hole: the upload failed for an unrelated
+reason (an expired Google sign-in, see `architecture-automations.md`), the failure branch ran, and
+both answers sat there. The next session's Begin Session Recording asked for no Title (the previous
+one was still present), and its End Session Recording asked for no Description; the whole session
+recorded and was filed under the last episode's title, and nothing said so.
+
+Not changed in Studio: "Studio has no notion of episode-over on its own, so clearing has to be
+deliberate" (above) still holds, and a retry of a failed upload reading the same title and
+description without being asked again is a feature of it. The hole is in the rule set's own
+failure path, so the guidance is to clear there as well -- after the notification, in its own
+stage, since the notification formats `{sessionTitle}` and a clear in the same stage would race it
+(and two consecutive `onFailure` steps do not chain: the first one's own success resets the
+tracked outcome the second one is gated on, so the failure branch should be a single
+`runRuleSet` of a rule set that does "notify, then clear"). The trade is that retrying that
+upload by hand then asks for Title and Description again, which is the right outcome for a
+session that has been given up on.
+

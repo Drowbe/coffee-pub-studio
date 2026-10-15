@@ -263,6 +263,11 @@ const youtube = new YouTubeUploader({
 // reload mid-flow can still show the code the user needs to enter --
 // cleared on success, failure, or starting a fresh connect.
 let youtubeConnectState = null;
+// True once Google has refused the saved refresh token (expired or revoked):
+// a stored token that no longer works is not "connected", and showing it as
+// such is what hid this until an upload failed with a bare "Bad Request".
+// Cleared by a fresh connect, a disconnect, or an upload that works.
+let youtubeConnectionExpired = false;
 // ruleSetId -> 0-100, only while that rule set's uploadToYouTube step is
 // actively uploading -- lets the Automations tab show a live progress bar
 // on the specific card doing the upload. See runYouTubeUpload.
@@ -1169,9 +1174,14 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
       },
       signal
     );
+    youtubeConnectionExpired = false;
     logActivity('YouTube', `Upload complete${resumed ? ' (resumed an earlier interrupted upload)' : ''}: ${url}`, 'info');
     return { videoId, url };
   } catch (err) {
+    if (err && err.reconnectNeeded) {
+      youtubeConnectionExpired = true;
+      broadcastStatus();
+    }
     if (err && err.message === 'Upload cancelled.') {
       logActivity('YouTube', 'Upload cancelled -- the next run of the same file resumes from where it stopped.', 'info');
     }
@@ -1563,7 +1573,7 @@ function fullStatus() {
     appWindows: Object.fromEntries(
       configStore.get().appWindows.map((a) => [a.id, { found: Boolean(appWindowResolved[`app:${a.id}`]), matched: appWindowMatched[`app:${a.id}`] || '', inObs: obs.status().inputs.includes(a.sourceName) }])
     ),
-    youtube: { connected: readYoutubeSecret().refreshToken !== '', hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
+    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
     activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
@@ -2921,6 +2931,7 @@ function registerIpc() {
       .pollForToken({ deviceCode, interval, expiresIn })
       .then(() => {
         youtubeConnectState = null;
+        youtubeConnectionExpired = false;
         logActivity('YouTube', 'Connected.', 'info');
       })
       .catch((err) => {
@@ -2933,6 +2944,7 @@ function registerIpc() {
     youtube.disconnect();
     writeYoutubeSecret({ refreshToken: '' });
     youtubeConnectState = null;
+    youtubeConnectionExpired = false;
     broadcastStatus();
     return fullStatus().youtube;
   });

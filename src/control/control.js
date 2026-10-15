@@ -2279,7 +2279,12 @@ function renderYoutubeStatus() {
     youtubeEls.status.textContent = '';
   } else {
     youtubeEls.deviceCode.hidden = true;
-    youtubeEls.status.textContent = yt.connected ? 'Connected.' : 'Not connected.';
+    youtubeEls.status.textContent = yt.connected
+      ? 'Connected.'
+      : yt.expired
+        ? 'The saved YouTube sign-in expired or was revoked -- click Connect to sign in again.'
+        : 'Not connected.';
+    youtubeEls.status.classList.toggle('hint-error', Boolean(yt.expired));
   }
 }
 
