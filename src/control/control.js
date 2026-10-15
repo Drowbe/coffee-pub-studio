@@ -2247,6 +2247,12 @@ function applyYoutubeConfig() {
 
 function renderYoutubeStatus() {
   const yt = status.youtube || { connected: false, hasClientSecret: false, connecting: null };
+  const uploading = yt.uploading;
+  $('upload-progress').hidden = !uploading;
+  if (uploading) {
+    $('upload-progress-label').textContent = `Uploading to YouTube: ${uploading.percent}% - ${uploading.title}`;
+    $('upload-progress-fill').style.width = `${uploading.percent}%`;
+  }
   youtubeEls.tag.hidden = !yt.connected;
   youtubeEls.connect.hidden = yt.connected;
   youtubeEls.disconnect.hidden = !yt.connected;

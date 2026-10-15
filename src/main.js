@@ -272,6 +272,10 @@ let youtubeConnectionExpired = false;
 // actively uploading -- lets the Automations tab show a live progress bar
 // on the specific card doing the upload. See runYouTubeUpload.
 const youtubeUploadProgress = new Map();
+// The upload in flight, if any, whether or not a rule set started it -- the
+// footer's progress readout (visible on every tab) reads this, where the
+// per-rule-set map above only feeds the one card that's uploading.
+let youtubeUploadActive = null; // { title, percent }
 
 // ---------------------------------------------------------------------------
 // Coffee Pub Tavern (the party's voice and video; each player an OBS source)
@@ -1152,10 +1156,9 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
 
   logActivity('YouTube', `Upload started: "${title}" (${privacyStatus})`, 'info');
   let lastLoggedPercent = -1;
-  if (ruleSetId) {
-    youtubeUploadProgress.set(ruleSetId, 0);
-    broadcastStatus();
-  }
+  youtubeUploadActive = { title, percent: 0 };
+  if (ruleSetId) youtubeUploadProgress.set(ruleSetId, 0);
+  broadcastStatus();
   const signal = ruleSetId && ruleSetRunState.get(ruleSetId) ? ruleSetRunState.get(ruleSetId).abort.signal : undefined;
   try {
     const { videoId, url, resumed } = await youtube.uploadVideo(
@@ -1163,10 +1166,9 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
       { title: title.slice(0, 100), description, categoryId, privacyStatus, selfDeclaredMadeForKids },
       (fraction) => {
         const percent = Math.floor(fraction * 100);
-        if (ruleSetId) {
-          youtubeUploadProgress.set(ruleSetId, percent);
-          broadcastStatus();
-        }
+        youtubeUploadActive = { title, percent };
+        if (ruleSetId) youtubeUploadProgress.set(ruleSetId, percent);
+        broadcastStatus();
         if (percent >= lastLoggedPercent + 10) {
           lastLoggedPercent = percent;
           logActivity('YouTube', `Upload progress: ${percent}%`, 'info');
@@ -1187,10 +1189,9 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
     }
     throw err;
   } finally {
-    if (ruleSetId) {
-      youtubeUploadProgress.delete(ruleSetId);
-      broadcastStatus();
-    }
+    youtubeUploadActive = null;
+    if (ruleSetId) youtubeUploadProgress.delete(ruleSetId);
+    broadcastStatus();
   }
 }
 
@@ -1573,7 +1574,7 @@ function fullStatus() {
     appWindows: Object.fromEntries(
       configStore.get().appWindows.map((a) => [a.id, { found: Boolean(appWindowResolved[`app:${a.id}`]), matched: appWindowMatched[`app:${a.id}`] || '', inObs: obs.status().inputs.includes(a.sourceName) }])
     ),
-    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
+    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, uploading: youtubeUploadActive, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
     activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],

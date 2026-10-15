@@ -195,6 +195,12 @@ upload still works either way, just with nothing to update. `fullStatus` exposes
 fills in its width and percentage text on every status push -- the same non-rebuilding update path
 the running-highlight uses, for the same reason.
 
+That per-card bar lives inside a collapsible card on one tab, which is a poor place for the one
+piece of feedback on a process that can run for an hour. `youtubeUploadActive` (`{ title,
+percent }`, `src/main.js`) tracks the upload in flight whether or not a rule set started it, is
+exposed as `youtube.uploading`, and `renderYoutubeStatus` draws it in the footer status bar --
+visible on every tab -- as a label and a thin bar, hidden again when the upload settles.
+
 Each rule-set card can collapse to just its header (`collapsedRulesetIds`, `src/control/control.js`
 -- a `Set`, remembered in `localStorage` the same way `activeTab` is, not sent to the server since
 it's a pure display preference rather than config) and shows a live step count next to its name
