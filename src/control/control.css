@@ -1884,6 +1884,11 @@ select.automation-step-param-missing {
   margin: 0;
 }
 
+#upload-decision-message {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .modal-textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);

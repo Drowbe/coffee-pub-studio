@@ -796,6 +796,20 @@ ever went up (the YouTube card shows it) and refuse to upload the same default f
 accident; a file set explicitly on the step is allowed to repeat, with a note in the activity log,
 since choosing it is deliberate.
 
+The same record drives what happens at the next session. A failed upload used to leave the
+previous answers in place and the next session started over them without a word. Now, when an
+event would start a recording (a matched rule set reaches `startRecording`, directly or through
+`runRuleSet`) and the last recording exists on disk, was never uploaded, and was not set aside,
+`checkAndApplyPrompts` refuses the event with a plain sentence before any answers are applied --
+the new session's title must not overwrite the old one's before it can go up -- and the control
+panel shows a choice: **Upload now** (runs the upload rule set through the normal event path, so
+progress, the success steps and the failure notice behave as usual), **I'll upload it myself**
+(marks it set aside; a checkbox, on by default, also clears the Title and Description that upload
+reads, so the next session asks for new ones) or **Not now** (closes it; the recording stays
+pending, so the next start asks again). It applies only when YouTube is on and a rule set with an
+upload step exists, and a recording that never was meant for YouTube is dealt with once by setting
+it aside.
+
 ### Five Data Field slots, not one shared param
 
 Every other action's `param` (or `setText`'s `dataField`) is one value. `uploadToYouTube` needs
