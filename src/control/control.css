@@ -526,29 +526,56 @@ select:focus {
 }
 
 /* The YouTube upload's progress, on every tab -- an upload runs for many
-   minutes and used to show only inside its rule set card. */
+   minutes and used to show only inside its rule set card. While one runs
+   it is the whole status bar: Uploading [bar] NN% file-name... -- on one
+   line, never wrapping, the file name giving way with an ellipsis. */
+.statusbar {
+  white-space: nowrap;
+  align-items: center;
+  gap: 16px;
+}
+
 .statusbar-upload {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
   min-width: 0;
   color: var(--text);
 }
 
-#upload-progress-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 420px;
+.statusbar-upload-label {
+  flex: none;
 }
 
 .statusbar-upload-track {
-  width: 140px;
+  width: 220px;
   height: 6px;
   flex: none;
   border-radius: 3px;
   background: var(--border);
   overflow: hidden;
+}
+
+#upload-progress-percent {
+  flex: none;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#upload-progress-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+}
+
+/* The idle "All changes saved" gives way during an upload; an unsaved or
+   failed save still shows, since hiding that would hide a real problem. */
+.statusbar.uploading #save-state:not(.dirty):not(.error) {
+  display: none;
 }
 
 #upload-progress-fill {
@@ -557,6 +584,23 @@ select:focus {
   width: 0;
   background: var(--accent);
   transition: width 0.3s ease;
+}
+
+.about-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 20px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.about-list dt {
+  color: var(--text-dim);
+}
+
+.about-list dd {
+  margin: 0;
+  color: var(--text);
 }
 
 #save-state.dirty {

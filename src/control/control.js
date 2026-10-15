@@ -2263,8 +2263,11 @@ function renderYoutubeStatus() {
   }
   const uploading = yt.uploading;
   $('upload-progress').hidden = !uploading;
+  document.querySelector('.statusbar').classList.toggle('uploading', Boolean(uploading));
   if (uploading) {
-    $('upload-progress-label').textContent = `Uploading to YouTube: ${uploading.percent}% - ${uploading.title}`;
+    $('upload-progress-percent').textContent = `${uploading.percent}%`;
+    $('upload-progress-file').textContent = uploading.file || uploading.title;
+    $('upload-progress-file').title = uploading.title;
     $('upload-progress-fill').style.width = `${uploading.percent}%`;
   }
   youtubeEls.tag.hidden = !yt.connected;
@@ -4155,7 +4158,9 @@ $('picker-save').addEventListener('click', async () => {
   renderObs();
   renderStatus();
   renderConnectionsBoard();
-  $('app-info').textContent =
-    `${info.revision}${info.build && info.build.branch ? ` on ${info.build.branch}` : ''} - Electron ${info.electron} - Chromium ${info.chrome}`;
+  $('about-version').textContent = info.revision;
+  $('about-build').textContent = info.build && info.build.branch ? `on ${info.build.branch}` : '-';
+  $('about-electron').textContent = info.electron;
+  $('about-chromium').textContent = info.chrome;
   document.title = `Coffee Pub Studio - Control Panel - ${info.revision}`;
 })().catch((err) => setSaveState(`Failed to start: ${err.message}`, 'error'));

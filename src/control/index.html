@@ -472,6 +472,24 @@
           </div>
         </div>
       </div>
+
+      <div class="card about">
+        <div class="view-head">
+          <div class="view-head-left">
+            <h2>About</h2>
+          </div>
+        </div>
+        <dl class="about-list">
+          <dt>Version</dt>
+          <dd id="about-version"></dd>
+          <dt>Build</dt>
+          <dd id="about-build"></dd>
+          <dt>Electron</dt>
+          <dd id="about-electron"></dd>
+          <dt>Chromium</dt>
+          <dd id="about-chromium"></dd>
+        </dl>
+      </div>
     </section>
 
     <section class="tab-panel" id="tab-tavern" hidden>
@@ -583,10 +601,11 @@
   <footer class="statusbar">
     <span id="save-state">All changes saved</span>
     <span id="upload-progress" class="statusbar-upload" role="status" hidden>
-      <span id="upload-progress-label"></span>
+      <span class="statusbar-upload-label">Uploading</span>
       <span class="statusbar-upload-track"><span id="upload-progress-fill"></span></span>
+      <span id="upload-progress-percent"></span>
+      <span id="upload-progress-file"></span>
     </span>
-    <span id="app-info"></span>
   </footer>
 
   <div id="toast-container" aria-live="polite"></div>
