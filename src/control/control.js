@@ -2247,6 +2247,14 @@ function applyYoutubeConfig() {
 
 function renderYoutubeStatus() {
   const yt = status.youtube || { connected: false, hasClientSecret: false, connecting: null };
+  const lastRecording = yt.lastRecording;
+  const lastRecordingEl = $('youtube-last-recording');
+  lastRecordingEl.hidden = !lastRecording;
+  if (lastRecording) {
+    lastRecordingEl.textContent = lastRecording.uploaded
+      ? `Last recording: ${lastRecording.name} -- uploaded ${new Date(lastRecording.uploaded.at).toLocaleString()}: ${lastRecording.uploaded.url}`
+      : `Last recording: ${lastRecording.name} -- not uploaded yet.`;
+  }
   const uploading = yt.uploading;
   $('upload-progress').hidden = !uploading;
   if (uploading) {

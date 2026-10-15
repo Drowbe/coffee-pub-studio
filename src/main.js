@@ -156,6 +156,49 @@ function writeSecret(file, secret) {
   fs.writeFileSync(file, data);
 }
 
+// Which recording was the last one, and which files have ever gone up to
+// YouTube. Kept on disk because "what did I just record, and did it
+// upload?" has to survive a restart -- an update installed between the
+// session and its upload used to lose the file entirely. Not secret (a local
+// path and a public video URL), so a plain file rather than the encrypted
+// blob.
+const RECORDINGS_PATH = path.join(app.getPath('userData'), 'recordings.json');
+const RECORDINGS_UPLOAD_LIMIT = 100;
+function loadRecordings() {
+  try {
+    const d = JSON.parse(fs.readFileSync(RECORDINGS_PATH, 'utf8'));
+    return {
+      last: d && d.last && typeof d.last.path === 'string' ? { path: d.last.path, recordedAt: Number(d.last.recordedAt) || 0 } : null,
+      uploads: d && d.uploads && typeof d.uploads === 'object' ? d.uploads : {},
+    };
+  } catch (err) {
+    return { last: null, uploads: {} };
+  }
+}
+let recordings = loadRecordings();
+function saveRecordings() {
+  const paths = Object.keys(recordings.uploads);
+  if (paths.length > RECORDINGS_UPLOAD_LIMIT) {
+    paths.sort((a, b) => (recordings.uploads[a].at || 0) - (recordings.uploads[b].at || 0));
+    for (const old of paths.slice(0, paths.length - RECORDINGS_UPLOAD_LIMIT)) delete recordings.uploads[old];
+  }
+  try {
+    fs.writeFileSync(RECORDINGS_PATH, JSON.stringify(recordings));
+  } catch (err) {
+    // Losing this only costs the "already uploaded" memory -- never worth failing a recording over.
+  }
+}
+function noteRecording(filePath) {
+  if (!filePath || (recordings.last && recordings.last.path === filePath)) return;
+  recordings.last = { path: filePath, recordedAt: Date.now() };
+  saveRecordings();
+  broadcastStatus();
+}
+function noteUpload(filePath, { videoId, url }) {
+  recordings.uploads[filePath] = { at: Date.now(), videoId, url };
+  saveRecordings();
+}
+
 const readObsPassword = () => readSecret(OBS_SECRET_PATH);
 const writeObsPassword = (password) => writeSecret(OBS_SECRET_PATH, password);
 
@@ -202,6 +245,8 @@ const obs = new ObsBridge({
   getSettings: () => configStore.get().obs,
   getPassword: readObsPassword,
 });
+obs.lastRecordingPath = recordings.last ? recordings.last.path : '';
+obs.on('recording', noteRecording);
 let lastObsState = null;
 obs.on('status', (s) => {
   if (s.state !== lastObsState) {
@@ -1119,6 +1164,16 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
   const filePath = step.filePath || obs.lastRecordingPath;
   if (!filePath) throw new Error('No recording to upload -- record something first, or set a file on this step.');
   if (!fs.existsSync(filePath)) throw new Error(`Recording file not found: ${filePath}`);
+  // Only the *default* file is guarded: running "upload the last recording"
+  // twice would quietly publish a duplicate, while setting a file on the
+  // step is a deliberate choice that is allowed to repeat one.
+  const priorUpload = recordings.uploads[filePath];
+  if (priorUpload && !step.filePath) {
+    throw new Error(
+      `This recording was already uploaded to YouTube (${priorUpload.url}, ${new Date(priorUpload.at).toLocaleString()}). To upload it again, set the file on the step.`
+    );
+  }
+  if (priorUpload) logActivity('YouTube', `Note: this file was already uploaded earlier: ${priorUpload.url}`, 'info');
 
   const title = resolveDataField(step.titleField || '', eventData);
   if (!title) throw new Error('uploadToYouTube needs a Title field that resolves to something.');
@@ -1177,6 +1232,7 @@ async function runYouTubeUpload(step, eventData, ruleSetId) {
       signal
     );
     youtubeConnectionExpired = false;
+    noteUpload(filePath, { videoId, url });
     logActivity('YouTube', `Upload complete${resumed ? ' (resumed an earlier interrupted upload)' : ''}: ${url}`, 'info');
     return { videoId, url };
   } catch (err) {
@@ -1574,7 +1630,7 @@ function fullStatus() {
     appWindows: Object.fromEntries(
       configStore.get().appWindows.map((a) => [a.id, { found: Boolean(appWindowResolved[`app:${a.id}`]), matched: appWindowMatched[`app:${a.id}`] || '', inObs: obs.status().inputs.includes(a.sourceName) }])
     ),
-    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, uploading: youtubeUploadActive, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
+    youtube: { connected: readYoutubeSecret().refreshToken !== '' && !youtubeConnectionExpired, expired: youtubeConnectionExpired, uploading: youtubeUploadActive, lastRecording: recordings.last ? { name: path.basename(recordings.last.path), uploaded: recordings.uploads[recordings.last.path] ? { url: recordings.uploads[recordings.last.path].url, at: recordings.uploads[recordings.last.path].at } : null } : null, hasClientSecret: readYoutubeSecret().clientSecret !== '', connecting: youtubeConnectState },
     activity: activityLog,
     collapsed,
     parkedIds: [...parked.keys()],
