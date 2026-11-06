@@ -1,9 +1,9 @@
 # Coffee Pub Tavern in OBS
 
-**Audience:** anyone using Coffee Pub Tavern to publish players into OBS through Studio.
+**Audience:** anyone using Coffee Pub Tavern to publish players into OBS through Showrunner.
 
 [Coffee Pub Tavern](https://github.com/Drowbe/coffee-pub-tavern) is the party's voice and video
-server. Studio signs in to it as an admin and gives every player their own OBS Browser Source.
+server. Showrunner signs in to it as an admin and gives every player their own OBS Browser Source.
 
 ## Sign in
 
@@ -17,9 +17,9 @@ the sources use is fetched from the server at sign-in and never has to be copied
 
 If the account has two-step sign-in turned on (or the server requires it for everyone), a
 **Two-step code** field appears after **Sign in** -- enter the six-digit code from your
-authenticator app and click **Verify**, or **Cancel** to back out. Studio remembers that it
+authenticator app and click **Verify**, or **Cancel** to back out. Showrunner remembers that it
 verified for 30 days, so it isn't asked again until then. If the account hasn't set up two-step
-sign-in yet, Studio can't do that part -- sign in once in a browser to set it up, then come back
+sign-in yet, Showrunner can't do that part -- sign in once in a browser to set it up, then come back
 and sign in here as usual.
 
 ## Source sizes
@@ -42,7 +42,7 @@ to -- a room whose profile excludes one of them (Participants only, say) simply 
 section. Each row has its own **Show in OBS** / **Hide in OBS** toggle -- hiding never deletes the
 source, so any position, scale or filter you set on it in OBS survives -- and, once it exists, a
 **Delete from OBS** button that actually removes it. OBS names follow one pattern everywhere:
-`Participant: <name> (CP Studio)` and `Character: <name> (CP Studio)`.
+`Participant: <name> (CPS)` and `Character: <name> (CPS)`.
 
 The bulk buttons above the list act on the whole room at once: **Show All in OBS** / **Hide All in
 OBS** only touch visibility, never creating or deleting anything; **Add All in OBS** creates a
@@ -72,4 +72,4 @@ either way, and this only ever mutes, it never changes which room is shown above
 effect while an admin is actually online; with none online there's no "current conversation" to be
 aside from. Someone offline is never muted by this setting -- there is no live audio to mute in
 the first place. None of this is visual: any dim or tint for someone offline or aside is rendered
-by the Tavern server's own page, not by Studio.
+by the Tavern server's own page, not by Showrunner.

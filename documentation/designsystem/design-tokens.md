@@ -1,8 +1,8 @@
 # Design Tokens
 
-**Audience:** anyone styling Coffee Pub Studio's own UI (the control panel, the edge dock, the bar).
+**Audience:** anyone styling Coffee Pub Showrunner's own UI (the control panel, the edge dock, the bar).
 
-Studio is a standalone Electron app, not a Foundry module -- there is no host page for these tokens to
+Showrunner is a standalone Electron app, not a Foundry module -- there is no host page for these tokens to
 integrate with, and no other module consumes them. They exist for one reason: so the app's three
 independent renderers stay visually one product instead of drifting apart as features get added to each
 separately.
@@ -72,6 +72,6 @@ since nothing downstream needs to read or override them.
 ## Naming
 
 Tokens are bare (`--accent`, not `--studio-accent`) -- there is no collision risk to guard against, since
-nothing outside Studio's own three stylesheets ever reads them. Do not add a prefix; it would just be
+nothing outside Showrunner's own three stylesheets ever reads them. Do not add a prefix; it would just be
 noise here, unlike in Blacksmith where the prefix is load-bearing (it is the thing that stops a token from
 colliding with a Foundry core variable or another module's).

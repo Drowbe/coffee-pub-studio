@@ -1,7 +1,7 @@
 # "Prompt" Metadata fields and required-prompt discovery -- done
 
 **Audience:** whoever picks this up next, and Foundry module authors (Herald first) who want to
-build a generic "run this automation" menu without hardcoding any of Studio's own Metadata field
+build a generic "run this automation" menu without hardcoding any of Showrunner's own Metadata field
 names.
 
 ## The problem this replaces
@@ -12,17 +12,17 @@ entirely. It solved Herald's stated need (prompt for a title before recording st
 description be updated independently, any time, up to Stop) but left a real gap: `param` is a
 field's `key`, and nothing told an external caller what key to use. `incrementMetadataField`/
 `decrementMetadataField` got away with the same shape because they're only ever wired up *inside*
-Studio's own step editor, by a human who already sees the field list there. `setMetadataField`
-called directly by Herald has no Studio human in the loop at call time -- a hardcoded key
-(`"sessionTitle"`) breaks silently the moment it talks to a different Studio setup with
+Showrunner's own step editor, by a human who already sees the field list there. `setMetadataField`
+called directly by Herald has no Showrunner human in the loop at call time -- a hardcoded key
+(`"sessionTitle"`) breaks silently the moment it talks to a different Showrunner setup with
 differently-named fields.
 
 The first fix considered was extending `GET /capabilities` with a `metadataFields` list (key/
-label/type) so a caller could build its own settings picker -- "which Studio field holds the
+label/type) so a caller could build its own settings picker -- "which Showrunner field holds the
 Title?" -- mapped once, by a human, at connect time. Built, verified live, and still true (see
 "Discovering Metadata fields externally" below) -- but a better design followed directly from it:
 instead of a caller pre-configuring a field mapping for concepts it invents ("Title", "Description"),
-have Studio's own rule sets *declare what they need* and have a caller ask generically, discovering
+have Showrunner's own rule sets *declare what they need* and have a caller ask generically, discovering
 requirements per rule set rather than per concept. That's what this document covers.
 
 ## The design
@@ -59,12 +59,12 @@ missing or blank from the supplied `prompts`. If satisfied, it writes each suppl
 field (the same underlying write `setMetadataField` does) *before* the event is recorded, so every
 step downstream -- this run and any future one -- reads the fresh value already in place. This is
 enforced every single time, unconditionally: there is no "already answered, don't ask again" state
-inside Studio at all. A Prompt field's stored value is never treated as "still good" by Studio
+inside Showrunner at all. A Prompt field's stored value is never treated as "still good" by Showrunner
 itself; whether to bother a human again or silently resupply a cached answer is entirely the
 caller's own call (Herald tracking locally whether the GM already typed a description this session,
-say) -- Studio's contract stays exactly "supply it fresh, every time, or the run refuses."
+say) -- Showrunner's contract stays exactly "supply it fresh, every time, or the run refuses."
 
-**Studio's own "Run Automation" button gets the identical gate**, not a side door around it. The
+**Showrunner's own "Run Automation" button gets the identical gate**, not a side door around it. The
 existing external-Data-Field test-data prompt (added earlier for a step reading a key some other
 module registers) is joined by a second pass -- a renderer-side mirror of `collectRequiredPrompts`
 (`collectRequiredPromptsPreview`, same dual-copy convention as `resolveDataField`/`previewDataField`
@@ -103,7 +103,7 @@ against a pre-fixture backup afterward (confirmed byte-identical):
 - The same event with `prompts: {"testPromptField": "..."}` supplied -> `200 {"ok": true}`, and the
   value landed in `config.json`.
 - The same event fired again immediately afterward, still with no `prompts` -> still `400`, same
-  error -- confirming a field's stored value is never treated as "already answered" by Studio
+  error -- confirming a field's stored value is never treated as "already answered" by Showrunner
   itself; a fresh answer is required every single time, unconditionally.
 
 ## Also fixed in this pass, adjacent
@@ -215,12 +215,12 @@ both answers sat there. The next session's Begin Session Recording asked for no 
 one was still present), and its End Session Recording asked for no Description; the whole session
 recorded and was filed under the last episode's title, and nothing said so.
 
-Decision (2026-10-14): Studio does not clear on failure, and the rule set should not either.
-"Studio has no notion of episode-over on its own, so clearing has to be deliberate" (above) still
+Decision (2026-10-14): Showrunner does not clear on failure, and the rule set should not either.
+"Showrunner has no notion of episode-over on its own, so clearing has to be deliberate" (above) still
 holds, and the reason is the retry: a re-upload needs the same title and description, which match
 what is already shown in the video, and asking for them again means remembering them. The cost is
 the stale answers described above when a failed upload is not noticed -- accepted, and softened by
-making the failure visible: Studio now remembers the last recording across restarts and records
+making the failure visible: Showrunner now remembers the last recording across restarts and records
 which files have uploaded, and the YouTube card shows whether the last one did. (For reference,
 if clearing on failure is ever wanted: do it in its own stage after the notification, since the
 notification formats `{sessionTitle}`; two consecutive `onFailure` steps do not chain, because the

@@ -1,10 +1,10 @@
 # Configuration file reference
 
-**Audience:** anyone reading or editing Coffee Pub Studio's config.json directly, or scripting
+**Audience:** anyone reading or editing Coffee Pub Showrunner's config.json directly, or scripting
 against it.
 
 Settings are stored as JSON at
-`~/Library/Application Support/Coffee Pub Studio/config.json` (the control panel's
+`~/Library/Application Support/Coffee Pub Studio/config.json` (the folder keeps the app's earlier name on purpose, so a rename never loses settings or passwords; the control panel's
 **Show config file** button reveals it in Finder).
 
 This example is trimmed to the window/OBS shape for readability; `tavern` and `automations` are
@@ -28,7 +28,7 @@ separate top-level sections, covered in their own guides:
       "muted": false,
       "enabled": true,
       "session": "Main",
-      "windowSource": { "enabled": true, "name": "Window: Game (CP Studio)" },
+      "windowSource": { "enabled": true, "name": "Window: Game (CPS)" },
       "regions": []
     },
     {
@@ -42,7 +42,7 @@ separate top-level sections, covered in their own guides:
       "muted": true,
       "enabled": true,
       "session": "Main",
-      "windowSource": { "enabled": false, "name": "Window: Stream (CP Studio)" },
+      "windowSource": { "enabled": false, "name": "Window: Stream (CPS)" },
       "regions": [
         {
           "id": "region1",
@@ -53,7 +53,7 @@ separate top-level sections, covered in their own guides:
           "y": 0,
           "width": 600,
           "height": 200,
-          "obsSource": "Region: Stream>Scoreboard (CP Studio)"
+          "obsSource": "Region: Stream>Scoreboard (CPS)"
         }
       ]
     }

@@ -1,6 +1,6 @@
 {
   "name": "coffee-pub-studio",
-  "productName": "Coffee Pub Studio",
+  "productName": "Coffee Pub Showrunner",
   "version": "0.2.11",
   "description": "Wraps any web page in a fixed-size Chromium window that OBS can capture as a source, optimized for FoundryVTT sessions but not exclusive to Foundry.",
   "main": "src/main.js",
@@ -28,7 +28,7 @@
   },
   "build": {
     "appId": "live.coffeepub.studio",
-    "productName": "Coffee Pub Studio",
+    "productName": "Coffee Pub Showrunner",
     "copyright": "Copyright © 2026 Coffee Pub",
     "asar": true,
     "files": [
@@ -60,8 +60,8 @@
         }
       ],
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Coffee Pub Studio needs the microphone if you use FoundryVTT audio/video chat inside the Game window.",
-        "NSCameraUsageDescription": "Coffee Pub Studio needs the camera if you use FoundryVTT audio/video chat inside the Game window."
+        "NSMicrophoneUsageDescription": "Coffee Pub Showrunner needs the microphone if you use FoundryVTT audio/video chat inside the Game window.",
+        "NSCameraUsageDescription": "Coffee Pub Showrunner needs the camera if you use FoundryVTT audio/video chat inside the Game window."
       }
     },
     "dmg": {

@@ -22,21 +22,34 @@ const LIMITS = {
   maxViews: 5,
 };
 
+// The tail on every OBS source name this app makes. It was " (CP Studio)"
+// before the app became Coffee Pub Showrunner; the short form is the same
+// for both names, and old names are carried over (see upgradeSourceName).
+const SOURCE_SUFFIX = ' (CPS)';
+const LEGACY_SOURCE_SUFFIX = ' (CP Studio)';
+
+// A saved source name with the old tail swapped for the current one; any
+// other name comes back unchanged.
+function upgradeSourceName(name) {
+  const text = typeof name === 'string' ? name : '';
+  return text.endsWith(LEGACY_SOURCE_SUFFIX) ? text.slice(0, -LEGACY_SOURCE_SUFFIX.length) + SOURCE_SUFFIX : text;
+}
+
 // The OBS source name a window gets unless the user picks another. Every
 // source this app creates -- windows, regions, Tavern sources -- follows
-// the same "Type: Name (CP Studio)" shape, so OBS's own source pickers
+// the same "Type: Name (CPS)" shape, so OBS's own source pickers
 // (which sort by kind, not by who added something) group everything this
-// app made under its own type, and the "(CP Studio)" tail still answers
+// app made under its own type, and the "(CPS)" tail still answers
 // "what put this here" once you're looking at one.
 function defaultSourceName(label) {
-  return `Window: ${label} (CP Studio)`;
+  return `Window: ${label}${SOURCE_SUFFIX}`;
 }
 
 // A window belonging to some other application (a game, Discord, a
 // browser someone else runs), captured into OBS by Studio but not owned by
 // it -- see sanitizeAppWindows.
 function defaultAppSourceName(label) {
-  return `App: ${label} (CP Studio)`;
+  return `App: ${label}${SOURCE_SUFFIX}`;
 }
 
 // A fresh window: no URL, a generic label and size. Nothing here assumes
@@ -901,6 +914,8 @@ module.exports = {
   defaultConfig,
   sanitizeConfig,
   defaultSourceName,
+  SOURCE_SUFFIX,
+  upgradeSourceName,
   LIMITS,
   REGION_LIMITS,
   AUTOMATIONS_LIMITS,

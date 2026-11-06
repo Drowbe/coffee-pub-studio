@@ -373,7 +373,7 @@ class AutomationsServer extends EventEmitter {
         // data.text by default (there's no per-request field-name override
         // here the way a saved rule-set step's own dataField gives it).
         const data = body.data && typeof body.data === 'object' ? body.data : undefined;
-        if (!this.runAction) return send(500, { error: 'Studio is not ready to run actions.' });
+        if (!this.runAction) return send(500, { error: 'Showrunner is not ready to run actions.' });
         try {
           await this.runAction(action, param, data);
           send(200, { ok: true });

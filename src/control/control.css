@@ -1128,7 +1128,7 @@ select:focus {
 }
 
 /* The editable OBS name for a window or region: a chip whose "Type: " /
-   " (CP Studio)" ends are fixed, plain-text decoration and only the middle
+   " (CPS)" ends are fixed, plain-text decoration and only the middle
    is an actual input -- the user edits the part that's theirs, and always
    sees the exact name Studio will use in OBS, live, not just after saving.
    Shares the .chip box (border/radius/height/padding/background); this

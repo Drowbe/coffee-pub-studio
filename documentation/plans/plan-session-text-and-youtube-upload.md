@@ -3,7 +3,7 @@
 **Audience:** whoever picks this work up next (most likely me, next session).
 
 Two related but separately-scoped pieces of post-production automation, both growing out of the
-rule-sets rebuild: Herald-driven text sources plus Studio-managed season/episode numbering (this
+rule-sets rebuild: Herald-driven text sources plus Showrunner-managed season/episode numbering (this
 one gets built tonight), and automated YouTube upload once a recording finishes (planned only,
 explicitly on hold until the approach is nailed down).
 
@@ -17,7 +17,7 @@ reproduced the existing `Episode NUMBER` text byte-for-byte from the seeded seas
 `{campaign}`) correctly, zero-padding season/episode and leaving OBS's own `%CCYY`-style macros
 untouched, then the real `FilenameFormatting` was restored exactly. `incrementEpisode`'s disabled
 state was also confirmed to reject correctly once testing was done and `studioActions` was reset
-to its original set -- these three new Studio actions are opt-in, same as every other one, and
+to its original set -- these three new Showrunner actions are opt-in, same as every other one, and
 start off.
 
 Season/episode were seeded to `3`/`27` (matching the real, already-live `Episode NUMBER` text)
@@ -39,7 +39,7 @@ know what keys a connected module would actually send, short of reading that mod
 
 Redesigned as a genuine three-way choice, "where it goes" (`param`, unchanged) kept separate from
 "what it is": **Free Text** (a fixed value typed once, no external caller involved at all -- the
-"swap between text presets" case), **File** (a local text file Studio re-reads every run, with a
+"swap between text presets" case), **File** (a local text file Showrunner re-reads every run, with a
 native Browse dialog), and **Data Field** (a key read from the triggering event's `data`, now
 populated as a real dropdown instead of typed blind). That last one needed the other half of the
 handshake: `POST /api/automations/fields`, letting a connected module declare which fields it
@@ -60,9 +60,9 @@ Below is the original design write-up this was built from.
 Three things, observed directly against the user's real OBS setup:
 - `Episode NAME` (text source, e.g. "Darn Skarn") and `Campaign Name` (text source, e.g. "The
   Burden of Knowledge") should be settable from Herald, per event -- these come from Foundry/the
-  session itself, not something Studio tracks.
+  session itself, not something Showrunner tracks.
 - `Episode NUMBER` (text source, currently hand-typed as `"SEASON 03              EPISODE 27"`)
-  should be Studio-managed: a season and episode number Studio persists, with the episode number
+  should be Showrunner-managed: a season and episode number Showrunner persists, with the episode number
   auto-incrementing via an action.
 - The recording's filename -- currently hand-typed into OBS's Output > Recording > Filename
   Formatting as `Elegant Eight S03EXX - The Burden of Knowledge - Y%CCYYM%MMD%DDT%hh%mm%ss` --
@@ -89,7 +89,7 @@ season/episode text), `episodeFormat` (a template, defaulting to
 `filenameFormat` (a template, empty by default since it's riskier to guess at than a text source).
 
 **Four placeholders**, available in both `episodeFormat` and `filenameFormat`: `{season}` and
-`{episode}` come from Studio's own stored `session` state; `{title}` and `{campaign}` come from
+`{episode}` come from Showrunner's own stored `session` state; `{title}` and `{campaign}` come from
 whatever triggered the rule set -- the incoming event's `data.title` / `data.campaign`.
 
 **New actions:**
@@ -126,7 +126,7 @@ being timed shows an empty string rather than crashing).
 
 `api-automations.md` needs: the four new actions in the actions table, the `data`-driven
 behavior of `setText` explained (including the `dataField` convention, even though rule-set step
-internals stay Studio's own business), and a worked example alongside the existing `combatStart`
+internals stay Showrunner's own business), and a worked example alongside the existing `combatStart`
 one.
 
 ## Part 2: Automated YouTube upload -- built overnight, unverified against the real API
@@ -136,8 +136,8 @@ work") -- this section is the starting point for that conversation, not a build 
 
 ### What's genuinely known already
 
-- OBS tells Studio the actual output file path when a recording stops (`StopRecord`'s response,
-  or the `RecordStateChanged` event's data) -- so "which file" is solvable with what Studio
+- OBS tells Showrunner the actual output file path when a recording stops (`StopRecord`'s response,
+  or the `RecordStateChanged` event's data) -- so "which file" is solvable with what Showrunner
   already has a WebSocket connection for.
 - YouTube's Data API v3 supports resumable uploads (`videos.insert`, chunked), which is the right
   shape for a large recording file.
@@ -149,7 +149,7 @@ work") -- this section is the starting point for that conversation, not a build 
 
 - **Auth.** YouTube upload needs OAuth 2.0 (a Google Cloud project, a client ID/secret, a
   one-time consent screen, a stored refresh token) -- categorically different from the
-  token-in-a-field pattern every other credential in Studio uses (OBS password, Tavern login).
+  token-in-a-field pattern every other credential in Showrunner uses (OBS password, Tavern login).
   This needs its own design: where the OAuth flow actually runs (a loopback redirect handled by
   Electron's own `net`/a temporary local server, most likely), and where the refresh token is
   stored (same keychain-backed pattern as the OBS/Tavern secrets, presumably, but confirm before
@@ -160,7 +160,7 @@ work") -- this section is the starting point for that conversation, not a build 
   patch later.
 - **Video metadata and privacy.** Title/description from Herald's `data`, presumably -- but
   privacy status (`private`/`unlisted`/`public`), thumbnail, playlist assignment, and whether any
-  of that is itself Studio-configurable or always private-by-default until a human publishes it,
+  of that is itself Showrunner-configurable or always private-by-default until a human publishes it,
   are all open. Defaulting to `private` and requiring an explicit separate action (or a human
   click) to actually publish is the safer starting assumption, but that's a recommendation to
   confirm, not a decision already made.
@@ -176,7 +176,7 @@ work") -- this section is the starting point for that conversation, not a build 
 
 A short design pass answering the auth/trigger/privacy questions above, written up the same way
 this document is, before any code -- this is a bigger, more externally-facing feature (a Google
-OAuth app, a public YouTube channel) than anything built in Studio so far, and deserves that
+OAuth app, a public YouTube channel) than anything built in Showrunner so far, and deserves that
 pass on its own rather than being sized up mid-implementation.
 
 ### Addendum: built overnight, while the person who owns this feature slept
@@ -196,7 +196,7 @@ Each open question above, resolved:
   a code. Requires the Google Cloud OAuth client to be the **"TVs and Limited Input devices"** type
   specifically. `clientSecret` and the refresh token are `safeStorage`-encrypted, same pattern as
   the OBS/Tavern passwords; `clientId` is plain config, same as `obs.host`.
-- **Trigger.** Explicit rule-set step only, same as every other Studio action -- never automatic on
+- **Trigger.** Explicit rule-set step only, same as every other Showrunner action -- never automatic on
   `StopRecord`. Nothing wires it into any of the real rule sets that already exist; adding the step
   where it belongs (almost certainly "End Session Recording", after `stopRecording`) is left for the
   person who owns this feature to do once they've connected a real YouTube account and are ready to
@@ -212,7 +212,7 @@ Each open question above, resolved:
   Thumbnail assignment: not built (separate API call, scoped out to land a working core first).
 - **Upload duration and failure handling.** Chunked resumable upload (8 MiB chunks, retried with
   backoff on failure), progress logged to the Connections activity log every ~10%. Resumable within
-  one run; **not** resumable across a Studio restart -- the session URL isn't persisted. A real gap,
+  one run; **not** resumable across a Showrunner restart -- the session URL isn't persisted. A real gap,
   not an oversight; see the architecture doc.
 - **Quota.** Not reconfirmed against the user's actual Google Cloud project (couldn't be, overnight,
   without their account) -- but per Google's published cost table a resumable upload costs roughly

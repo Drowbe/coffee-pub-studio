@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="src/assets/wordmark-white.png">
-  <img src="documentation/assets/wordmark.png" alt="Coffee Pub Studio" width="480">
+  <img src="documentation/assets/wordmark.png" alt="Coffee Pub Showrunner" width="480">
 </picture>
 
 The production side of the Coffee Pub suite: a standalone macOS and Windows app that wraps any
@@ -10,14 +10,19 @@ people using it will point one window at their game canvas and another at a stre
 but nothing about it is Foundry-specific: it'll work with any web-based experience. You start with
 no windows and add each one yourself, up to five.
 
-The app was called **Coffee Pub Browser** before v0.1.8. The first launch of Coffee Pub Studio
-copies your settings over from the old app's folder; only the OBS password has to be entered
-again, because it is encrypted with a keychain entry named after the app.
+The app has had two earlier names. It was **Coffee Pub Browser** before v0.1.8: that first launch
+copied settings over, but the OBS password had to be entered again, because it is encrypted with a
+keychain entry named after the app. It was **Coffee Pub Studio** before v0.3.0: that rename keeps
+everything -- settings, passwords and the YouTube connection -- because the folder and keychain
+entry still use the old name on purpose. OBS sources it made that ended in `(CP Studio)` are
+renamed to end in `(CPS)` the first time it connects to OBS, and anything that named one (an
+automation step, for example) is updated to match. After installing, delete the old
+**Coffee Pub Studio** app; the two share one identity and shouldn't both stay installed.
 
 - Borderless windows with a slim bar of the app's own at the top for dragging and resizing,
   and the page at the exact pixel size you configure below it. Linked OBS sources get a crop
   that removes the bar, so OBS sees only the page.
-- Stable window names (`Coffee Pub Studio - <your window's label>`) so OBS Window Capture
+- Stable window names (`Coffee Pub Showrunner - <your window's label>`) so OBS Window Capture
   always finds them, even if the page itself keeps rewriting its own title.
 - All windows in the same session group share one login. Log in once in any window in the group.
 - Rendering is never throttled when a window is behind other windows or unfocused, so the OBS
@@ -33,7 +38,7 @@ again, because it is encrypted with a keychain entry named after the app.
   an OBS Browser Source with one click, kept in sync by the player's stable key.
 - Automations: let a Foundry module (or anything else) trigger an OBS action -- switch scene,
   show or hide a source, start or stop recording or streaming -- over a small local HTTPS
-  server Studio runs.
+  server Showrunner runs.
 - An edge dock: a slim strip at the left or right edge of the screen. Park windows under it
   to get them out of the way while OBS keeps capturing them; hover it for a thumbnail of each
   window, click to bring one back, plus Start, Stop and Sync shortcuts. An optional menu bar
@@ -45,7 +50,7 @@ again, because it is encrypted with a keychain entry named after the app.
 - To build: [Node.js](https://nodejs.org) 18 or newer.
 - OBS Studio 28 or newer.
 
-On Windows, Studio manages OBS's Window Capture sources the same way it manages macOS Screen
+On Windows, Showrunner manages OBS's Window Capture sources the same way it manages macOS Screen
 Capture ones. That support is new and has not yet been confirmed on a real Windows machine -- see
 [Known issues](documentation/known-issues.md) for what to check and how to add a window by hand if
 it misbehaves.
@@ -60,7 +65,7 @@ below.
 
 Every push also runs the **Build desktop app** workflow, building both platforms. If you need a
 build from a branch that has not been released, open the **Actions** tab, pick the run, and
-download the **Coffee-Pub-Studio-macOS** or **Coffee-Pub-Studio-Windows** artifact.
+download the **Coffee-Pub-Showrunner-macOS** or **Coffee-Pub-Showrunner-Windows** artifact.
 
 ### Option B: build it yourself
 
@@ -72,11 +77,11 @@ npm run dist:win     # Windows: NSIS installer
 
 macOS output lands in `dist/`:
 
-- `dist/Coffee Pub Studio-1.0.0-universal.dmg`
-- `dist/Coffee Pub Studio-1.0.0-universal-mac.zip`
+- `dist/Coffee Pub Showrunner-1.0.0-universal.dmg`
+- `dist/Coffee Pub Showrunner-1.0.0-universal-mac.zip`
 
-Open the `.dmg` and drag **Coffee Pub Studio** into `Applications`. Windows output is
-`dist/Coffee Pub Studio Setup 1.0.0.exe`; run it and follow the installer.
+Open the `.dmg` and drag **Coffee Pub Showrunner** into `Applications`. Windows output is
+`dist/Coffee Pub Showrunner Setup 1.0.0.exe`; run it and follow the installer.
 
 For a faster, smaller macOS build for just your machine's chip:
 
@@ -99,7 +104,7 @@ On macOS, Gatekeeper blocks it: right-click the app in `Applications` and choose
 **Open** again in the dialog, or clear the quarantine flag from a terminal:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Coffee Pub Studio.app"
+xattr -dr com.apple.quarantine "/Applications/Coffee Pub Showrunner.app"
 ```
 
 On Windows, SmartScreen shows "Windows protected your PC": click **More info**, then
@@ -107,7 +112,7 @@ On Windows, SmartScreen shows "Windows protected your PC": click **More info**, 
 
 ## Using it
 
-Launch **Coffee Pub Studio**. The control panel opens with no windows configured yet -- click the
+Launch **Coffee Pub Showrunner**. The control panel opens with no windows configured yet -- click the
 **+** tab to add one (up to five), give it a label and a URL, then connect the app to OBS from
 the Session tab's OBS card so it creates and points sources at your windows on its own. Most
 people run a two-window FoundryVTT setup -- one window pointed at the game canvas, one at a
@@ -130,14 +135,14 @@ The full walkthrough lives on the wiki, one guide per piece:
 
 ### Automations: let a Foundry module drive OBS
 
-Regions only get Studio as far as "crop this part of the page into its own OBS source" -- visual,
+Regions only get Showrunner as far as "crop this part of the page into its own OBS source" -- visual,
 not aware of what's actually happening in the game. Automations closes that gap: a Foundry
-module (Herald first) tells Studio when something happens -- combat starting, a scene changing --
+module (Herald first) tells Showrunner when something happens -- combat starting, a scene changing --
 and a rule turns that into an OBS action: switch scene, show or hide a source, start or stop
 recording or streaming. The same tab also works as a plain manual remote for OBS with no Foundry
 module involved at all. Enable it, and set a token, from the **Automations** section of the
 Session tab; the tab itself covers the manual remote, the rule editor, and the exact click-by-click
-steps for trusting Studio's certificate on the machine running Foundry.
+steps for trusting Showrunner's certificate on the machine running Foundry.
 
 The full HTTP contract and a worked integration example are on the wiki:
 [Automations API](https://github.com/Drowbe/coffee-pub-studio/wiki/api-automations). How the

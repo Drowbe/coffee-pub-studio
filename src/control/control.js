@@ -1069,7 +1069,7 @@ function renderStatus() {
 
     const size = s.open ? `${s.width} × ${s.height}` : `${view.width} × ${view.height}`;
     const captured = s.open && s.scaleFactor !== 1 ? ` (${s.captureWidth} × ${s.captureHeight} captured)` : '';
-    card.querySelector('[data-status="title"]').textContent = `Coffee Pub Studio - ${view.label}  ·  page ${size}${captured}`;
+    card.querySelector('[data-status="title"]').textContent = `Coffee Pub Showrunner - ${view.label}  ·  page ${size}${captured}`;
     card.querySelector('[data-status="audio"]').textContent = !s.open
       ? 'Start the window to see whether its page is making sound.'
       : s.muted
@@ -1108,11 +1108,12 @@ function makeSmallButton(text, action, { danger = false, disabled = false, title
 // The whole window as one OBS source: a switch, its name, and its state in
 // OBS (in OBS -> Delete from OBS; not there -> Add to OBS).
 // The name field only ever edits the part between "Window: " and
-// " (CP Studio)" -- Studio composes the rest, always, on save. A name that
+// " (CPS)" -- Showrunner composes the rest, always, on save. A name that
 // doesn't match (a legacy name, or one adopted from a hand-made OBS
 // source) shows raw and unwrapped until the user next edits and saves it.
-const WINDOW_SOURCE_NAME_RE = /^Window: (.*) \(CP Studio\)$/;
-const windowSourceName = (label) => `Window: ${label} (CP Studio)`;
+// Either tail is taken apart; only the current one is ever written.
+const WINDOW_SOURCE_NAME_RE = /^Window: (.*) \((?:CPS|CP Studio)\)$/;
+const windowSourceName = (label) => `Window: ${label} (CPS)`;
 
 function renderWindowSource(card, view, s, o, connected) {
   const el = card.querySelector('[data-role="window-source"]');
@@ -3714,9 +3715,9 @@ function uniqueAppSourceName(label, exceptId) {
     ...config.appWindows.filter((a) => a.id !== exceptId).map((a) => a.sourceName),
     ...config.views.flatMap((v) => [v.windowSource.name, ...v.regions.map((r) => r.obsSource)]),
   ]);
-  const base = `App: ${label} (CP Studio)`;
+  const base = `App: ${label} (CPS)`;
   let name = base;
-  for (let n = 2; taken.has(name); n += 1) name = `App: ${label} ${n} (CP Studio)`;
+  for (let n = 2; taken.has(name); n += 1) name = `App: ${label} ${n} (CPS)`;
   return name;
 }
 
@@ -3825,7 +3826,7 @@ function renderAppWindows() {
     const hint = document.createElement('p');
     hint.className = 'hint';
     hint.textContent =
-      "A window from another application, captured into OBS and kept pointed at it as the app reopens. Studio can't open, move or dock it, and leaves its audio alone.";
+      "A window from another application, captured into OBS and kept pointed at it as the app reopens. Showrunner can't open, move or dock it, and leaves its audio alone.";
 
     // Which window: picker + how it's found again
     const pickRow = document.createElement('div');
@@ -4172,5 +4173,5 @@ $('picker-save').addEventListener('click', async () => {
   $('about-build').textContent = info.build && info.build.branch ? `on ${info.build.branch}` : '-';
   $('about-electron').textContent = info.electron;
   $('about-chromium').textContent = info.chrome;
-  document.title = `Coffee Pub Studio - Control Panel - ${info.revision}`;
+  document.title = `Coffee Pub Showrunner - Control Panel - ${info.revision}`;
 })().catch((err) => setSaveState(`Failed to start: ${err.message}`, 'error'));

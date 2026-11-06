@@ -1,6 +1,6 @@
 # Automations Architecture
 
-**Audience:** developers changing Coffee Pub Studio's Automations feature.
+**Audience:** developers changing Coffee Pub Showrunner's Automations feature.
 
 How the Automations HTTPS server is built and why. What it lets a caller do is
 [api-automations](../api/api-automations.md); this document is everything you can only learn by
@@ -50,7 +50,7 @@ Connect/Disconnect), the same kind of thing OBS's host/port/password and Automat
 already are, so it lives on Configuration alongside them -- moved there after first being placed on
 Automations (reasoning by proximity to `uploadToYouTube`, the same mistake OBS Control's original
 placement made). The *action* itself is still only ever added as a step from the Automations tab's
-rule-set editor, same as every other Studio action; only where you connect the account moved.
+rule-set editor, same as every other Showrunner action; only where you connect the account moved.
 
 None of this touched `session.filenameFormat`, `config.metadataFields`, or any element id --
 `src/control/control.js` lookups (`$('metadata-fields')`, `$('session-filename-format')`, ...) are
@@ -62,10 +62,10 @@ tab triggers a refresh, since both read the same `automationsScenes`/`automation
 
 ## Why a server, not a client
 
-Every other integration Studio has is the other way around: Studio is the client polling
+Every other integration Showrunner has is the other way around: Showrunner is the client polling
 Coffee Pub Tavern's HTTP API, and OBS's WebSocket connection is loopback-only because OBS and
-Studio share a Mac. Foundry, running Coffee Pub Herald, is typically on a different machine on the
-same LAN. For a Foundry module to reach Studio at all, something has to be listening, and Foundry
+Showrunner share a Mac. Foundry, running Coffee Pub Herald, is typically on a different machine on the
+same LAN. For a Foundry module to reach Showrunner at all, something has to be listening, and Foundry
 cannot be that thing -- so `AutomationsServer` (`src/automations.js:47`) runs its own HTTPS server,
 bound to every network interface rather than only localhost.
 
@@ -84,13 +84,13 @@ leaf that is not signed by the current CA (including a leftover self-signed leaf
 design existed) and regenerates it. The CA's certificate, not the leaf, is what a device installs
 once; every leaf that CA ever signs is trusted after that, including one regenerated later.
 
-## Trusting Studio's own windows automatically
+## Trusting Showrunner's own windows automatically
 
-If the calling code runs inside one of Studio's own windows -- Coffee Pub Herald's "cameraman"
+If the calling code runs inside one of Showrunner's own windows -- Coffee Pub Herald's "cameraman"
 client, if that is the Stream window rather than a separate browser -- there is no page navigation
 for a certificate warning to attach to; a `fetch()` call failing on a certificate error has no
 "proceed anyway" link at all. `app.on('certificate-error')` (`src/main.js:2202`) handles this:
-Electron fires that event for every webContents request, navigation or not, so Studio can
+Electron fires that event for every webContents request, navigation or not, so Showrunner can
 recognize and vouch for its own certificate there. `trustsOwnAutomationsCert`
 (`src/main.js:629`) compares actual certificate bytes (`X509Certificate.raw`), not the
 certificate's fingerprint string (whose exact format Electron does not document precisely enough
@@ -122,7 +122,7 @@ instead of starting its own, but only if that stage is itself an action stage --
 always starts a fresh stage, since there is nothing for a following `and` step to run alongside.
 `runRuleSet` then walks the stages in order: a delay stage is a plain `setTimeout`-based wait
 (`sleep`, next to `stagesFor`) and nothing more -- OBS's WebSocket API has no "this scene change
-is done" event to wait on instead, so every delay is Studio's own clock, not a confirmation from
+is done" event to wait on instead, so every delay is Showrunner's own clock, not a confirmation from
 OBS; an action stage runs every step in it at once (`Promise.all`), each going through
 `runAutomationAction` (`src/main.js:488`). One step failing does not stop the rest of its stage or
 the stages after it. `src/control/control.js`'s `stageNumbers` reimplements the same grouping
@@ -147,7 +147,7 @@ numbers everyone else's mental model of "step 3" depends on -- numbering is cosm
 `ruleSetRunState` (`src/main.js`) is a `Map<ruleSetId, {count, cancelled, activeStepIds}>`,
 ref-counted rather than a boolean `count` since the same rule set can genuinely be running more
 than once at once -- a real trigger firing again while a manual "Run Automation" of it is still
-going, or two different callers both reaching it via the `runRuleSet` Studio action. `runRuleSet`
+going, or two different callers both reaching it via the `runRuleSet` Showrunner action. `runRuleSet`
 itself calls `beginRuleSetRun`/`endRuleSetRun` around its own stage loop (a `try`/`finally`, so a
 step throwing still ends the run cleanly), which is also what makes this work automatically for a
 *nested* `runRuleSet` call -- the child gets its own entry, tracked and stoppable independently of
@@ -216,16 +216,16 @@ position in the array.
 
 `runAutomationAction`'s switch covers two families: OBS actions (`sceneSwitch`, `sourceShow`,
 `sourceHide`, `sourceToggle`, `setText`, and the recording/streaming controls) all require
-`obs.connected` and reuse the OBS WebSocket connection Studio already maintains elsewhere; Studio
+`obs.connected` and reuse the OBS WebSocket connection Showrunner already maintains elsewhere; Showrunner
 actions (`wakeAudio`, `startAll`, `stopAll`, `dockAll`, `undockAll`, `syncObs`,
-`applySessionFilename`, `runRuleSet`) reach into Studio's own state instead and need no OBS
+`applySessionFilename`, `runRuleSet`) reach into Showrunner's own state instead and need no OBS
 connection at all, except `syncObs`/`applySessionFilename`. Both families are always reachable -- a
 rule-set step's
 action dropdown (`availableActions()`, `src/control/control.js`) and `GET
-/api/automations/capabilities` (`syncAutomationsServer`) both list every OBS and Studio action
+/api/automations/capabilities` (`syncAutomationsServer`) both list every OBS and Showrunner action
 unconditionally, same token-only gate either way.
 
-This replaced a per-Studio-action opt-in (`automations.studioActions`, off by default) that lived
+This replaced a per-Showrunner-action opt-in (`automations.studioActions`, off by default) that lived
 here through most of this feature's life -- removed once it became clear it had no working
 justification. Confirmed directly: it gated two unrelated things with one checkbox (whether a
 rule set you wrote yourself could use an action, and whether an external caller holding your token
@@ -233,12 +233,12 @@ could) under a section that read, to the person who owns this feature, as being 
 thing only -- so `applySessionFilename` sat unused in their own "Record Session" rule set because
 they had no reason to find a checkbox about third-party access just to use their own filename
 action. The
-category split itself (OBS actions = always on, Studio actions = opt-in, because they're "a bigger
+category split itself (OBS actions = always on, Showrunner actions = opt-in, because they're "a bigger
 blast radius") also didn't survive: `Studio Control` already renders as a fourth co-equal group
 right in the same step-action dropdown as Scenes/Sources/Controls, no visual distinction, so
 whatever risk tiering the split was meant to signal was never actually communicated -- a user just
 sees a menu group that's mysteriously missing most of its items. Every automations call, OBS or
-Studio, external or from a rule set you wrote, was already behind `automations.token`; that's the
+Showrunner, external or from a rule set you wrote, was already behind `automations.token`; that's the
 one gate that does real work, so it's the only one left.
 
 `applySessionFilename` also dropped its own second gate, `session.filenameFormatEnabled` -- a
@@ -264,7 +264,7 @@ fired as part of one logical action (a rule set's own step, and, say, a filename
 now, always. Bumping a field is its own explicit action, `incrementMetadataField` /
 `decrementMetadataField` (`runAutomationAction`, `src/main.js`), added the same time as
 `runRuleSet` -- composition is what makes "bump exactly once, from one place" actually arrangeable
-instead of just theoretically correct. See "Studio's own Data Field entries" below for the
+instead of just theoretically correct. See "Showrunner's own Data Field entries" below for the
 Increment/Decrement action itself.
 
 `param` is the target rule set's `id`, not its `name` -- names aren't required to be unique, ids
@@ -288,8 +288,8 @@ possibly get.
 Deliberately *not* discoverable externally: `GET /api/automations/capabilities`'s `ruleSets` only
 ever carries `name`/`group`/`event` (`src/automations.js`, by design -- see its own comment), so an
 outside caller has no way to obtain a valid id even though `runRuleSet` appears in `actions` like
-every other Studio action now does. That is intentional, not an oversight: this action exists to
-let a rule set call another rule set from inside Studio's own step editor, not for a third party to
+every other Showrunner action now does. That is intentional, not an oversight: this action exists to
+let a rule set call another rule set from inside Showrunner's own step editor, not for a third party to
 reach in and pick one; an external caller wanting to run a specific rule set already has the
 supported path, `POST /event` with its `event` string.
 
@@ -337,9 +337,9 @@ did not reset the tracked outcome -- the gated step still ran.
 
 Raised directly as `runIf`'s first real use: something to notice a YouTube upload failure by, so it
 doesn't just sit quietly in the Connections log until someone happens to check. The first cut pushed
-an in-app toast only -- visible strictly while Studio's own window happens to be open and on screen
+an in-app toast only -- visible strictly while Showrunner's own window happens to be open and on screen
 at that exact moment, which misses the actual point: a recording session can run for hours, and
-whoever's running it is not necessarily staring at Studio's Configuration tab when Stop fires and the
+whoever's running it is not necessarily staring at Showrunner's Configuration tab when Stop fires and the
 upload happens. Corrected to what "notice this without watching the logs" actually needs: a real OS
 notification (`Notification`, Electron's wrapper around Notification Center on macOS / the Action
 Center on Windows -- `Notification.isSupported()` guards platforms or states where it can't show),
@@ -395,7 +395,7 @@ result back (`"03"`), config restored afterward.
 Every other action's `param` is fixed at edit time (a scene name, a source name) -- `setText`
 needs an actual value nobody necessarily types into a step at all, and there are three genuinely
 different sources for it, not one: a fixed value typed once (no external caller involved), a
-local file Studio re-reads on every run, or a key read from whatever triggered this. Conflating
+local file Showrunner re-reads on every run, or a key read from whatever triggered this. Conflating
 these into one free-text field was tried first and rejected live: it made a user type a literal
 test value into a box that was actually a lookup key, and testing it sent no data at all to look
 the key up against regardless, so every test wrote blank text no matter what was typed -- both
@@ -430,7 +430,7 @@ actual live `FilenameFormatting` value before writing anything, confirming `SetP
 was the right call before committing to the design, not assumed from the protocol docs alone.
 
 `formatSessionTemplate` used to also carry `{season}`/`{episode}` as fixed aliases, backing a
-dedicated Episode card (Studio-tracked season/episode numbers, a `applyEpisodeText` action writing
+dedicated Episode card (Showrunner-tracked season/episode numbers, a `applyEpisodeText` action writing
 them to a text source, an `incrementEpisode` action bumping the counter). Retired once Metadata
 fields made the same job possible without a second, parallel system for tracking a number --
 confirmed unused in practice before removal, including by the person who owned the feature: the
@@ -442,10 +442,10 @@ they'd started maintaining by hand instead.
 A `dataField` key typed blind is a name guessed against an undocumented contract -- the user has
 no way to know what Herald will actually send without reading Herald's own source. `POST
 /api/automations/fields` (`src/automations.js`) is the fix: a connected module declares its
-fields (`{key, label}` pairs), and Studio's step editor (`src/control/control.js`'s
+fields (`{key, label}` pairs), and Showrunner's step editor (`src/control/control.js`'s
 `dataFieldGroups`) builds the "Data Field" dropdown from them -- the same discoverability pattern
 already used for scene/source pickers, just running in the other direction (a caller telling
-Studio about itself, instead of Studio telling a caller about itself).
+Showrunner about itself, instead of Showrunner telling a caller about itself).
 
 Registration is scoped per module, not one flat list: the request body carries a required
 `module` name, and `registeredFieldsByModule` (a `Map<module, fields[]>` on `AutomationsServer`)
@@ -453,19 +453,19 @@ replaces only that module's own previous batch -- a flat wholesale-replace was f
 one caller in mind, and breaks the moment a second module registers (each reconnect would wipe the
 other's fields). `registeredFields()` flattens the map for every consumer that wants the merged
 list (`status()`, same as `events` already exposes), tagging each entry with `source: <module>` so
-the dropdown (and Studio's own metadata fields sharing the same list, `source: 'studio'`, see
+the dropdown (and Showrunner's own metadata fields sharing the same list, `source: 'studio'`, see
 below) can tell two similarly-named fields apart. In memory only, same as `events`: reset on a
-Studio restart, repopulated whenever a module reconnects and registers again. A request missing
+Showrunner restart, repopulated whenever a module reconnects and registers again. A request missing
 `module` is rejected (`400`), a breaking change from the original single-caller design -- see
 `api-automations.md` and `plan-session-metadata-fields.md` for the full reasoning and the module-facing contract.
 
-## Studio's own Data Field entries
+## Showrunner's own Data Field entries
 
-Not every value a `setText` step wants comes from a connected module -- the person running Studio
+Not every value a `setText` step wants comes from a connected module -- the person running Showrunner
 might want their own campaign name, a countdown, or anything else available the same way.
 `config.metadataFields` (`src/config.js`) is a persisted list the Session tab's Metadata card
 creates and edits directly -- unlike `registeredFieldsByModule` above, this is real config, not
-in-memory state, since the whole point of a Number field is that Studio remembers its last value
+in-memory state, since the whole point of a Number field is that Showrunner remembers its last value
 across restarts. The key freezes at creation (`sanitizeMetadataField` never re-derives it from a
 label): confirmed directly, renaming means deleting the field and creating a new one, not editing
 one in place -- editing the key on every label change would be a second, silent way for it to
@@ -548,16 +548,16 @@ field untouched.
 One gap this surfaced immediately: a `param` naming a Metadata field's `key` only works for a
 caller that already knows the key, and nothing ever told an external caller what it was --
 `incrementMetadataField`/`decrementMetadataField` got away with this because they're only ever
-wired up *inside* Studio's own step editor, by a human who already sees the field list there.
+wired up *inside* Showrunner's own step editor, by a human who already sees the field list there.
 `setMetadataField` breaks that assumption the moment a module like Herald calls it directly with
-no Studio human in the loop, hardcoding a key it was told out of band -- which breaks silently the
-moment it talks to a different Studio setup with differently-named fields. Fixed by giving
+no Showrunner human in the loop, hardcoding a key it was told out of band -- which breaks silently the
+moment it talks to a different Showrunner setup with differently-named fields. Fixed by giving
 `GET /api/automations/capabilities` a `metadataFields` array (`key`/`label`/`type`, read fresh
 from config every request, same treatment `ruleSets` already gets) -- see "GET
 /api/automations/capabilities" in `api-automations.md`. Wired through `automations.js`'s existing
 `getX()` callback pattern (`getMetadataFields`, alongside `getScenes`/`getSources`), supplied by
 `syncAutomationsServer` in `main.js`. Lets a caller build its own settings picker instead of
-hardcoding a guess, the same way Studio's own rule-set editor already turns this into a dropdown
+hardcoding a guess, the same way Showrunner's own rule-set editor already turns this into a dropdown
 rather than a name typed blind.
 
 That settings-picker approach was then superseded, not layered alongside, by a better design: a
@@ -567,7 +567,7 @@ target, so a rule set that only *transitively* touches a prompt field -- `"Begin
 Recording"` via its call to `"Set Session Info"`, say -- still reports it correctly), and
 `POST /api/automations/event` refusing to run at all unless every required prompt is answered in
 that same call. This turns "Herald pre-configures a field mapping for concepts it invents" into
-"Herald asks Studio what a rule set needs, generically, every time" -- full design, the exact
+"Herald asks Showrunner what a rule set needs, generically, every time" -- full design, the exact
 recursion problem this raised, and (after an initial "answered once doesn't exempt a later call"
 version was corrected to today's blank-check semantics -- a field already holding a value is
 satisfied without being re-asked, see the "Addendum: blank-check semantics and
@@ -581,7 +581,7 @@ did its own blank check (`isBlank` in `checkAndApplyPrompts`) and let an already
 run through with no `prompts` needed, but discovery never got the same treatment, so
 `GET /capabilities` kept listing a field as required forever after it was first answered. Caught
 live: Herald, reasonably trusting `prompts` to decide whether to show a dialog, kept re-prompting
-for a title that Studio's own enforcement would have accepted without it. Fixed by extracting the
+for a title that Showrunner's own enforcement would have accepted without it. Fixed by extracting the
 blank check into one shared `isPromptFieldBlank`, used by both call sites, so discovery and
 enforcement can't drift apart like that again -- verified with the exact repro shape (answer a
 field, confirm `prompts` drops it immediately; clear it, confirm it reappears; answer it again,
@@ -589,7 +589,7 @@ confirm it drops again).
 
 The Metadata card itself has no inline bump buttons -- removed deliberately, since their presence
 implied a human needs to click one every time, when the entire point of Increment/Decrement as a
-Studio action is that a rule set does the bumping with nobody touching the card at all. Each row is
+Showrunner action is that a rule set does the bumping with nobody touching the card at all. Each row is
 read-only by default (`composeMetadataFieldValue` renders the same string `resolveDataField` would);
 a pencil-icon "Edit" button (`editingMetadataFieldId` in `src/control/control.js`, only one row at a
 time) swaps it for its editable input(s) and a "Save" checkmark, so a value only ever changes when
@@ -597,7 +597,7 @@ someone deliberately opens a row, types, and commits -- glancing at the card can
 freshly-created field starts in edit mode (nothing worth reading yet), everything else starts read.
 
 `src/control/control.js`'s `dataFieldGroups()` is the renderer-side merge that actually builds the
-picker: Studio's built-ins and `config.metadataFields` (one entry per field, its own key), then
+picker: Showrunner's built-ins and `config.metadataFields` (one entry per field, its own key), then
 one `<optgroup>` per module in
 `status.automations.registeredFields`. `RESERVED_FIELD_KEYS` there is a hand-kept copy of the same
 constant `src/config.js` exports -- small and static enough that duplicating it beats a round trip
@@ -612,16 +612,16 @@ inserts `{key}` at the input's current cursor position (`insertAtCursor`), not j
 it works mid-edit. A module's own registered fields show up here too, one caveat worth knowing: a
 field only *resolves* correctly here if whatever triggered the rule set that runs
 `applySessionFilename` actually sent that key in its event `data` -- registering a field only
-makes it discoverable and offers it as a template placeholder, it does not give Studio a value for
+makes it discoverable and offers it as a template placeholder, it does not give Showrunner a value for
 it outside of an actual triggering event.
 
 That caveat is exactly what `run-ruleset`'s test-data prompt exists for, and exactly why it must
 not fire more often than that. `isStudioOwnedDataField` (`src/control/control.js`) checks, for each
 `setText` step's Data Field key, whether it's an evergreen built-in or a `metadataFields` entry --
-either resolves straight from Studio's own config with no `eventData` at all, same as a real trigger
+either resolves straight from Showrunner's own config with no `eventData` at all, same as a real trigger
 would resolve it. Only a key that fails both checks (a module's registered field) actually depends
 on whatever triggered the run, so only those go into the prompt's JSON skeleton; a rule set built
-entirely from Studio-owned keys (the common case) now runs with no prompt at all. Confirmed live:
+entirely from Showrunner-owned keys (the common case) now runs with no prompt at all. Confirmed live:
 prompting unconditionally for *any* Data Field step, regardless of where its value actually came
 from, was a bug wearing the shape of a feature -- caught only because a user asked why a button
 they clicked was popping up a dialog meant for something else entirely.
@@ -684,7 +684,7 @@ the tab they were run from. Not persisted, same as `automations.js`'s own log --
 
 A fifth place feeds it now: `syncObs()` (`src/main.js`) logs its own sync report -- which sources
 got re-pointed, had their capture restarted, got cropped, were newly linked, or are missing in OBS
--- but only when at least one of those actually happened. This used to be Studio's one real
+-- but only when at least one of those actually happened. This used to be Showrunner's one real
 exception to "log entries are short": the full report was rebuilt into one long sentence and shoved
 into the OBS card's own status hint on the Configuration tab, rewritten on every sync, drifting
 further from that hint's job (a glanceable one-liner) with every source added. `obs.js`'s
@@ -703,12 +703,12 @@ addendum to `plan-session-text-and-youtube-upload.md` for the full account of wh
 working versus what genuinely could not be verified without live Google credentials. Read that
 addendum before touching this code; the short version is repeated here.**
 
-`uploadToYouTube` is a Studio action, same family as `applySessionFilename`/`runRuleSet`/
+`uploadToYouTube` is a Showrunner action, same family as `applySessionFilename`/`runRuleSet`/
 increment-decrement -- never automatic, added as a rule-set step like everything else here. What
 makes it different from every other action is that it needs four separate pieces of per-run data
 (title, description, a COPPA "made for kids" declaration, and whether to actually publish), and
 the person who owns this feature was explicit that these should come from Metadata fields *they*
-create and wire up per step, not a static config template Studio guesses at. That single
+create and wire up per step, not a static config template Showrunner guesses at. That single
 requirement shaped most of what follows. A fifth piece, adding the upload to a playlist, was tried
 and removed -- see "Playlist support" below.
 
@@ -719,9 +719,9 @@ server, register `http://localhost:<port>` as the OAuth redirect URI in Google C
 was deliberately not used. Two reasons: it needs a free port and an exact registered redirect URI,
 both extra failure surface for zero benefit here; and this session had already spent considerable
 time fighting flaky local UI automation, which made "one more local server that has to bind
-correctly" an easy thing to want to avoid. The Device Authorization Grant (RFC 8628) instead: Studio
+correctly" an easy thing to want to avoid. The Device Authorization Grant (RFC 8628) instead: Showrunner
 asks Google for a short code (`requestDeviceCode`), shows it, and the person visits a URL -- on
-*any* device, not necessarily the Mac running Studio -- and approves. `pollForToken` then polls
+*any* device, not necessarily the Mac running Showrunner -- and approves. `pollForToken` then polls
 Google's token endpoint until approval, denial, or expiry. This requires the Google Cloud OAuth
 client to be the **"TVs and Limited Input devices"** type specifically; **"Desktop app"** and
 **"Web application"** client types do not support this grant at all -- confirmed against Google's
@@ -773,17 +773,17 @@ stream-to-fetch-body edge cases than it was worth debugging blind, without a rea
 against). A `308 Resume Incomplete` means "chunk accepted, keep going"; `200`/`201` means done, with
 the created video's `id` in the response body. Each chunk retries up to 5 times with exponential
 backoff on failure before giving up -- resumable *within* one `uploadToYouTube` run, not *across*
-Studio restarts; the session URL isn't persisted, so an app restart mid-upload starts over. A
+Showrunner restarts; the session URL isn't persisted, so an app restart mid-upload starts over. A
 documented gap, not an oversight -- see "What's not built" below.
 
 Progress reports to the Connections activity log every ~10% (`runYouTubeUpload`, `src/main.js`),
 same destination the OBS sync report uses, for the same reason: a multi-GB upload over a home
-connection can run long, and "Studio looks stuck" is a worse experience than a few log lines.
+connection can run long, and "Showrunner looks stuck" is a worse experience than a few log lines.
 
 ### Where the file comes from
 
 `obs.js`'s `stopRecording()` now captures `StopRecord`'s own response -- the one place OBS actually
-tells Studio which file it just finished writing (`outputPath`), stored as `this.lastRecordingPath`.
+tells Showrunner which file it just finished writing (`outputPath`), stored as `this.lastRecordingPath`.
 `uploadToYouTube` uses that unless the step's own `filePath` overrides it (the same step property
 `setText`'s "File" value type already uses -- one field, one meaning, reused rather than duplicated).
 No other code read `obs.js`'s prior `lastSync` field that this replaces functionally in spirit
@@ -794,8 +794,8 @@ That value used to live only in memory, so a restart between a session and its u
 an update, say) lost the file and the upload failed with "No recording to upload". It is now kept
 in `recordings.json` next to the config (`src/main.js`: `last`, plus `uploads`, a path-keyed
 history of every file that has gone up, with its URL and time, capped at 100). `obs.js` also
-listens for `RecordStateChanged`, so a recording stopped from OBS itself, not just Studio's own
-stop action, is remembered. The upload history is what lets Studio say whether the last recording
+listens for `RecordStateChanged`, so a recording stopped from OBS itself, not just Showrunner's own
+stop action, is remembered. The upload history is what lets Showrunner say whether the last recording
 ever went up (the YouTube card shows it) and refuse to upload the same default file twice by
 accident; a file set explicitly on the step is allowed to repeat, with a note in the activity log,
 since choosing it is deliberate.
@@ -889,7 +889,7 @@ adding it to a playlist is a manual step in YouTube Studio afterward, called out
 walkthrough (`src/control/index.html`).
 
 **Confirmed live while investigating, worth keeping in case a future scope change is attempted:**
-on the "Google Auth Platform" redesign, clicking through from Studio's "OAuth consent screen" link
+on the "Google Auth Platform" redesign, clicking through from Showrunner's "OAuth consent screen" link
 lands on **Overview**, not a scopes page -- scopes are configured from a separate **Data Access**
 tab in that same left sidebar (Overview/Branding/Audience/Clients/**Data Access**/Verification
 Center/Settings), via its own **Add or remove scopes** button and a **manually add scopes** entry
@@ -969,7 +969,7 @@ before anyone trusts it against a real recording:
   saving there is enough. Two more screens confirmed as normal, expected parts of the flow for an
   unverified test app (not errors): a "Google hasn't verified this app" interstitial (shown to
   every test user because the app was never submitted for full verification -- Continue past it),
-  then the actual scope-grant screen ("Coffee Pub Studio wants access to your Google Account... Manage
+  then the actual scope-grant screen ("Coffee Pub Showrunner wants access to your Google Account... Manage
   your YouTube videos") which is what the Test User membership actually gates.
 - **Testing mode expires the sign-in after 7 days (found live 2026-10-14).** The setup walkthrough
   originally told people to leave **Publishing status** at **Testing**, "since full verification is
@@ -992,7 +992,7 @@ before anyone trusts it against a real recording:
   which match what is already shown in the video itself, and a person would have to remember
   them. The failure is kept visible instead -- the YouTube card reports whether the last
   recording uploaded -- and clearing stays a deliberate step.
-- **One real mistake worth recording so it isn't repeated**: clicking "Connect" in Studio to
+- **One real mistake worth recording so it isn't repeated**: clicking "Connect" in Showrunner to
   inspect the device-code UI while a real approval was already pending invalidated that pending
   code -- `requestDeviceCode` always asks Google for a brand-new code, there is no "just show me
   the current one" request. Don't click Connect to test the UI while a real connect attempt from
@@ -1057,3 +1057,31 @@ before anyone trusts it against a real recording:
   quota, so one upload per session (the stated use case) has wide headroom -- but this is read from
   documentation, not confirmed against the user's own Google Cloud project, which could have a
   different quota depending on its history.
+
+## The app's name, and what stays as it was
+
+The app was Coffee Pub Studio until v0.3.0 and is Coffee Pub Showrunner now. Three things were
+changed with care rather than renamed outright, because each is how something already installed
+finds its own data:
+
+- **The data identity stays "Coffee Pub Studio"** (`DATA_NAME`, `app.setName` in `src/main.js`).
+  The settings folder follows the app's name, and so does the key the OBS, Tavern and YouTube
+  passwords are encrypted with -- confirmed directly: a secret encrypted under one `app.setName`
+  value cannot be decrypted under another. Renaming it would have meant re-entering every password
+  and reconnecting YouTube, so the visible name (`APP_NAME`: window titles, menus, notifications,
+  the About panel) is separate from the stored one. The local certificate's name is likewise left
+  alone, since changing it would mean trusting a new certificate on every machine that runs Foundry.
+- **OBS source names move from `(CP Studio)` to `(CPS)`.** At launch `migrateSourceNames` rewrites
+  every saved name that carries the old ending -- window and region sources, app windows,
+  published Tavern sources -- and any automation step whose target is exactly one of them (a step
+  that shows or hides a source by name would otherwise stop finding it). The renames to perform go
+  into `source-renames.json`; `applyPendingSourceRenames` carries them out in OBS the next time
+  it is connected, before either sync runs, then clears the list. A source already gone, or whose
+  new name is taken, is skipped, and a second run changes nothing.
+- **Window titles change** (`Coffee Pub Showrunner - <label>`). OBS finds the windows by title, and
+  each sync re-resolves them, so sources re-point on the first sync; on Windows the executable's
+  name changes with it, which the same lookup absorbs.
+
+The `Studio Control` action group keeps its name for now: the group label reaches Herald through
+`GET /capabilities`, and whether Herald depends on it has not been checked.
+

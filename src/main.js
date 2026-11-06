@@ -4,14 +4,21 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { app, BrowserWindow, WebContentsView, ipcMain, screen, shell, Menu, Tray, nativeImage, session, dialog, safeStorage, Notification } = require('electron');
-const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA, STUDIO_ACTION_SCHEMA } = require('./config');
+const { ConfigStore, LIMITS, REGION_LIMITS, DEFAULT_GROUP, AUTOMATIONS_ACTION_SCHEMA, STUDIO_ACTION_SCHEMA, SOURCE_SUFFIX, upgradeSourceName } = require('./config');
 const { ObsBridge, parseWindowChoice } = require('./obs');
 const { TavernBridge } = require('./tavern');
 const { AutomationsServer } = require('./automations');
 const { YouTubeUploader } = require('./youtube');
 const parkingGeometry = require('./parking');
 
-const APP_NAME = 'Coffee Pub Studio';
+// What people see: window titles, menus, notifications, the About panel.
+const APP_NAME = 'Coffee Pub Showrunner';
+// The name the app's saved data and encrypted passwords are filed under. The
+// app was called Coffee Pub Studio before it was Coffee Pub Showrunner, and
+// this stays as it was on purpose: the settings folder follows it, and so does
+// the key the OBS, Tavern and YouTube passwords are encrypted with -- change
+// it and every one of them is unreadable and has to be entered again.
+const DATA_NAME = 'Coffee Pub Studio';
 
 // Git revision recorded by scripts/write-build-info.js (absent in a bare checkout).
 function readBuildInfo() {
@@ -59,7 +66,7 @@ function selectorCandidates(text) {
   return candidates;
 }
 
-app.setName(APP_NAME);
+app.setName(DATA_NAME);
 
 // Keep the view windows rendering at full rate even when they are not focused
 // or are behind other windows. OBS captures whatever the window paints, so
@@ -96,6 +103,72 @@ function migrateLegacyUserData() {
 migrateLegacyUserData();
 
 const configStore = new ConfigStore(path.join(app.getPath('userData'), 'config.json'));
+
+// OBS sources this app made used to end in " (CP Studio)" and now end in
+// " (CPS)". Everything that remembers one by name has to follow, or a source
+// goes missing from the app's point of view: the window and region names, the
+// published Tavern sources, the app windows, and any automation step that
+// names one (Herald's "show the stats overlay" is exactly that). The config
+// side is rewritten here, once, at launch; the renames themselves wait in
+// source-renames.json until OBS is connected and are carried out by
+// applyPendingSourceRenames, then forgotten.
+const SOURCE_RENAMES_PATH = path.join(app.getPath('userData'), 'source-renames.json');
+function readPendingSourceRenames() {
+  try {
+    const data = JSON.parse(fs.readFileSync(SOURCE_RENAMES_PATH, 'utf8'));
+    return data && typeof data === 'object' ? data : {};
+  } catch (err) {
+    return {};
+  }
+}
+function writePendingSourceRenames(pending) {
+  try {
+    if (Object.keys(pending).length) fs.writeFileSync(SOURCE_RENAMES_PATH, JSON.stringify(pending));
+    else fs.rmSync(SOURCE_RENAMES_PATH, { force: true });
+  } catch (err) {
+    // Worst case the rename is retried next launch -- never worth failing startup over.
+  }
+}
+function migrateSourceNames() {
+  const current = configStore.get();
+  const renames = {};
+  const fix = (name) => {
+    const next = upgradeSourceName(name);
+    if (next !== name) renames[name] = next;
+    return next;
+  };
+  const next = {
+    ...current,
+    views: current.views.map((view) => ({
+      ...view,
+      windowSource: view.windowSource ? { ...view.windowSource, name: fix(view.windowSource.name) } : view.windowSource,
+      regions: (view.regions || []).map((region) => (region.obsSource ? { ...region, obsSource: fix(region.obsSource) } : region)),
+    })),
+    appWindows: (current.appWindows || []).map((app) => ({ ...app, sourceName: fix(app.sourceName) })),
+    tavern: {
+      ...current.tavern,
+      players: Object.fromEntries(
+        Object.entries(current.tavern.players || {}).map(([key, entry]) => [
+          key,
+          { ...entry, source: fix(entry.source || ''), characterSource: fix(entry.characterSource || '') },
+        ])
+      ),
+    },
+  };
+  if (!Object.keys(renames).length) return;
+  // A step that names one of the renamed sources by exact name follows it.
+  next.automations = {
+    ...current.automations,
+    ruleSets: current.automations.ruleSets.map((ruleSet) => ({
+      ...ruleSet,
+      steps: (ruleSet.steps || []).map((step) => (step.type === 'action' && typeof step.param === 'string' && renames[step.param] ? { ...step, param: renames[step.param] } : step)),
+    })),
+  };
+  configStore.save(next);
+  writePendingSourceRenames({ ...readPendingSourceRenames(), ...renames });
+  console.log(`Renamed ${Object.keys(renames).length} saved source name(s) to the (CPS) ending.`);
+}
+migrateSourceNames();
 
 /** @type {Map<string, BrowserWindow>} */
 const viewWindows = new Map();
@@ -361,7 +434,7 @@ tavern.on('party', () => syncTavern().catch(() => {}));
 function tavernSourceName(user, kind = 'player', n = 1) {
   const type = kind === 'character' ? 'Character' : 'Participant';
   const name = n > 1 ? `${user.displayName} ${n}` : user.displayName;
-  return `${type}: ${name} (CP Studio)`;
+  return `${type}: ${name}${SOURCE_SUFFIX}`;
 }
 
 // A room's profile gates which source kinds it offers: 'roleplaying' (the
@@ -405,7 +478,44 @@ function tavernCharacterSource(user) {
 // syncTavern does not re-issue the same OBS visibility call every poll.
 const gatedHidden = new Set();
 
+// Carries out the renames migrateSourceNames queued, once OBS is there to do
+// them: a source still under its old name is renamed; one already gone, or
+// whose new name is taken, is simply dropped from the list. Both syncs call
+// this first so neither mistakes a not-yet-renamed source for a missing one;
+// the shared promise keeps them from racing each other.
+let pendingRenamesRun = null;
+function applyPendingSourceRenames() {
+  if (pendingRenamesRun) return pendingRenamesRun;
+  pendingRenamesRun = (async () => {
+    try {
+      const pending = readPendingSourceRenames();
+      const oldNames = Object.keys(pending);
+      if (!oldNames.length || !obs.connected) return;
+      const names = await obs.allInputNames();
+      for (const oldName of oldNames) {
+        const newName = pending[oldName];
+        try {
+          if (names.has(oldName) && !names.has(newName)) {
+            await obs.renameInput(oldName, newName);
+            names.delete(oldName);
+            names.add(newName);
+            logActivity('OBS', `Renamed source "${oldName}" to "${newName}".`, 'info');
+          }
+          delete pending[oldName];
+        } catch (err) {
+          logActivity('OBS', `Could not rename source "${oldName}": ${err.message}`, 'error');
+        }
+      }
+      writePendingSourceRenames(pending);
+    } finally {
+      pendingRenamesRun = null;
+    }
+  })();
+  return pendingRenamesRun;
+}
+
 async function syncTavern() {
+  await applyPendingSourceRenames().catch(() => {});
   const report = { at: Date.now(), inputs: [], created: [], updated: [], renamed: [], missing: [], hidden: [], note: '' };
   const t = configStore.get().tavern;
   const entries = Object.entries(t.players);
@@ -546,7 +656,7 @@ async function syncTavern() {
 
 // A fresh source name: never take over a Browser Source that is not ours.
 // The number that disambiguates a collision (two people sharing a display
-// name, most likely) goes on the person's name, not after the "(CP Studio)"
+// name, most likely) goes on the person's name, not after the "(CPS)"
 // tail.
 function freeSourceName(user, kind, players) {
   const ours = new Set(Object.values(players).flatMap((p) => [p.source, p.characterSource].filter(Boolean)));
@@ -930,7 +1040,7 @@ function raiseUploadDecision(pending) {
   if (first) {
     logActivity('YouTube', `A new session was held back: the last recording was never uploaded (${pending.name}).`, 'info');
     if (Notification.isSupported()) {
-      new Notification({ title: 'Coffee Pub Studio', body: 'The last recording was never uploaded. Open Studio to upload it or set it aside, then start again.' }).show();
+      new Notification({ title: APP_NAME, body: `The last recording was never uploaded. Open ${APP_NAME} to upload it or set it aside, then start again.` }).show();
     }
   }
 }
@@ -1030,7 +1140,7 @@ function checkAndApplyPrompts(event, providedPrompts) {
       raiseUploadDecision(pending);
       return {
         ok: false,
-        error: `The last recording ("${pending.name}") was never uploaded to YouTube. Upload it or set it aside in Coffee Pub Studio, then start again.`,
+        error: `The last recording ("${pending.name}") was never uploaded to YouTube. Upload it or set it aside in ${APP_NAME}, then start again.`,
       };
     }
   }
@@ -1231,7 +1341,7 @@ async function runAutomationAction(action, param, eventData, stepContext, chain 
       if (!param) throw new Error('showToast needs a message.');
       const message = formatSessionTemplate(param, eventData);
       if (Notification.isSupported()) {
-        new Notification({ title: 'Coffee Pub Studio', body: message }).show();
+        new Notification({ title: APP_NAME, body: message }).show();
       }
       if (controlWindow && !controlWindow.isDestroyed()) {
         controlWindow.webContents.send('toast', message);
@@ -1923,6 +2033,7 @@ let appWindowResolved = {};
 let appWindowMatched = {};
 async function syncObs() {
   if (!obs.connected) return null;
+  await applyPendingSourceRenames().catch(() => {});
   const force = new Set(freshlyShown);
   freshlyShown.clear();
   const views = [];
@@ -2584,7 +2695,7 @@ function buildMenu() {
     {
       label: APP_NAME,
       submenu: [
-        { role: 'about' },
+        { role: 'about', label: `About ${APP_NAME}` },
         { type: 'separator' },
         {
           label: 'Control Panel',
@@ -2592,8 +2703,8 @@ function buildMenu() {
           click: () => createControlWindow(),
         },
         { type: 'separator' },
-        ...(process.platform === 'darwin' ? [{ role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }] : []),
-        { role: 'quit' },
+        ...(process.platform === 'darwin' ? [{ role: 'hide', label: `Hide ${APP_NAME}` }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }] : []),
+        { role: 'quit', label: `Quit ${APP_NAME}` },
       ],
     },
     {
@@ -3274,7 +3385,7 @@ function registerIpc() {
     // The number that disambiguates a collision goes on the region's own
     // name, not the window's (the window>region pair is what has to be
     // unique, and the region name is the more specific of the two).
-    const regionSourceName = (n) => `Region: ${view.label}>${region.name}${n > 1 ? ` ${n}` : ''} (CP Studio)`;
+    const regionSourceName = (n) => `Region: ${view.label}>${region.name}${n > 1 ? ` ${n}` : ''}${SOURCE_SUFFIX}`;
     let name = region.obsSource;
     if (!name) {
       let n = 1;

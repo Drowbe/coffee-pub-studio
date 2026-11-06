@@ -5,14 +5,14 @@ Things agreed on but not built yet, roughly in order.
 ## App windows
 
 - **App windows, phase 1 is built and confirmed on macOS: capture and keep-pointed only.** A separate
-  `appWindows` config list (not a web-window "view" -- those are tied to Electron windows Studio
+  `appWindows` config list (not a web-window "view" -- those are tied to Electron windows Showrunner
   owns) with a saved match rule (app + title substring against OBS's own window list) and a managed
   OBS source, re-pointed on every sync alongside the web windows. Not yet built:
   - **Cropping is built as manual numbers** (Left/Top/Right/Bottom, plus a "Trim title bar"
     button and a Show cursor toggle) -- confirmed working live on macOS. **Still open: a drag-to-select
     crop picker and named regions for app windows.** The region picker takes its snapshot from
-    Studio's own page; an app window would need a snapshot from `desktopCapturer`, which means
-    Studio needs its own Screen Recording permission (unchecked whether it has it). Capture
+    Showrunner's own page; an app window would need a snapshot from `desktopCapturer`, which means
+    Showrunner needs its own Screen Recording permission (unchecked whether it has it). Capture
     method is deliberately fixed at Window Capture.
   - **Windows.** OBS uses `window_capture` with a `Title:Class:Exe` string instead of a numeric
     ID, so source creation and re-pointing need a second path -- the same gap already listed under
@@ -41,7 +41,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   pull-aside room) -- a pull-aside room is private from the rest of the table, not from the
   recording, so while the admin is aside with someone that conversation is what's on stream,
   same as any other room they could be in.
-- ~~**Room switching in Studio.**~~ Was "Follow the admin" (on by default): the Tavern tab and
+- ~~**Room switching in Showrunner.**~~ Was "Follow the admin" (on by default): the Tavern tab and
   the OBS sources tracked whatever room the admin was actually in, live. Reverted -- with no
   admin online, that room fell back to the Lobby and read as the picker randomly jumping there on
   its own, with no way to pin it. The room picker is a plain manual choice now ("this room is for
@@ -50,7 +50,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   gets muted/dimmed as "aside" -- it no longer touches which room is picked.
 - ~~**"Private Conversations", distinct from Asides.**~~ Done: Tavern rooms now carry a
   `private` flag on `ephemeral` rooms, set via a separate "Privately" button (distinct from the
-  ordinary "Step aside") at pull time. Studio hides (not mutes/dims) anyone currently live in an
+  ordinary "Step aside") at pull time. Showrunner hides (not mutes/dims) anyone currently live in an
   `ephemeral && private` room, unconditionally -- a privacy guarantee, not gated behind "Enable
   Asides" the way ordinary aside muting/dimming is, so it can't be left accidentally off. Also
   added while in there: offline users are always muted/dimmed regardless of "Enable Asides", and
@@ -61,18 +61,18 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   against a filter that "never works right." If a tint is still wanted, it belongs on the Tavern
   side (e.g. baked into the video/image itself), not as an OBS filter.
 
-## Studio
+## Showrunner
 
-- ~~**An "Automations" tab.**~~ Studio's side is done: a local HTTP server (`src/automations.js`,
+- ~~**An "Automations" tab.**~~ Showrunner's side is done: a local HTTP server (`src/automations.js`,
   bound to every network interface, not just localhost, since Foundry usually runs on a
-  different machine than Studio) that a Foundry module POSTs `{event, data}` to
+  different machine than Showrunner) that a Foundry module POSTs `{event, data}` to
   (`/api/automations/event`, token-authed), matched against user-configured, named and grouped
-  rule sets, each a numbered sequence of OBS and Studio actions and delays (steps marked AND run
+  rule sets, each a numbered sequence of OBS and Showrunner actions and delays (steps marked AND run
   together instead of waiting) -- verified live end to end, including a real OBS WebSocket round
   trip, and against a real Herald build: Herald now calls `/capabilities` and `/event`, hit and
   helped fix the `rules` -> `ruleSets` rename, and 4 real rule sets are configured and firing.
   The Automations tab also works as a plain manual OBS remote with no Foundry module involved,
-  and Studio's own commands (wake audio, start/stop/dock all windows, sync OBS, apply the session
+  and Showrunner's own commands (wake audio, start/stop/dock all windows, sync OBS, apply the session
   filename) are available the same as any OBS action -- no separate opt-in, the automations token
   is the only gate, same as everything else here. Full HTTP contract and a worked Herald example
   (`combatStart` via Blacksmith's
@@ -83,7 +83,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   "if `data.player` is Nik Melok, show source X for 5 seconds"). That needs real payload matching,
   not just a delay-then-hide step sequence, and stays an idea, not a build, until a real use case
   needs it.
-- ~~**Herald-driven text sources, and Studio-managed season/episode.**~~ `setText` writes a value
+- ~~**Herald-driven text sources, and Showrunner-managed season/episode.**~~ `setText` writes a value
   from an event's own `data` into a named OBS text source (which key of `data` is configurable
   per step, so one event can drive two different sources); `applySessionFilename` applies a
   template to OBS's own recording Filename Formatting. Full design and what was verified live
@@ -91,19 +91,19 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   `documentation/plans/plan-session-text-and-youtube-upload.md`. The season/episode-tracking half
   of this (a dedicated Episode card, `incrementEpisode`, `applyEpisodeText`) was later retired --
   see the next item.
-- ~~**Studio-defined metadata fields, and multi-module Data Field registration.**~~ The Session
-  tab's Metadata card lets the person running Studio create their own Text, Number, or Text+Number
+- ~~**Showrunner-defined metadata fields, and multi-module Data Field registration.**~~ The Session
+  tab's Metadata card lets the person running Showrunner create their own Text, Number, or Text+Number
   values (a campaign name, a countdown, "Chapter 5"), each registered into the same "Data Field"
   dropdown a connected module's own fields already populate, alongside built-in evergreen fields
   (today's date/time). Doing this surfaced that `POST /api/automations/fields` wholesale-replaced
   the entire registered list on every call; fixed to scope replacement per module (a required
   `module` field in the request body) so a second connected module can't wipe out the first's
-  fields -- a breaking API change, published to the wiki ahead of the Studio-side implementation
+  fields -- a breaking API change, published to the wiki ahead of the Showrunner-side implementation
   landing. Full design and what was verified live in
   `documentation/plans/plan-session-metadata-fields.md`. Made the dedicated Episode card
   (season/episode as their own tracked numbers, separate from this system) redundant -- see the
   item above. A Number field's "+1"/"-1" Data Field suffix (a mutation hiding inside a read) was
-  later retired in favor of explicit `incrementMetadataField`/`decrementMetadataField` Studio
+  later retired in favor of explicit `incrementMetadataField`/`decrementMetadataField` Showrunner
   actions, once it caused a real double-increment bug -- see the addendum in that same plan file
   and "Composing rule sets" in `architecture-automations.md`.
 - **A rule-set stage's concurrent steps can race on `configStore`.** Noticed while building the
@@ -118,7 +118,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   `configStore.save`, or making the read-modify-write atomic some other way) needs its own design
   pass, not a quick patch here.
 - ~~**Naming convention enforcement for Window Source names.**~~ Done: Window Source now gets the
-  same treatment as Region -- a `.name-compose` chip splits the fixed `Window: `/` (CP Studio)`
+  same treatment as Region -- a `.name-compose` chip splits the fixed `Window: `/` (CPS)`
   wrapper from the editable label, the field only ever edits the label, and saving always composes
   the full name (`commitWindowSourceName`, `WINDOW_SOURCE_NAME_RE`, `src/control/control.js`). A
   legacy or adopted name that doesn't match the pattern displays unwrapped until next edited, then
@@ -127,7 +127,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   field used to offer was dropped along with it, since suggesting full wrapped or hand-made names
   into a label-only field no longer made sense.
 - ~~**Automated YouTube upload.**~~ Confirmed working end-to-end against the real API, including a
-  real completed upload (`uploadToYouTube`, a Studio action, opt-in rule-set step only, never
+  real completed upload (`uploadToYouTube`, a Showrunner action, opt-in rule-set step only, never
   automatic) -- device-flow OAuth, the resumable upload endpoint, title/description/privacy all
   confirmed live. **No playlist support** -- tried, then removed after Google's device-code endpoint
   rejected the broader OAuth scope playlist support needs ("Invalid device flow scope"), a live-
@@ -153,7 +153,7 @@ editing moving to each user's own profile) lives in that repo's own TODO.md now,
   chosen from the platform OBS reports -- see `documentation/known-issues.md`), built against
   OBS's documented behavior and a stand-in OBS but **not yet confirmed on a real Windows machine**:
   run **Copy capture report** (OBS card) there and check the window list formats and that
-  "title must match" never falls back to another Studio window. Also open: Windows
+  "title must match" never falls back to another Showrunner window. Also open: Windows
   display scaling in the captured-size readout, and quit on close instead of living in the Dock.
   ~~A Windows-specific app icon.~~ The earlier note here (that `build/icon.png`, shared by
   `mac.icon`/`win.icon` in `package.json`, was correctly shaped with padding and pre-rounded
@@ -189,6 +189,6 @@ open:
 - **No `CHANGELOG.md` exists yet.** The standard requires one at the repository root; this
   adoption pass did not attempt to reconstruct history for it, only added the file structure
   the wiki publisher needs.
-- **`architecture/` covers only the Automations feature.** The rest of Studio (window
+- **`architecture/` covers only the Automations feature.** The rest of Showrunner (window
   management, the OBS bridge, the Tavern bridge, the control panel's own structure) has no
   architecture documentation yet.

@@ -1,9 +1,9 @@
-# Coffee Pub Studio
+# Coffee Pub Showrunner
 
-**Audience:** anyone deciding whether to install Coffee Pub Studio, or looking for where to read
+**Audience:** anyone deciding whether to install Coffee Pub Showrunner, or looking for where to read
 more about it.
 
-![Coffee Pub Studio](assets/wordmark-card.png)
+![Coffee Pub Showrunner](assets/wordmark-card.png)
 
 The production side of the Coffee Pub suite: a standalone macOS and Windows app that wraps any
 web page in a fixed-size Chromium window so OBS can capture it as its own source, and keeps that
@@ -25,7 +25,7 @@ OBS window-capture source management is not yet wired up on Windows; see
   sources.
 - [Configuration file reference](userguides/userguide-configuration.md) -- the config.json
   shape, field by field.
-- [Automations API](api/api-automations.md) -- let a Foundry module drive OBS through Studio.
+- [Automations API](api/api-automations.md) -- let a Foundry module drive OBS through Showrunner.
 - [Automations architecture](architecture/architecture-automations.md) -- how the Automations
   feature is built and why.
 - [Design tokens](designsystem/design-tokens.md) and [Design components](designsystem/design-components.md)

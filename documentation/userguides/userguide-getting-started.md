@@ -1,16 +1,16 @@
-# Getting Started with Coffee Pub Studio
+# Getting Started with Coffee Pub Showrunner
 
-**Audience:** anyone who has just installed Coffee Pub Studio and wants to see it working.
+**Audience:** anyone who has just installed Coffee Pub Showrunner and wants to see it working.
 
 ## Install it and open it
 
-Download the disk image from the repository's Releases page, drag Coffee Pub Studio into
+Download the disk image from the repository's Releases page, drag Coffee Pub Showrunner into
 Applications, and open it. The first time, macOS blocks an unsigned build; right-click the app
 and choose Open, then Open again in the dialog that follows.
 
 ## What happens the moment it opens
 
-A control panel opens, with no windows configured yet. Studio wraps any web page in a
+A control panel opens, with no windows configured yet. Showrunner wraps any web page in a
 borderless, fixed-size Chromium window with a thin bar of its own at the top for dragging and
 resizing; it is optimized for running FoundryVTT sessions but works with any web-based
 experience. The rest of this guide uses a two-window FoundryVTT setup as the running example,
@@ -31,9 +31,9 @@ remember.
 
 ## Bring it into OBS
 
-Connect Studio to OBS from the Session tab's OBS card (OBS's own WebSocket server has to be
-turned on first, from OBS's Tools menu). Once connected, Studio creates and points OBS sources at
-your windows on its own, cropping out Studio's own bar so OBS only ever sees the page underneath
+Connect Showrunner to OBS from the Session tab's OBS card (OBS's own WebSocket server has to be
+turned on first, from OBS's Tools menu). Once connected, Showrunner creates and points OBS sources at
+your windows on its own, cropping out Showrunner's own bar so OBS only ever sees the page underneath
 it.
 
 ## Where to go from here

@@ -42,7 +42,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
-          name: Coffee-Pub-Studio-macOS
+          name: Coffee-Pub-Showrunner-macOS
           path: |
             dist/*.dmg
             dist/*.zip
@@ -54,7 +54,7 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: Coffee Pub Studio ${{ inputs.release_tag || github.ref_name }}
+          name: Coffee Pub Showrunner ${{ inputs.release_tag || github.ref_name }}
           generate_release_notes: true
           files: dist/*.dmg
 
@@ -83,7 +83,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
-          name: Coffee-Pub-Studio-Windows
+          name: Coffee-Pub-Showrunner-Windows
           path: dist/*.exe
           if-no-files-found: error
 
@@ -93,6 +93,6 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: Coffee Pub Studio ${{ inputs.release_tag || github.ref_name }}
+          name: Coffee Pub Showrunner ${{ inputs.release_tag || github.ref_name }}
           generate_release_notes: true
           files: dist/*.exe

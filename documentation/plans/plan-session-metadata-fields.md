@@ -2,7 +2,7 @@
 
 **Audience:** whoever picks this work up next (most likely me, next session), and Foundry module
 authors (Herald and any other Coffee Pub module) who want to register their own Data Fields with
-Studio.
+Showrunner.
 
 Built and verified live against the real running app, including a real HTTP round trip through
 the actual automations server (not a simulated call): a Text field ("Campaign") and a Number field
@@ -122,28 +122,28 @@ explicit instead of implicit.
 ## Why
 
 `setText`'s "Data Field" value type only ever sees whatever a *connected module* has registered via
-`POST /api/automations/fields` -- there was no way for the person running Studio to define a value
+`POST /api/automations/fields` -- there was no way for the person running Showrunner to define a value
 of their own (a campaign name, a "days left" countdown, anything they want to track across a
-session) without a Foundry module in the loop to send it. This closes that gap: Studio gets its own
+session) without a Foundry module in the loop to send it. This closes that gap: Showrunner gets its own
 metadata fields, registered into the same "Data Field" dropdown Herald's fields already populate,
 plus a handful of built-in fields (today's date/time, and Season/Episode as live-tracked numbers)
 that need no setup at all.
 
 Doing this surfaced a second, real problem: `POST /api/automations/fields` wholesale-replaces the
 *entire* registered-fields list on every call. That's fine for exactly one caller. The user expects
-several of their own Foundry modules to eventually register fields with Studio -- the moment a
-second one does, each reconnect wipes out the other's fields. Studio registering its own fields
+several of their own Foundry modules to eventually register fields with Showrunner -- the moment a
+second one does, each reconnect wipes out the other's fields. Showrunner registering its own fields
 into that same list would make this worse, not better, unless registration stops being "here is the
 whole list now" and becomes "here is my list" per caller. Part 2 below is that fix, and it is a
 breaking protocol change module authors need to know about before they build against it -- hence
 this doc also going to the wiki.
 
-## Part 1: Studio-defined metadata fields
+## Part 1: Showrunner-defined metadata fields
 
 ### What it is
 
 A new list, created and edited entirely from the Session tab, of `label: value` pairs the person
-running Studio defines themselves. Two types for now:
+running Showrunner defines themselves. Two types for now:
 
 - **Text** -- a plain string, typed once, edited any time (a campaign name, a location, anything
   that doesn't change on a fixed schedule).
@@ -202,8 +202,8 @@ Always present in the Data Field dropdown, resolved specially rather than read f
 | `sessionDay` | Day name (`Monday`, ...) |
 | `sessionMonth` | Month name |
 | `sessionYear` | Current year |
-| `sessionSeasonNumber` | Studio's own stored `session.season` (the same number the Episode card edits), zero-padded |
-| `sessionEpisodeNumber` | Studio's own stored `session.episode`, zero-padded |
+| `sessionSeasonNumber` | Showrunner's own stored `session.season` (the same number the Episode card edits), zero-padded |
+| `sessionEpisodeNumber` | Showrunner's own stored `session.episode`, zero-padded |
 
 The evergreen date/time fields have no derived `+1`/`-1` variants -- there is nothing to increment,
 they're just read fresh. `sessionSeasonNumber`/`sessionEpisodeNumber` are Number-shaped like any
@@ -294,7 +294,7 @@ a call replaces only that module's own previous batch, same "wholesale replace, 
 semantics as before, just correctly scoped now. `status()`'s `registeredFields` becomes the flattened
 merge across every registered module, each entry additionally carrying `source: <module>` so the
 Data Field dropdown (and anyone debugging) can tell a field apart from another module's field of a
-similar name, and so Studio's own metadata fields (which populate the same dropdown, `source:
+similar name, and so Showrunner's own metadata fields (which populate the same dropdown, `source:
 'studio'`) are visually distinguishable from anything a Foundry module sent.
 
 ### This is a breaking change, on purpose
@@ -303,7 +303,7 @@ A request with no `module` (or an empty one) gets `400 { error: '"module" is req
 same shape of validation `POST /api/automations/event` already does for a missing `event` name. No
 silent default, no back-compat fallback: every module calling this endpoint today needs a one-line
 update (add `module: "<its own name>"` to the request body) before this ships. That's exactly why
-this doc is going to the wiki now, ahead of Studio's own implementation landing -- so module authors
+this doc is going to the wiki now, ahead of Showrunner's own implementation landing -- so module authors
 (Herald, and whatever else the user builds) can make that change on their own schedule rather than
 discovering it as a sudden 400 after an update.
 
@@ -329,15 +329,15 @@ and the same per-field `key`/`label` length limits. A request with no `module` n
 `400 { "error": "\"module\" is required" }` instead of silently succeeding.
 
 `GET /api/automations/capabilities` and the control panel's own status now show each registered
-field's `source` (the module name that registered it, or `"studio"` for one of Studio's own
+field's `source` (the module name that registered it, or `"studio"` for one of Showrunner's own
 metadata fields) alongside its `key`/`label` -- informational only, nothing a module needs to read or
 act on.
 
-Studio's own built-in fields (`sessionTime`, `sessionDate`, `sessionDay`, `sessionMonth`,
-`sessionYear`, `sessionSeasonNumber`, `sessionEpisodeNumber`) and anything the person running Studio
+Showrunner's own built-in fields (`sessionTime`, `sessionDate`, `sessionDay`, `sessionMonth`,
+`sessionYear`, `sessionSeasonNumber`, `sessionEpisodeNumber`) and anything the person running Showrunner
 creates themselves are **reserved key names** -- a module registering a field with one of these exact
-keys will have its field silently shadowed by Studio's own built-in or user-created one of the same
-name in the Data Field dropdown (Studio's own fields resolve first, per the resolution order above).
+keys will have its field silently shadowed by Showrunner's own built-in or user-created one of the same
+name in the Data Field dropdown (Showrunner's own fields resolve first, per the resolution order above).
 Pick a more specific key if this matters (`heraldSessionYear` rather than `sessionYear`, say).
 
 ## Verification plan
@@ -357,5 +357,5 @@ Pick a more specific key if this matters (`heraldSessionYear` rather than `sessi
   in two separate calls: confirm both modules' fields are present afterward (neither wiped the
   other's out), each tagged with the right `source`.
 - Publish this doc's api-automations.md changes to the wiki (`node tools/wiki-sync.mjs publish`,
-  then push the wiki clone) ahead of finishing the Studio-side implementation, so module authors can
+  then push the wiki clone) ahead of finishing the Showrunner-side implementation, so module authors can
   start updating their own `POST /fields` calls without waiting on this to ship.

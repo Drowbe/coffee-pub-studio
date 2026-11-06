@@ -1,11 +1,11 @@
-# Making a Herald widget capturable by Coffee Pub Studio
+# Making a Herald widget capturable by Coffee Pub Showrunner
 
-Studio turns part of the Foundry stream page into its own OBS source by measuring one element
+Showrunner turns part of the Foundry stream page into its own OBS source by measuring one element
 with a CSS selector, then cropping the window capture to that element's box. It re-measures on
 every sync, so the crop follows the element if it moves. A few habits make that reliable.
 
 1. **Give the widget one root element with a stable hook.** An id such as `#herald-stats`, or a
-   class of its own such as `.herald-stats-widget`. Studio matches the selector against the live
+   class of its own such as `.herald-stats-widget`. Showrunner matches the selector against the live
    page, so the hook must survive re-renders and module updates. Do not rely on Foundry's
    generated ids or on element order.
 
@@ -32,7 +32,7 @@ every sync, so the crop follows the element if it moves. A few habits make that 
 7. **Nothing on top of it.** OBS captures pixels, not elements. A tooltip, dialog or chat bubble
    that overlaps the widget is recorded. Keep its z-index above anything that can wander over it.
 
-8. **Render on the stream view.** The widget has to exist on the page Studio captures, which for
+8. **Render on the stream view.** The widget has to exist on the page Showrunner captures, which for
    us is the `/stream` view, logged in as the observer user. Check it renders there, not only for
    the GM.
 
@@ -42,6 +42,6 @@ every sync, so the crop follows the element if it moves. A few habits make that 
 
 ## Testing
 
-Start the Stream window in Studio, add a region on its tab, choose **CSS selector**, enter your
+Start the Stream window in Showrunner, add a region on its tab, choose **CSS selector**, enter your
 selector and click **Measure**. The measured position and size should match the box you
 intended, and the source in OBS should show only the widget.

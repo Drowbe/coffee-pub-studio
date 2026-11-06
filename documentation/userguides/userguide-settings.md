@@ -1,7 +1,7 @@
 # Settings, windows and the edge dock
 
 **Audience:** anyone setting up windows, the edge dock, keyboard shortcuts, or Retina display
-handling in Coffee Pub Studio.
+handling in Coffee Pub Showrunner.
 
 ## The control panel
 

@@ -1,6 +1,6 @@
 # Windows and regions as OBS sources
 
-**Audience:** anyone connecting Coffee Pub Studio's windows to OBS as capture sources.
+**Audience:** anyone connecting Coffee Pub Showrunner's windows to OBS as capture sources.
 
 ## Add windows to OBS by hand
 
@@ -9,7 +9,7 @@ cropped and pointed at the windows. By hand:
 
 1. In OBS, click **+** under Sources and choose **macOS Screen Capture**.
 2. Set **Method** to **Window Capture** and pick the window you want, by the label you gave it in
-   Studio, from the **Window** list. Turn off **Show Cursor** if you do not want the pointer
+   Showrunner, from the **Window** list. Turn off **Show Cursor** if you do not want the pointer
    recorded.
 3. Crop the top of the source by the height of the app's bar (28 px, or 56 px on a Retina
    display) so the bar is not recorded: right-click the source, Transform, Edit Transform, and set
@@ -43,13 +43,13 @@ machine.
 
 On Windows the same buttons create OBS **Window Capture** sources instead of macOS Screen Capture
 ones, and the same linking, cropping and scaling apply. Windows support is new; if a source points
-at the wrong window, the OBS card's **Copy capture report** button copies what OBS and Studio each
+at the wrong window, the OBS card's **Copy capture report** button copies what OBS and Showrunner each
 see, which is what to include when reporting it.
 
 ## The whole window as an OBS source
 
 Under each window's card sits a **Whole window** card: a switch, the OBS source name, and the
-source's state in OBS. Type any name you like (it starts as `Window: <label> (CP Studio)`) and
+source's state in OBS. Type any name you like (it starts as `Window: <label> (CPS)`) and
 click **Add to OBS** to create a window-capture source with that name in the current scene. A
 source that already exists in OBS under that name, or one you made by hand that already captures
 the window, is simply taken over; typing a new name renames it in OBS too. **Delete from OBS**
@@ -72,7 +72,7 @@ status panel pinned inside a view, define a **region** for each.
    element's position from the page, and re-measures it on every OBS sync so the crop follows the
    element.
 4. Click **Add to OBS**. The app adds a window-capture source named after the window and region,
-   such as `Region: Stream>Scoreboard (CP Studio)`, with a **Crop/Pad** filter called
+   such as `Region: Stream>Scoreboard (CPS)`, with a **Crop/Pad** filter called
    `Coffee Pub Crop` that isolates the region. Drop that source into any scene.
 
 While connected, the app knows whether each source still exists in OBS. A region whose source you
@@ -90,20 +90,20 @@ cannot be followed by a crop.
 ## App windows: capturing another application
 
 An **app window** captures a window that belongs to a different application (a game, Discord, a browser you run yourself) into OBS, and keeps it pointed at that
-window as the app reopens. Studio doesn't own these windows: it can't open, move, dock or mute
+window as the app reopens. Showrunner doesn't own these windows: it can't open, move, dock or mute
 them, and it leaves their audio alone.
 
 Add one with the **+** tab, the same as a web window: it asks whether you want a **Web window** or an
 **App window**. Each app window then gets a tab of its own.
 
 1. Connect the app to OBS. OBS has to be connected, and it needs at least one window source already
-   (any of Studio's own will do), because that's where OBS lists windows from.
+   (any of Showrunner's own will do), because that's where OBS lists windows from.
 2. On the new app window's tab, click the refresh button beside the picker and choose the window.
    This fills in the **App** and **Title contains** fields.
 3. Clear **Title contains** if the window's title changes (a document name, a browser tab) and you
    want any window of that app. Both fields are case-insensitive substring matches. If several
    windows match, the first one OBS lists wins, so narrow it with the title.
-4. Click **Add to OBS**. The source is named `App: <label> (CP Studio)`; edit the **OBS source**
+4. Click **Add to OBS**. The source is named `App: <label> (CPS)`; edit the **OBS source**
    field to rename it (the OBS source is renamed too).
 
 The tab's header shows whether the window is currently found, and its dot goes green when it is. The app looks it up again on every sync, so a

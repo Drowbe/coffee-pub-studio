@@ -1,6 +1,6 @@
 # Design Components
 
-**Audience:** anyone adding a new card, row, or control to Studio's control panel.
+**Audience:** anyone adding a new card, row, or control to Showrunner's control panel.
 
 The recurring markup/class patterns already in use in `src/control/index.html` and
 `src/control/control.css`. Reuse these rather than inventing a new shape for the same kind of thing --
