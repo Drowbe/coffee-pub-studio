@@ -12,7 +12,7 @@
   <h2>The software</h2>
   <p>
     Coffee Pub Studio is provided free of charge, and its source code is published in the
-    <a href="https://github.com/Drowbe/coffee-pub-studio">project repository</a>. You may use
+    <a href="https://github.com/Drowbe/coffee-pub-showrunner">project repository</a>. You may use
     it for personal or commercial streaming and recording.
   </p>
 
@@ -53,7 +53,7 @@
   <p>
     These terms may change; the date above will change with them, and continued use means you
     accept the updated terms. Questions can be raised on the
-    <a href="https://github.com/Drowbe/coffee-pub-studio/issues">project's issue tracker</a>.
+    <a href="https://github.com/Drowbe/coffee-pub-showrunner/issues">project's issue tracker</a>.
   </p>
 <p><a href="/privacy.html">Privacy policy</a></p>
 </div>

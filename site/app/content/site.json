@@ -15,6 +15,6 @@
   "studioApp": {
     "label": "Coffee Pub Showrunner",
     "text": "A free desktop app for macOS and Windows that feeds OBS the sources, audio, video and metadata a streamed game needs. OBS still does the streaming and recording; Showrunner does the setup and the cueing.",
-    "url": "https://github.com/Drowbe/coffee-pub-studio/releases"
+    "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases"
   }
 }

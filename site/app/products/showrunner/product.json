@@ -3,7 +3,7 @@
   "mark": "showrunner",
   "name": "Coffee Pub Showrunner",
   "short": "Showrunner",
-  "repo": "Drowbe/coffee-pub-studio",
+  "repo": "Drowbe/coffee-pub-showrunner",
   "branch": "main",
   "app": true,
   "category": "Streaming",
@@ -11,17 +11,17 @@
   "tagline": "Feed OBS the sources, audio, video and metadata for a streamed game.",
   "pitch": "A desktop app that gets your game, your players and your cues into OBS, and keeps them there. OBS still does the streaming and recording; Showrunner does the setup and the cueing.",
   "description": "A standalone macOS and Windows app that wraps any web page in a fixed-size window so OBS can capture it as its own source, keeps those sources cropped, pointed and in sync, and lets Foundry modules cue OBS actions.",
-  "download": "https://github.com/Drowbe/coffee-pub-studio/releases",
-  "appVersion": "0.3.0",
+  "download": "https://github.com/Drowbe/coffee-pub-showrunner/releases",
+  "appVersion": "0.3.1",
   "downloads": [
-    {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-studio/releases/download/v0.3.0/Coffee.Pub.Showrunner-0.3.0-universal.dmg"},
-    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-studio/releases/download/v0.3.0/Coffee.Pub.Showrunner.Setup.0.3.0.exe", "note": "New, and not yet tested on real Windows hardware. Check the known issues page if a window misbehaves."}
+    {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.1/Coffee.Pub.Showrunner-0.3.1-universal.dmg"},
+    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.1/Coffee.Pub.Showrunner.Setup.0.3.1.exe", "note": "New, and not yet tested on real Windows hardware. Check the known issues page if a window misbehaves."}
   ],
   "platforms": "macOS and Windows",
   "fallbackVersion": null,
   "hero": null,
-  "github": "https://github.com/Drowbe/coffee-pub-studio",
-  "wiki": "https://github.com/Drowbe/coffee-pub-studio/wiki",
+  "github": "https://github.com/Drowbe/coffee-pub-showrunner",
+  "wiki": "https://github.com/Drowbe/coffee-pub-showrunner/wiki",
   "features": [
     {"title": "Clean window capture", "text": "Borderless windows with a slim bar of their own, sized to the exact pixels you set. Linked OBS sources crop the bar away, so OBS sees only the page."},
     {"title": "Sources that stay put", "text": "Stable window names keep OBS pointed at the right window after every launch, so you never re-pick a window. Rendering is never throttled behind other windows."},

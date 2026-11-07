@@ -49,7 +49,7 @@
   <h2>Changes and contact</h2>
   <p>
     If this policy changes, the date above will change with it. Questions can be raised on the
-    <a href="https://github.com/Drowbe/coffee-pub-studio/issues">project's issue tracker</a>.
+    <a href="https://github.com/Drowbe/coffee-pub-showrunner/issues">project's issue tracker</a>.
   </p>
 <p><a href="/terms.html">Terms of service</a></p>
 </div>
