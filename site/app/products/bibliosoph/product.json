@@ -1,0 +1,107 @@
+{
+  "slug": "bibliosoph",
+  "name": "Coffee Pub Bibliosoph",
+  "short": "Bibliosoph",
+  "repo": "Drowbe/coffee-pub-bibliosoph",
+  "branch": "main",
+  "category": "GM tools",
+  "status": "stable",
+  "tagline": "Player messaging, injuries, crits and encounter building.",
+  "description": "Journal-backed party and private player messaging, authored lasting injuries, critical and fumble card decks, one-use inspiration cards, room searching with loot cards, and a monster-scoring encounter builder that deploys to the canvas.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.3",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-product.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-bibliosoph",
+  "wiki": "https://github.com/Drowbe/coffee-pub-bibliosoph/wiki",
+  "featured": true,
+  "pitch": "Table-side drama for your game: persistent player messaging, lasting injuries, critical and fumble cards, inspiration, room searching and quick encounter building.",
+  "features": [
+    {
+      "title": "Journal-backed messages",
+      "text": "Party, group and private threads stored in journals so they survive chat wipes; mentions, reactions, markdown, images."
+    },
+    {
+      "title": "Lasting injuries",
+      "text": "Hard hits cause damage, conditions, roll penalties and bleeding until treated with a Medicine check."
+    },
+    {
+      "title": "Criticals and fumbles",
+      "text": "Authored card decks with damage, conditions, penalties and duration enforced by the Apply button."
+    },
+    {
+      "title": "Inspiration cards",
+      "text": "Cards become one-use inventory items players can hold and spend later."
+    },
+    {
+      "title": "Room searching",
+      "text": "One roll finds coins and items across five rarity tables and posts a narrated card."
+    },
+    {
+      "title": "Quick encounters",
+      "text": "Pick habitat and difficulty, get a party-scored monster list, roll detection, deploy to canvas."
+    }
+  ],
+  "steps": [
+    "Install and enable Coffee Pub Blacksmith, then Bibliosoph; the Coffee Pub toolbar gets a button per enabled feature.",
+    "Test Messages: open Messages, choose the party conversation, type, press Enter.",
+    "As GM, select a token, click Injuries to apply one, then Check-Up to view and treat afflictions."
+  ],
+  "needs": [
+    "D&D 5e system 5.5 or newer",
+    "Coffee Pub Blacksmith 14.1.0 or later"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Messages",
+      "page": "userguide-messages"
+    },
+    {
+      "title": "Injuries",
+      "page": "userguide-injuries"
+    },
+    {
+      "title": "Encounters",
+      "page": "userguide-encounters"
+    },
+    {
+      "title": "Investigation",
+      "page": "userguide-investigation"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-communications.webp",
+      "caption": "Messages"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-injury.webp",
+      "caption": "Injury picker"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-checkup.webp",
+      "caption": "Injury check-up"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-criticals.webp",
+      "caption": "Critical hit card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-fumbles.webp",
+      "caption": "Fumble card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-investigation.webp",
+      "caption": "Room search card"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-bibliosoph/releases/latest/download/module.json"
+}

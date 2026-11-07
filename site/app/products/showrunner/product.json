@@ -1,0 +1,57 @@
+{
+  "slug": "showrunner",
+  "mark": "showrunner",
+  "name": "Coffee Pub Showrunner",
+  "short": "Showrunner",
+  "repo": "Drowbe/coffee-pub-studio",
+  "branch": "main",
+  "app": true,
+  "category": "Streaming",
+  "status": "stable",
+  "tagline": "Feed OBS the sources, audio, video and metadata for a streamed game.",
+  "pitch": "A desktop app that gets your game, your players and your cues into OBS, and keeps them there. OBS still does the streaming and recording; Showrunner does the setup and the cueing.",
+  "description": "A standalone macOS and Windows app that wraps any web page in a fixed-size window so OBS can capture it as its own source, keeps those sources cropped, pointed and in sync, and lets Foundry modules cue OBS actions.",
+  "download": "https://github.com/Drowbe/coffee-pub-studio/releases",
+  "appVersion": "0.3.0",
+  "downloads": [
+    {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-studio/releases/download/v0.3.0/Coffee.Pub.Showrunner-0.3.0-universal.dmg"},
+    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-studio/releases/download/v0.3.0/Coffee.Pub.Showrunner.Setup.0.3.0.exe", "note": "New, and not yet tested on real Windows hardware. Check the known issues page if a window misbehaves."}
+  ],
+  "platforms": "macOS and Windows",
+  "fallbackVersion": null,
+  "hero": null,
+  "github": "https://github.com/Drowbe/coffee-pub-studio",
+  "wiki": "https://github.com/Drowbe/coffee-pub-studio/wiki",
+  "features": [
+    {"title": "Clean window capture", "text": "Borderless windows with a slim bar of their own, sized to the exact pixels you set. Linked OBS sources crop the bar away, so OBS sees only the page."},
+    {"title": "Sources that stay put", "text": "Stable window names keep OBS pointed at the right window after every launch, so you never re-pick a window. Rendering is never throttled behind other windows."},
+    {"title": "Named regions", "text": "Draw a rectangle on a snapshot, or name a CSS selector, and Showrunner creates a cropped OBS source and keeps the crop current."},
+    {"title": "Players as sources", "text": "Sign in to your party's voice and video server and publish each player as their own OBS Browser Source with one click."},
+    {"title": "Automations", "text": "Foundry modules such as Herald can report that combat started or a scene changed, and a rule turns that into an OBS action: switch scene, show or hide a source, start or stop recording or streaming."},
+    {"title": "Edge dock", "text": "Park windows under a slim strip at the screen edge to get them out of the way while OBS keeps capturing them. Hover for thumbnails, with Start, Stop and Sync shortcuts."},
+    {"title": "Session groups", "text": "Windows in the same group share one login, so you sign in once. Windows in different groups stay separate."},
+    {"title": "YouTube upload", "text": "Optionally upload the finished recording to your own YouTube channel, with the title and description you set for the session. Off until you connect your own Google Cloud project."}
+  ],
+  "steps": [
+    "Download the installer for your computer from the latest release and open it. The builds are not code-signed, so macOS and Windows each show a one-time warning.",
+    "Open the control panel, add a window (up to five) with a label and a URL, such as your game canvas and a stream-facing view.",
+    "Connect to OBS from the Session tab so Showrunner creates the sources and keeps them pointed at your windows."
+  ],
+  "needs": [
+    "macOS 12 or newer (Apple Silicon or Intel), or Windows 10 or newer (x64)",
+    "OBS Studio 28 or newer"
+  ],
+  "firstLaunch": [
+    "macOS: right-click the app in Applications, choose Open, then Open again in the dialog.",
+    "Windows: when SmartScreen says Windows protected your PC, click More info, then Run anyway."
+  ],
+  "docs": [
+    {"title": "Getting started", "page": "userguide-getting-started"},
+    {"title": "Windows, settings and the edge dock", "page": "userguide-settings"},
+    {"title": "Windows and regions as OBS sources", "page": "userguide-obs"},
+    {"title": "Players in OBS", "page": "userguide-tavern"},
+    {"title": "Automations API", "page": "api-automations"},
+    {"title": "Known issues", "page": "known-issues"}
+  ],
+  "note": "Free to use. Windows support is new and has not yet been confirmed on a real Windows machine, so check the Known issues page if a window misbehaves. A personal project, so back up your OBS profile before trying anything new."
+}

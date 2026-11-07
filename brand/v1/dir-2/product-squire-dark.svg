@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Squire mark">
+<title>Squire mark</title>
+<path d="M10 37h38v3c0 10-7 17-19 17S10 50 10 40z" fill="#F4ECDD"/>
+<path d="M47 41h5a5 5 0 0 1 0 10h-6.5" fill="none" stroke="#F4ECDD" stroke-width="5"/>
+<rect x="4" y="59" width="50" height="4" rx="2" fill="#5CC8CF"/><g transform="translate(14.92 3) scale(0.88)">
+      <path fill="#F4ECDD" d="M16 2L5 6v9c0 7 5 11 11 14z"/>
+      <path fill="#FF8264" d="M16 2l11 4v9c0 7-5 11-11 14z"/>
+      <path d="M16 2v27" stroke="#0E1A2B" stroke-width="1.6"/></g>
+</svg>

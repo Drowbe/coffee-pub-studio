@@ -1,0 +1,95 @@
+{
+  "slug": "monarch",
+  "name": "Coffee Pub Monarch",
+  "short": "Monarch",
+  "repo": "Drowbe/coffee-pub-monarch",
+  "branch": "main",
+  "category": "Utility",
+  "status": "stable",
+  "tagline": "Save module sets and back up world settings.",
+  "description": "Saves the set of enabled Foundry modules as named, color-coded configurations you can switch between, export and import. Also provides JSON backup and restore of world settings, jump-to-setting search and pruning of orphaned settings. The only module that works without Blacksmith.",
+  "requires": [],
+  "system": [],
+  "fallbackVersion": "14.0.1",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-modules-sets-change.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-monarch",
+  "wiki": "https://github.com/Drowbe/coffee-pub-monarch/wiki",
+  "pitch": "Save your enabled modules as named sets and switch between them in one click, with backup and restore for world settings.",
+  "features": [
+    {
+      "title": "Named module sets",
+      "text": "Save enabled modules under a name and load with one click; color coding previews what turns on and off."
+    },
+    {
+      "title": "Export and import sets",
+      "text": "Move module-set configurations between worlds or machines as files."
+    },
+    {
+      "title": "Settings backup",
+      "text": "Back up all world settings to JSON and restore with a preview where you choose which modules to restore."
+    },
+    {
+      "title": "World vs personal",
+      "text": "On import, world settings are separated from personal settings so UI preferences do not carry over."
+    },
+    {
+      "title": "Jump to setting",
+      "text": "Search any setting by name; the list scrolls to the match instead of hiding other settings."
+    },
+    {
+      "title": "Prune orphaned settings",
+      "text": "Clear settings left behind by uninstalled modules (read the pruning guide first)."
+    }
+  ],
+  "steps": [
+    "In Foundry, go to Add-on Modules, Install Module, and paste the manifest URL.",
+    "Open your world, go to Manage Modules, and enable Monarch.",
+    "Save your enabled modules as a named set; export your settings and module sets to files first as a safety backup."
+  ],
+  "needs": [
+    "No other modules required",
+    "Works with any game system",
+    "GM access for module set features"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Module sets",
+      "page": "userguide-module-sets"
+    },
+    {
+      "title": "Settings backup",
+      "page": "userguide-settings-backup"
+    },
+    {
+      "title": "Jump to a setting",
+      "page": "userguide-jump-to-setting"
+    },
+    {
+      "title": "Prune settings",
+      "page": "userguide-prune-settings"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-import-preview.webp",
+      "caption": "Settings import preview"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-import-result.webp",
+      "caption": "Settings import result"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-jumpto.webp",
+      "caption": "Jump to a setting by name"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-prune.webp",
+      "caption": "Prune orphaned settings"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-monarch/releases/latest/download/module.json"
+}

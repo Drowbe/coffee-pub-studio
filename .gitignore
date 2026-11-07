@@ -1,0 +1,31 @@
+# Secrets and live data: never commit
+data/
+dev-admin-login.txt
+secrets.php
+.secret
+admin-password.txt
+.htpasswd
+*.sqlite
+*.sqlite-*
+*.sqlite3
+
+# Runtime files
+cache/
+sessions/
+*.cache
+*.log
+
+# Generated, rebuilt from brand/build_kit.py
+brand-kit/
+brand-kit.zip
+site/downloads/
+
+# Local noise
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.claude/
+
+# Files handed over by other sessions, not part of the site
+incoming/

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Squire mark">
+<title>Squire mark</title>
+<defs><mask id="d3p13"><rect width="64" height="64" fill="#fff"/><g transform="translate(16 22) scale(1)">
+      <path fill="#000" d="M16 2L5 6v9c0 7 5 11 11 14z"/>
+      <path fill="#000" d="M16 2l11 4v9c0 7-5 11-11 14z"/>
+      <path d="M16 2v27" stroke="#fff" stroke-width="1.6"/></g></mask></defs>
+<path d="M8 61V30a24 24 0 0 1 48 0v31z" fill="#5CC8CF" mask="url(#d3p13)"/>
+</svg>

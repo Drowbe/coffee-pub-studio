@@ -1,0 +1,82 @@
+{
+  "slug": "merchant",
+  "name": "Coffee Pub Merchant",
+  "short": "Merchant",
+  "repo": "Drowbe/coffee-pub-merchant",
+  "branch": "main",
+  "category": "GM tools",
+  "status": "early",
+  "tagline": "Mark an actor as a merchant and their token becomes a shop.",
+  "description": "Turns merchant actors into shops that players open by double-clicking the token. Shelves with finite or restocking stock, trading hours, markups and haggling, atomic buy and sell, and mail-order catalog delivery.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.6",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-catalogue-fullscreen.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-merchant",
+  "wiki": "https://github.com/Drowbe/coffee-pub-merchant/wiki",
+  "pitch": "Turn any actor into a shop. Players browse illustrated shelves and buy and sell in one step, with haggling, restocking and mail-order delivery.",
+  "features": [
+    {
+      "title": "Token becomes a shop",
+      "text": "Mark an Actor as a merchant; double-clicking its token opens the shop for GMs and players."
+    },
+    {
+      "title": "Flexible shelves",
+      "text": "Shelves are unlimited, finite, or restock on a cadence of in-world days; stock by drag, compendium search or roll tables."
+    },
+    {
+      "title": "Pricing and haggling",
+      "text": "Per-shop and per-shelf markup, plus a Negotiate shelf where the GM sets the price."
+    },
+    {
+      "title": "One-press trades",
+      "text": "A buyer's slate handles buying and selling together; goods and coin transfer together or not at all."
+    },
+    {
+      "title": "Trading hours",
+      "text": "Closed shops can be browsed but not traded with."
+    },
+    {
+      "title": "Mail order",
+      "text": "Pay now, deliver later by Ground, Courier Beast or Parcel Portal, tracked with receipts."
+    }
+  ],
+  "steps": [
+    "Open an Actor sheet, click Merchant Settings, and turn on Is a merchant.",
+    "Name the shop, pick a Category, optionally apply a Shop profile, and stock shelves by dragging items, searching compendiums or rolling tables.",
+    "Place the merchant's token on a scene and double-click it to open the shop."
+  ],
+  "needs": [
+    "D&D 5e",
+    "Coffee Pub Blacksmith 14.1.0 or newer"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-shop-list.webp",
+      "caption": "Shop list view by category"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-shop-masonary.webp",
+      "caption": "Shop wall view"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-receipt.webp",
+      "caption": "Order receipt"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-collect.webp",
+      "caption": "Collecting an order"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-merchant/releases/latest/download/module.json"
+}

@@ -1,0 +1,102 @@
+{
+  "slug": "minstrel",
+  "name": "Coffee Pub Minstrel",
+  "short": "Minstrel",
+  "repo": "Drowbe/coffee-pub-minstrel",
+  "branch": "master",
+  "category": "Audio",
+  "status": "stable",
+  "tagline": "A GM soundboard: music, ambience and cues in one window.",
+  "description": "A GM-only live console for soundtrack, ambience and one-shot effects, with reusable sound scenes, favorites, cues with music ducking, and automation rules on top of standard Foundry playlists.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.0.1",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/product-overview.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-minstrel",
+  "wiki": "https://github.com/Drowbe/coffee-pub-minstrel/wiki",
+  "featured": true,
+  "pitch": "Run your game's soundtrack from one window instead of hunting through the playlist sidebar mid-scene.",
+  "features": [
+    {
+      "title": "Sound scenes",
+      "text": "Combine a music track, looping ambience and periodic sound effects, then start the whole scene with one click."
+    },
+    {
+      "title": "Live console",
+      "text": "Favorites, now-playing and transport controls without opening the playlist sidebar."
+    },
+    {
+      "title": "Cues",
+      "text": "One-shot effects fired by hand, which can duck the music underneath."
+    },
+    {
+      "title": "Automation",
+      "text": "Rules start or stop a scene on combat start, round change, entering a new map, or time of day."
+    },
+    {
+      "title": "Menubar transport",
+      "text": "Stop music, environment, one-shots or everything without opening the window."
+    },
+    {
+      "title": "Standard playlists",
+      "text": "Plays ordinary Foundry playlist sounds; nothing imported or converted."
+    }
+  ],
+  "steps": [
+    "Open Minstrel from the music note button in the Foundry toolbar (GM only), and play a track in Playlists to confirm sound works.",
+    "Mark two or three tracks as favorites so they appear on the Dashboard.",
+    "In Sound Scenes, create a scene with a music layer and an environment layer and start it."
+  ],
+  "needs": [
+    "Coffee Pub Blacksmith 14.1.0 or later",
+    "At least one playlist with sounds",
+    "Game master only; players hear audio but see no interface"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Dashboard",
+      "page": "userguide-dashboard"
+    },
+    {
+      "title": "Sound scenes",
+      "page": "userguide-soundscenes"
+    },
+    {
+      "title": "Cues",
+      "page": "userguide-cues"
+    },
+    {
+      "title": "Automation",
+      "page": "userguide-automation"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-soundscenes.webp",
+      "caption": "Sound scenes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-cues.webp",
+      "caption": "Cues"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-playlists.webp",
+      "caption": "Playlists"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-automation.webp",
+      "caption": "Automation rules"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-menubar.webp",
+      "caption": "Menubar transport"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-minstrel/releases/latest/download/module.json"
+}

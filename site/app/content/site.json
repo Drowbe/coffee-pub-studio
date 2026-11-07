@@ -1,0 +1,20 @@
+{
+  "name": "Coffee Pub Studio",
+  "tagline": "Provoke what's possible. Build it.",
+  "description": "Coffee Pub Studio is a boutique design and development shop. I provoke what's possible and then build it, and the products I make solve real problems for people who plan trips, make streams and run tabletop games.",
+  "url": "https://coffeepubstudio.com",
+  "legal": "Coffee Pub Studio",
+  "year": 2026,
+  "buildNote": "Built by hand, with AI assistance added to the toolbox over the past year.",
+  "links": {
+    "github": "https://github.com/Drowbe",
+    "patreon": "https://www.patreon.com/cw/CoffeePub",
+    "youtube": null
+  },
+  "flagship": "chameleon",
+  "studioApp": {
+    "label": "Coffee Pub Showrunner",
+    "text": "A free desktop app for macOS and Windows that feeds OBS the sources, audio, video and metadata a streamed game needs. OBS still does the streaming and recording; Showrunner does the setup and the cueing.",
+    "url": "https://github.com/Drowbe/coffee-pub-studio/releases"
+  }
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Squire mark">
+<title>Squire mark</title>
+<defs><clipPath id="jsquidc"><rect x="4" y="4" width="56" height="56" rx="9"/></clipPath>
+<mask id="jsquid"><rect width="64" height="64" fill="#fff"/><rect x="8.5" y="8.5" width="47" height="47" rx="5.5" fill="none" stroke="#000" stroke-width="3"/><path d="M32 8.5C46 16 18 24 32 32C46 40 18 48 32 55.5" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="24.0" y="24.0" width="16" height="16" fill="#000" transform="rotate(45 32 32)"/></mask></defs>
+<g clip-path="url(#jsquidc)" mask="url(#jsquid)"><path d="M4 4H32V8.5C46 16 18 24 32 32C46 40 18 48 32 55.5V60H4Z" fill="#5CC8CF"/><path d="M60 4H32V8.5C46 16 18 24 32 32C46 40 18 48 32 55.5V60H60Z" fill="#2F8A93"/></g>
+<rect x="27.0" y="27.0" width="10" height="10" rx="1" fill="#FF8264" transform="rotate(45 32 32)"/>
+</svg>

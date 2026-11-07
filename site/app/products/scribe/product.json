@@ -1,0 +1,80 @@
+{
+  "slug": "scribe",
+  "name": "Coffee Pub Scribe",
+  "short": "Scribe",
+  "repo": "Drowbe/coffee-pub-scribe",
+  "branch": "main",
+  "category": "Lore and journals",
+  "status": "stable",
+  "tagline": "Turn journal passages into chat cards, handouts and printable exports.",
+  "description": "Converts a blockquote in a journal entry into a styled chat card, a player-viewable handout or an image posted to chat, and exports pages or whole journals to HTML for print or PDF.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.0.3",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-scribe/main/documentation/assets/scribe-product.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-scribe",
+  "wiki": "https://github.com/Drowbe/coffee-pub-scribe/wiki",
+  "featured": true,
+  "pitch": "Turn journal passages into styled chat cards, handouts and shareable images in one click, so you can narrate a scene without leaving your notes.",
+  "features": [
+    {
+      "title": "Narration chat cards",
+      "text": "A GM-only toolbar on a journal blockquote posts the passage to chat with one Narration click."
+    },
+    {
+      "title": "Scene formatting",
+      "text": "Headings become card titles, images get captions, and Heading 6 becomes dialogue with the speaker highlighted."
+    },
+    {
+      "title": "Instant handouts",
+      "text": "Copy a passage into a player-viewable journal entry in a chosen folder and post a link to chat."
+    },
+    {
+      "title": "Share images",
+      "text": "Post single images from a passage to chat, where players can view them full size."
+    },
+    {
+      "title": "Export and print",
+      "text": "Export pages as HTML, or open a whole journal in a browser tab to print or save as PDF."
+    }
+  ],
+  "steps": [
+    "Open a journal page, click Edit, and put the text in a blockquote using the quote button.",
+    "Save the page.",
+    "Click Narration on the toolbar along the bottom of the block to post it to chat as a card."
+  ],
+  "needs": [
+    "Coffee Pub Blacksmith"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Journal toolbar",
+      "page": "userguide-journal-toolbar"
+    },
+    {
+      "title": "Writing a scene",
+      "page": "userguide-writing-a-scene"
+    },
+    {
+      "title": "Sharing to chat",
+      "page": "userguide-sharing-to-chat"
+    },
+    {
+      "title": "Handouts",
+      "page": "userguide-handouts"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-scribe/main/documentation/assets/scribe-illustration.webp",
+      "caption": "Scribe"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-scribe/releases/latest/download/module.json"
+}

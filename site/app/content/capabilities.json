@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Mapping",
+    "text": "Maps that draw themselves as you explore, routes and places you plan together, and scenes that move as one piece.",
+    "art": "maps",
+    "seen": ["cartographer", "chameleon", "puppeteer", "librarian"]
+  },
+  {
+    "title": "Drawing",
+    "text": "Sketching for everyone at once, with shapes and stamps, and walls and doors added with a single click.",
+    "art": "drawing",
+    "seen": ["cartographer", "puppeteer"]
+  },
+  {
+    "title": "Calls and streaming",
+    "text": "Voice and video for a group, a camera that follows the action, and streams that set themselves up.",
+    "art": "streaming",
+    "seen": ["chameleon", "herald", "showrunner"]
+  },
+  {
+    "title": "Collaboration",
+    "text": "Chat, polls, budgets and calendars that keep a whole group on the same page.",
+    "art": "collaboration",
+    "seen": ["chameleon", "bibliosoph", "squire"]
+  },
+  {
+    "title": "Interfaces and tools",
+    "text": "Windows, toolbars, menus, dialogs and chat cards that plug into one shared shell.",
+    "art": "core",
+    "seen": ["blacksmith", "squire", "scribe", "crier"]
+  },
+  {
+    "title": "APIs and infrastructure",
+    "text": "A documented public API, shared hooks and sockets that let a suite of tools work as one, and a collaboration server behind it all.",
+    "art": "api",
+    "seen": ["blacksmith", "chameleon", "regent"]
+  },
+  {
+    "title": "Design systems",
+    "text": "Token-based themes with light and dark sets, documented components and patterns, ready for other tools to use.",
+    "art": "design",
+    "seen": ["blacksmith", "chameleon"]
+  },
+  {
+    "title": "Architecture and documentation",
+    "text": "Clear ownership boundaries, written architecture, and a documentation standard that every module follows.",
+    "art": "lore",
+    "seen": ["blacksmith", "chameleon", "puppeteer"]
+  },
+  {
+    "title": "Data and content",
+    "text": "Searchable codexes, image caches, imports and exports, and settings you can back up and restore.",
+    "art": "utility",
+    "seen": ["librarian", "curator", "monarch", "artificer"]
+  },
+  {
+    "title": "Automation",
+    "text": "Rules that start the right sound, scene or recording the moment something happens.",
+    "art": "audio",
+    "seen": ["minstrel", "showrunner", "herald"]
+  },
+  {
+    "title": "Rules and systems",
+    "text": "Combat cards, injuries, shops and crafting that follow the rules without slowing anyone down.",
+    "art": "combat",
+    "seen": ["crier", "bibliosoph", "merchant", "artificer"]
+  },
+  {
+    "title": "Trust and permissions",
+    "text": "Server-enforced roles, guests who join with just a name, and GM-approved actions for things a player cannot do alone.",
+    "art": "trust",
+    "seen": ["chameleon", "merchant", "blacksmith"]
+  }
+]

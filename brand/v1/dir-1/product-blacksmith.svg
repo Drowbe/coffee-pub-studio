@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Blacksmith mark">
+<title>Blacksmith mark</title>
+<circle cx="27" cy="32" r="22" fill="none" stroke="#14243B" stroke-width="6"/>
+<path d="M48 24h6a6 6 0 0 1 6 6v4a6 6 0 0 1-6 6h-6" fill="none" stroke="#14243B" stroke-width="6"/><circle cx="27" cy="32" r="19" fill="#D5EEEE"/><g transform="translate(15.16 20.16) scale(0.74)">
+      <path fill="#14243B" d="M1 9h27q0 7-8 7h-1v3h5v6H7v-6h5v-3q-7 0-11-7z"/>
+      <g fill="#F26B52"><path transform="translate(26 5)" d="M0 -5Q0.6 -0.6 5 0Q0.6 0.6 0 5Q-0.6 0.6 -5 0Q-0.6 -0.6 0 -5Z"/></g></g>
+</svg>

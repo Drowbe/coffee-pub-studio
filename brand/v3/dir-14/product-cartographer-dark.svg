@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cartographer mark">
+<title>Cartographer mark</title>
+<defs><clipPath id="jcartdc"><rect x="4" y="4" width="56" height="56" rx="9"/></clipPath>
+<mask id="jcartd"><rect width="64" height="64" fill="#fff"/><rect x="8.5" y="8.5" width="47" height="47" rx="5.5" fill="none" stroke="#000" stroke-width="3"/><path d="M32 8.5V19L46 32L32 45" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="24.0" y="24.0" width="16" height="16" fill="#000" transform="rotate(45 32 32)"/></mask></defs>
+<g clip-path="url(#jcartdc)" mask="url(#jcartd)"><path d="M4 4H32V8.5V19L46 32L32 45V60H4Z" fill="#F4ECDD"/><path d="M60 4H32V8.5V19L46 32L32 45V60H60Z" fill="#1F4A57"/></g>
+<rect x="27.0" y="27.0" width="10" height="10" rx="1" fill="#FF8264" transform="rotate(45 32 32)"/>
+</svg>

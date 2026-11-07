@@ -1,0 +1,90 @@
+{
+  "slug": "librarian",
+  "name": "Coffee Pub Librarian",
+  "short": "Librarian",
+  "repo": "Drowbe/coffee-pub-librarian",
+  "branch": "master",
+  "category": "Lore and journals",
+  "status": "stable",
+  "tagline": "Campaign codex and quest tracker, readable at the table.",
+  "description": "A searchable codex of characters, locations, factions and artifacts with JSON import and cross-linking, plus a quest tracker with objectives, canvas pins and GM-controlled visibility.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.2",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-product.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-librarian",
+  "wiki": "https://github.com/Drowbe/coffee-pub-librarian/wiki",
+  "pitch": "Keep your campaign world organized with a searchable codex and map-pinned quests, and decide exactly what your players get to see.",
+  "features": [
+    {
+      "title": "Searchable codex",
+      "text": "Characters, locations, factions and artifacts grouped by category and filtered by tag."
+    },
+    {
+      "title": "JSON import",
+      "text": "Bring in notes written in other tools by importing entries from JSON."
+    },
+    {
+      "title": "Linked entries",
+      "text": "Entries link to each other by name; a reference to an unwritten entry becomes a link once it exists."
+    },
+    {
+      "title": "GM reveal control",
+      "text": "Entries start hidden; the GM chooses what players see and GM-only content stays private."
+    },
+    {
+      "title": "Quest tracking",
+      "text": "Track quests by status, with objectives, hints and treasure attached to individual steps."
+    },
+    {
+      "title": "Quest map pins",
+      "text": "Quests and objectives appear as canvas pins; double-click a pin to open the quest."
+    }
+  ],
+  "steps": [
+    "Open the Codex browser from the Librarian button in the menubar.",
+    "Click the ... menu in the window title bar, choose Codex options, and select a journal (create an empty one named Codex if needed).",
+    "Repeat for Quests: open Quests, use ... to select a quest journal."
+  ],
+  "needs": [
+    "D&D 5e game system",
+    "Coffee Pub Blacksmith 14.1.0 or later"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Codex",
+      "page": "userguide-codex"
+    },
+    {
+      "title": "Quests",
+      "page": "userguide-quests"
+    },
+    {
+      "title": "Importing",
+      "page": "userguide-importing"
+    },
+    {
+      "title": "Canvas pins",
+      "page": "userguide-canvas-pins"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-codex.webp",
+      "caption": "Codex browser"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-quest.webp",
+      "caption": "Quest browser"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-librarian/releases/latest/download/module.json"
+}

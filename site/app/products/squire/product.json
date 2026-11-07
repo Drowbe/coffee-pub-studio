@@ -1,0 +1,96 @@
+{
+  "slug": "squire",
+  "name": "Coffee Pub Squire",
+  "short": "Squire",
+  "repo": "Drowbe/coffee-pub-squire",
+  "branch": "master",
+  "category": "Character tools",
+  "status": "stable",
+  "tagline": "Play your character from a tray, not the sheet.",
+  "description": "A token-following character tray with portrait, health, conditions, abilities, items and spells, click-to-roll, synced favorites and gear builds. Adds item transfers with optional GM approval and a party view with GM tools.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.2",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/product-expanded.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-squire",
+  "wiki": "https://github.com/Drowbe/coffee-pub-squire/wiki",
+  "featured": true,
+  "pitch": "Run your character from a tray that follows your token: roll attacks, spells and items, track health, and manage gear without opening the sheet.",
+  "features": [
+    {
+      "title": "Token-following tray",
+      "text": "Shows the selected character's portrait, health, conditions, and abilities along the left edge; players get their own character automatically."
+    },
+    {
+      "title": "Roll from the tray",
+      "text": "Click a row to attack, cast, or use an item; hover for the D&D 5e item card."
+    },
+    {
+      "title": "Favorites and filters",
+      "text": "Favorites shared with the sheet, list or tiles; section tabs, cost chips, equipped and prepared switches."
+    },
+    {
+      "title": "Gear builds, costumes",
+      "text": "Plan gear on a paper doll, equip a set in one click; costumes change portrait and token only."
+    },
+    {
+      "title": "Item transfers",
+      "text": "Drag items to party members or use the row menu; can route through the GM for approval."
+    },
+    {
+      "title": "Party view and cleanup",
+      "text": "Party health and reputation, GM XP, votes and deploy tools, sheet cleanup with undo, NPC statblock checks."
+    }
+  ],
+  "steps": [
+    "Enable Coffee Pub Blacksmith and Squire; open the tray with the caret on the left-edge handle and pin it to keep it open.",
+    "Point the tray at a character: GMs select a token; players get their character automatically.",
+    "Use the Character tab: click a row's die to roll or use an item, the heart to favorite, and check the Party tab for party health and tools."
+  ],
+  "needs": [
+    "D&D 5e system",
+    "Coffee Pub Blacksmith 14.1.0 or later",
+    "Optional: Coffee Pub Librarian for quests and codex"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Settings",
+      "page": "userguide-settings"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/product-collapsed.webp",
+      "caption": "Collapsed tray handle"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-party.webp",
+      "caption": "Party view"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-spells.webp",
+      "caption": "Spells"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-inventory.webp",
+      "caption": "Inventory"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-transfer.webp",
+      "caption": "Item transfer"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-cleanup.webp",
+      "caption": "Character sheet cleanup"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-squire/releases/latest/download/module.json"
+}

@@ -1,0 +1,107 @@
+{
+  "slug": "crier",
+  "name": "Coffee Pub Crier",
+  "short": "Crier",
+  "repo": "Drowbe/coffee-pub-crier",
+  "branch": "master",
+  "category": "Combat",
+  "status": "stable",
+  "tagline": "Combat narrated through rich turn cards and sounds.",
+  "description": "Posts chat cards for combat start, each round, each turn and combat end, with portraits, blood splatter as damage builds, and configurable visibility of health and conditions. Downed characters can roll death saves from the card.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.0",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-full.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-crier",
+  "wiki": "https://github.com/Drowbe/coffee-pub-crier/wiki",
+  "pitch": "Turn every combat into a story, with chat cards for each round and turn showing health, conditions and death saves, and portraits that gain blood splatter as heroes take damage.",
+  "features": [
+    {
+      "title": "Combat announcements",
+      "text": "Chat cards for combat start, each round, each combatant's turn, and combat end."
+    },
+    {
+      "title": "Damage-aware portraits",
+      "text": "Combatant portrait or token art gains blood splatter as damage is taken."
+    },
+    {
+      "title": "Configurable card details",
+      "text": "Health, ability scores, status, conditions and turn penalties; choose who sees each: nobody, players, monsters, or everyone."
+    },
+    {
+      "title": "Death saves on the card",
+      "text": "The owner of a downed character rolls the death save from the card; pips update for everyone."
+    },
+    {
+      "title": "Initiative-safe timing",
+      "text": "Cards wait until initiative settles, so they never name the wrong combatant."
+    },
+    {
+      "title": "GM aids and secrecy",
+      "text": "Whispers the GM when a turn seems missed, and can hide monster names from players."
+    }
+  ],
+  "steps": [
+    "Install Coffee Pub Blacksmith 14.1.0 or later and Crier, then enable both.",
+    "Start combat: cards begin once everyone has rolled initiative, and nothing changes outside combat.",
+    "Tune clutter and sound under Configure Settings, Module Settings, Crier."
+  ],
+  "needs": [
+    "D&D 5e system",
+    "Coffee Pub Blacksmith 14.1.0 or later"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Turn cards",
+      "page": "userguide-turn-cards"
+    },
+    {
+      "title": "Announcements",
+      "page": "userguide-announcements"
+    },
+    {
+      "title": "Appearance",
+      "page": "userguide-appearance"
+    },
+    {
+      "title": "Sounds",
+      "page": "userguide-sounds"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-deathsave.webp",
+      "caption": "Death save turn card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-small.webp",
+      "caption": "Compact turn card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-combat-turn.webp",
+      "caption": "Combat start and round cards"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-npc.webp",
+      "caption": "NPC turn card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-dead.webp",
+      "caption": "Downed character card"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-settings-turn-content.webp",
+      "caption": "Turn card content settings"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-crier/releases/latest/download/module.json",
+  "featured": true
+}

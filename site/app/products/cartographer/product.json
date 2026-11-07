@@ -1,0 +1,88 @@
+{
+  "slug": "cartographer",
+  "name": "Coffee Pub Cartographer",
+  "short": "Cartographer",
+  "repo": "Drowbe/coffee-pub-cartographer",
+  "branch": "main",
+  "category": "Maps and planning",
+  "status": "stable",
+  "tagline": "Party strategic planning and sketching.",
+  "description": "Shared drawing tools for tabletop groups: temporary multiplayer canvas sketches with shapes and stamps, a persistent party map that reveals the grid around a moving token, and GM tools for adding walls, doors and windows from a painted battlemap.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.3.0",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-product.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-cartographer",
+  "wiki": "https://github.com/Drowbe/coffee-pub-cartographer/wiki",
+  "featured": true,
+  "pitch": "Plan together and map as you explore: sketch on the canvas for everyone, and let a party map draw itself as your token moves.",
+  "features": [
+    {
+      "title": "Shared canvas sketching",
+      "text": "Temporary multiplayer drawings with shapes, stamps, colors and timed cleanup."
+    },
+    {
+      "title": "Auto-drawing party map",
+      "text": "A persistent party map reveals the 5x5 grid area around a controlled token as it moves."
+    },
+    {
+      "title": "Resizable map window",
+      "text": "Separate map view with Light, Dark and Glass Tool window themes; right-drag to pan, wheel to zoom."
+    },
+    {
+      "title": "Record controls",
+      "text": "Press Record to reveal tiles around the token, Stop to halt while keeping the view."
+    },
+    {
+      "title": "Click-to-wall for GMs",
+      "text": "Add walls, doors and windows to a scene by clicking them on a painted battlemap."
+    }
+  ],
+  "steps": [
+    "Select a token you own.",
+    "Open the Party Map window from the mapping button in the Blacksmith menubar.",
+    "Choose Map this scene; recording starts and the map draws itself as the token moves."
+  ],
+  "needs": [
+    "Coffee Pub Blacksmith 14.1.0 or later"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Sketching",
+      "page": "userguide-sketching"
+    },
+    {
+      "title": "Mapping",
+      "page": "userguide-mapping"
+    },
+    {
+      "title": "Routes",
+      "page": "userguide-routes"
+    },
+    {
+      "title": "Walls",
+      "page": "userguide-walls"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-drawing.webp",
+      "caption": "Canvas drawing"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-maps.webp",
+      "caption": "Maps"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-recording.webp",
+      "caption": "Map recording"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-cartographer/releases/latest/download/module.json"
+}

@@ -1,0 +1,81 @@
+{
+  "slug": "curator",
+  "name": "Coffee Pub Curator",
+  "short": "Curator",
+  "repo": "Drowbe/coffee-pub-curator",
+  "branch": "main",
+  "category": "GM tools",
+  "status": "stable",
+  "tagline": "Token art matching, dead-token swaps and lootable corpses.",
+  "description": "Builds a searchable artwork cache, then matches token, portrait and tile images with adjustable weighting. When creatures die it swaps in dead-token visuals and offers a multiplayer loot window with generated loot.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.1",
+  "hero": null,
+  "github": "https://github.com/Drowbe/coffee-pub-curator",
+  "wiki": "https://github.com/Drowbe/coffee-pub-curator/wiki",
+  "pitch": "Match token and portrait art automatically, swap defeated creatures to dead-token art, and turn bodies into lootable corpses your players can search.",
+  "features": [
+    {
+      "title": "Token art matching",
+      "text": "Replaces token and portrait images using file names and paths, weighted by actor name, folders and tags."
+    },
+    {
+      "title": "Batch re-matching",
+      "text": "Batch tools re-match tokens or portraits on the current canvas."
+    },
+    {
+      "title": "Dead token swaps",
+      "text": "Swaps to a dead image at 0 HP, separate for PCs and NPCs, and restores original art on revival."
+    },
+    {
+      "title": "Loot generation",
+      "text": "Loot tables (general, supplies, treasure, epic) with configurable coin and epic-roll chance."
+    },
+    {
+      "title": "Lootable bodies",
+      "text": "Double-click a body to take items, give to party members, distribute coin, loot all, or bury it."
+    },
+    {
+      "title": "GM loot controls",
+      "text": "Edit quantities, remove items, open the corpse sheet; settings for proximity and looting in combat."
+    }
+  ],
+  "steps": [
+    "Install Coffee Pub Blacksmith and Curator, then enable both in your world's module settings.",
+    "Choose Images (art matching) or Death and looting (dead art plus loot); configure in Module Settings, Coffee Pub Curator.",
+    "Images: use the Curator menubar button, Replace Token, then apply a ranked match. Looting: take an NPC to 0 HP, wait for conversion, double-click the body."
+  ],
+  "needs": [
+    "D&D 5e",
+    "Coffee Pub Blacksmith 14.1.0 or newer"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Looting",
+      "page": "userguide-looting"
+    },
+    {
+      "title": "Loot generation",
+      "page": "userguide-loot-generation"
+    },
+    {
+      "title": "Dead tokens",
+      "page": "userguide-dead-tokens"
+    },
+    {
+      "title": "Token images",
+      "page": "userguide-token-images"
+    }
+  ],
+  "gallery": [],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-curator/releases/latest/download/module.json"
+}

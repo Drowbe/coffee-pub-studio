@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Coffee Pub Studio mark">
+<title>Coffee Pub Studio mark</title>
+<defs><clipPath id="d3s1"><path d="M20 61V34a12 12 0 0 1 24 0v27z"/></clipPath>
+<mask id="md3s1"><rect width="64" height="64" fill="#fff"/><path d="M20 61V34a12 12 0 0 1 24 0v27z" fill="#000"/></mask></defs>
+<path d="M8 61V30a24 24 0 0 1 48 0v31z" fill="#14243B" mask="url(#md3s1)"/>
+<g clip-path="url(#d3s1)"><circle cx="32" cy="50" r="10.5" fill="#F26B52"/></g>
+</svg>

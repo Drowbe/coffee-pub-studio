@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Coffee Pub Studio mark">
+<title>Coffee Pub Studio mark</title>
+<path d="M10 37h38v3c0 10-7 17-19 17S10 50 10 40z" fill="#F4ECDD"/>
+<path d="M47 41h5a5 5 0 0 1 0 10h-10" fill="none" stroke="#F4ECDD" stroke-width="5"/>
+<rect x="4" y="59" width="50" height="4" rx="2" fill="#5CC8CF"/><g fill="#FF8264"><path transform="translate(29 22)" d="M0 -15Q1.7999999999999998 -1.7999999999999998 15 0Q1.7999999999999998 1.7999999999999998 0 15Q-1.7999999999999998 1.7999999999999998 -15 0Q-1.7999999999999998 -1.7999999999999998 0 -15Z"/></g><circle cx="49" cy="14" r="3.2" fill="#5CC8CF"/>
+</svg>

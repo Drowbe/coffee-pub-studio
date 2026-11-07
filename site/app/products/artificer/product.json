@@ -1,0 +1,100 @@
+{
+  "slug": "artificer",
+  "name": "Coffee Pub Artificer",
+  "short": "Artificer",
+  "repo": "Drowbe/coffee-pub-artificer",
+  "branch": "main",
+  "category": "Crafting",
+  "status": "early",
+  "tagline": "A crafting, recipe and blueprint system.",
+  "description": "Crafting for Foundry with recipes, blueprints, gathering and skills, plus a recipe journal cover and authoring tools.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.1.1",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-crafting-station.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-artificer",
+  "wiki": "https://github.com/Drowbe/coffee-pub-artificer/wiki",
+  "pitch": "Forage herbs, ores and parts from your scenes, then craft potions, poisons, food and gear at a crafting station. GMs set what each scene yields.",
+  "features": [
+    {
+      "title": "Foraging and gathering",
+      "text": "Players forage a scene; successful rolls place gathering spots as map pins to harvest components."
+    },
+    {
+      "title": "Crafting Station",
+      "text": "Load a recipe, drag ingredients onto the bench, set process and intensity, then craft."
+    },
+    {
+      "title": "Scene habitats",
+      "text": "GM ticks habitats in a scene's Geography tab to set which components it yields."
+    },
+    {
+      "title": "No-code authoring",
+      "text": "GMs create new components, recipes and crafting processes without writing code."
+    },
+    {
+      "title": "Recipes and blueprints",
+      "text": "Recipes can be read, written and imported; compendiums of components, creations, tools and recipes ship with the module."
+    },
+    {
+      "title": "Skill mapping",
+      "text": "Character skills map onto crafting and gathering (docs note some skills and perks are not built yet)."
+    }
+  ],
+  "steps": [
+    "Give a scene a habitat in Scene Configuration, Blacksmith Geography tab.",
+    "Forage and Scavenge with a token, then Gather and Harvest at the spots to collect components.",
+    "Open the Crafting Station from the hammer icon in the Blacksmith menubar, load a recipe, drag in ingredients, and craft."
+  ],
+  "needs": [
+    "D&D 5e",
+    "Coffee Pub Blacksmith 14.1.0 or newer"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Crafting",
+      "page": "userguide-crafting"
+    },
+    {
+      "title": "Recipes",
+      "page": "userguide-recipes"
+    },
+    {
+      "title": "Gathering",
+      "page": "userguide-gathering"
+    },
+    {
+      "title": "Authoring content",
+      "page": "userguide-authoring-content"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-recipe-browser.webp",
+      "caption": "Recipe browser"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-scene-geography.webp",
+      "caption": "Scene geography"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-scene-configuration.webp",
+      "caption": "Scene configuration"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-skillmapping.webp",
+      "caption": "Skill mapping"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-createitem.webp",
+      "caption": "Create an Artificer item"
+    }
+  ],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-artificer/releases/latest/download/module.json"
+}

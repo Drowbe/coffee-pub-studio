@@ -1,0 +1,8 @@
+* text=auto
+.githooks/* text eol=lf
+*.png binary
+*.webp binary
+*.woff2 binary
+*.ico binary
+*.zip binary
+*.pdf binary

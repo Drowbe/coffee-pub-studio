@@ -1,0 +1,78 @@
+{
+  "slug": "regent",
+  "name": "Coffee Pub Regent",
+  "short": "Regent",
+  "repo": "Drowbe/coffee-pub-regent",
+  "branch": "master",
+  "category": "AI",
+  "status": "early",
+  "tagline": "AI help for GMs: rules, backstories, encounters, scenes.",
+  "description": "Optional AI tools that answer rules questions from the selected token, build encounters for the party, and turn narrative answers into journal entries. Needs your own OpenAI or Anthropic API key, billed by the provider. A writing aid, not a rules engine.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [
+    "dnd5e"
+  ],
+  "fallbackVersion": "14.0.1",
+  "hero": null,
+  "github": "https://github.com/Drowbe/coffee-pub-regent",
+  "wiki": "https://github.com/Drowbe/coffee-pub-regent/wiki",
+  "pitch": "An optional AI assistant on your GM screen: rules answers, character backstories, encounters and journal entries, using your own OpenAI or Anthropic key.",
+  "features": [
+    {
+      "title": "Rules answers",
+      "text": "Ask rules questions without leaving the table or opening a browser."
+    },
+    {
+      "title": "Character-aware",
+      "text": "Uses the selected token's character sheet to tailor answers to that character."
+    },
+    {
+      "title": "Encounter builder",
+      "text": "Builds encounters from selected players and monsters, tracking total CR."
+    },
+    {
+      "title": "Journal entries",
+      "text": "Turn narrative answers into journal entries with pages and linked encounters."
+    },
+    {
+      "title": "Chat cards",
+      "text": "Post answers to chat as themed cards the whole table can read."
+    },
+    {
+      "title": "Player-use reports",
+      "text": "The GM gets a private report when a player consults Regent."
+    }
+  ],
+  "steps": [
+    "Install with the manifest URL, then enable Coffee Pub Regent.",
+    "Under Module Settings, Regent (AI), choose your AI provider and paste your key into the matching field.",
+    "Open Regent from the crystal ball icon on the Blacksmith toolbar or menubar and ask a small first question."
+  ],
+  "needs": [
+    "D&D 5e system 5.5 or later",
+    "Coffee Pub Blacksmith 14.1.0 or later",
+    "Your own OpenAI or Anthropic API key, billed by your provider"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Worksheets",
+      "page": "userguide-worksheets"
+    },
+    {
+      "title": "Sharing answers",
+      "page": "userguide-sharing-answers"
+    },
+    {
+      "title": "Settings",
+      "page": "userguide-settings"
+    }
+  ],
+  "gallery": [],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-regent/releases/latest/download/module.json"
+}

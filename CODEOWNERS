@@ -1,0 +1,16 @@
+# Who must approve changes. Replace the placeholder handles with real GitHub usernames.
+# Everything not listed below belongs to the site owner.
+*                                       @Drowbe
+
+# Each product owns its own folder. Add the owner's handle next to their product.
+/site/app/products/chameleon/           @Drowbe
+/site/assets/products/chameleon/        @Drowbe
+/site/app/products/showrunner/          @Drowbe
+/site/assets/brand/app/showrunner/      @Drowbe
+
+# The design system is shared. Products use it and do not edit it.
+/site/assets/style.css                  @Drowbe
+/site/assets/brand/                     @Drowbe
+/site/assets/fonts/                     @Drowbe
+/site/app/templates/                    @Drowbe
+/brand/                                 @Drowbe

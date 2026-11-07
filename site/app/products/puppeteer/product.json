@@ -1,0 +1,79 @@
+{
+  "slug": "puppeteer",
+  "name": "Coffee Pub Puppeteer",
+  "short": "Puppeteer",
+  "repo": "Drowbe/coffee-pub-puppeteer",
+  "branch": "master",
+  "category": "Maps and scenes",
+  "status": "early",
+  "tagline": "Move the pieces of a scene as one.",
+  "description": "Groups tiles, lights, walls, sounds, drawings, notes and regions so one pin moves and rotates the whole group, like carts, ships and drawbridges. Tokens can ride a group, and triggers can play sounds or run macros.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.0.3",
+  "hero": null,
+  "github": "https://github.com/Drowbe/coffee-pub-puppeteer",
+  "wiki": "https://github.com/Drowbe/coffee-pub-puppeteer/wiki",
+  "foundry": "v14",
+  "pitch": "Group tiles, lights, walls and sounds into one object like a cart or ship, then move and rotate it with a single pin.",
+  "features": [
+    {
+      "title": "One-pin groups",
+      "text": "Bundle tiles, lights, walls, sounds, drawings, notes and regions; drag the pin to move the group."
+    },
+    {
+      "title": "Rotate around the pin",
+      "text": "Hold Shift and scroll to turn the whole group; carts and boats can face their direction of travel."
+    },
+    {
+      "title": "Riders",
+      "text": "Tokens that move onto a group ride with it, can walk on it, and step off."
+    },
+    {
+      "title": "Attackable targets",
+      "text": "Give a group an actor so it is a single target with that actor's hit points."
+    },
+    {
+      "title": "Triggers",
+      "text": "Play sounds, run macros or change a tile image when a token boards, the group moves, or it takes damage."
+    },
+    {
+      "title": "Group library",
+      "text": "Save groups and place independent copies on any scene."
+    }
+  ],
+  "steps": [
+    "Open a scene and click New Puppeteer Group in the Blacksmith toolbar, then click the map to place the pin.",
+    "Select the pieces, open Puppeteer Groups, and click Add Selected (or Capture Area and drag a box).",
+    "Drag the pin to move the group; select the pin, hold Shift and scroll to rotate it."
+  ],
+  "needs": [
+    "Coffee Pub Blacksmith 14.4.1 or newer"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Building and moving groups",
+      "page": "userguide-groups"
+    },
+    {
+      "title": "The library",
+      "page": "userguide-library"
+    },
+    {
+      "title": "Targets",
+      "page": "userguide-targets"
+    },
+    {
+      "title": "Riders",
+      "page": "userguide-riders"
+    }
+  ],
+  "gallery": [],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-puppeteer/releases/latest/download/module.json"
+}

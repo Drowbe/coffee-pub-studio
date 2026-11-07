@@ -1,0 +1,149 @@
+{
+  "slug": "blacksmith",
+  "name": "Coffee Pub Blacksmith",
+  "short": "Blacksmith",
+  "repo": "Drowbe/coffee-pub-blacksmith",
+  "branch": "master",
+  "category": "Core",
+  "status": "stable",
+  "tagline": "Toolbar, timers, combat stats and shared styling for Foundry.",
+  "description": "The hub of the suite: a top-of-screen toolbar with dice tray, party health, notes and macros, synced combat and planning timers, combat statistics with leaderboards, a drag-and-drop initiative tracker and a live CSS editor. Every other Coffee Pub module builds on it.",
+  "requires": [],
+  "system": [],
+  "fallbackVersion": "14.6.0",
+  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-blacksmith/master/documentation/assets/product-overview.webp",
+  "github": "https://github.com/Drowbe/coffee-pub-blacksmith",
+  "wiki": "https://github.com/Drowbe/coffee-pub-blacksmith/wiki",
+  "pitch": "A toolbar of dice, party health, timers and combat stats across the top of Foundry, plus the shared styling that powers every other Coffee Pub module.",
+  "features": [
+    {
+      "title": "Top toolbar",
+      "text": "Dice tray, party health overview, status effects for the selected token, notes, and macros in one bar."
+    },
+    {
+      "title": "Synced timers",
+      "text": "Combat and planning timers stay synced across clients, with pause, resume, and auto-start on move or attack."
+    },
+    {
+      "title": "Combat statistics",
+      "text": "Hits, misses, damage, healing, kills, crits and an MVP per player and session, with leaderboards and history."
+    },
+    {
+      "title": "Combat tracker",
+      "text": "Drag-and-drop initiative, health bars, and portraits."
+    },
+    {
+      "title": "Movement modes",
+      "text": "Switch between normal, none, combat, follow, and conga line from the toolbar."
+    },
+    {
+      "title": "Themes and CSS editor",
+      "text": "Styled chat and sidebar shared across Coffee Pub modules, plus a live CSS editor inside Foundry."
+    }
+  ],
+  "steps": [
+    "Install socketlib and lib-wrapper from Foundry's module list.",
+    "Install Blacksmith with its manifest URL.",
+    "Enable all three in Manage Modules; settings live under Configure Settings, Coffee Pub Blacksmith."
+  ],
+  "needs": [
+    "D&D 5e system",
+    "socketlib",
+    "lib-wrapper"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    }
+  ],
+  "gallery": [],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-blacksmith/releases/latest/download/module.json",
+  "hub": true,
+  "platform": {
+    "stats": [
+      {
+        "n": "37",
+        "l": "API reference pages"
+      },
+      {
+        "n": "35",
+        "l": "architecture pages"
+      },
+      {
+        "n": "13",
+        "l": "modules built on it"
+      },
+      {
+        "n": "70+",
+        "l": "design tokens"
+      }
+    ],
+    "points": [
+      {
+        "t": "A hard ownership boundary",
+        "x": "The hub does the plumbing, and each module does its own experience. Windows, toolbars, sockets, toasts and compendium indexing are solved once."
+      },
+      {
+        "t": "Extension by registry",
+        "x": "Windows, toolbar and menubar tools, pin types, tags, importers and toast channels all plug in without special cases."
+      },
+      {
+        "t": "Shared hooks and sockets",
+        "x": "One hook layer with priorities, cleanup and error isolation, and one socket layer that works with or without SocketLib."
+      },
+      {
+        "t": "Documentation held to a standard",
+        "x": "Every API page names its audience, pairs with an architecture page, and follows one written standard across the suite."
+      }
+    ],
+    "areas": [
+      {
+        "t": "Foundation",
+        "x": "Core entry point, hook manager, sockets, GM requests, importer"
+      },
+      {
+        "t": "Windows and interface",
+        "x": "Windows, dialogs, menubar, toolbar, toasts, callouts, context menus"
+      },
+      {
+        "t": "Canvas and world",
+        "x": "Pins, tokens, regions, geography, world clock, away status"
+      },
+      {
+        "t": "Rolls and combat",
+        "x": "Roll classification, roll requests, stats, health, effects"
+      },
+      {
+        "t": "Actors and campaign",
+        "x": "Inventory, equipment locations, party, campaign, compendiums"
+      },
+      {
+        "t": "Content",
+        "x": "Chat cards, notes, GM notes, tags"
+      }
+    ],
+    "docs": [
+      {
+        "t": "API reference",
+        "page": "api-core"
+      },
+      {
+        "t": "Module ownership",
+        "page": "architecture-ownership"
+      },
+      {
+        "t": "Hook manager",
+        "page": "architecture-hookmanager"
+      },
+      {
+        "t": "Design tokens",
+        "page": "design-tokens"
+      },
+      {
+        "t": "Documentation standard",
+        "page": "global-documentation-standard"
+      }
+    ]
+  }
+}

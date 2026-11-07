@@ -1,0 +1,78 @@
+{
+  "slug": "herald",
+  "name": "Coffee Pub Herald",
+  "short": "Herald",
+  "repo": "Drowbe/coffee-pub-herald",
+  "branch": "master",
+  "category": "Streaming",
+  "status": "early",
+  "tagline": "A clean, UI-free broadcast view that follows the action.",
+  "description": "Designate a camera-operator user who gets a UI-free view that automatically follows tokens, for streaming, player displays or a dedicated TV client.",
+  "requires": [
+    "Coffee Pub Blacksmith"
+  ],
+  "system": [],
+  "fallbackVersion": "14.0.7",
+  "hero": null,
+  "github": "https://github.com/Drowbe/coffee-pub-herald",
+  "wiki": "https://github.com/Drowbe/coffee-pub-herald/wiki",
+  "pitch": "Turn one Foundry user into a clean, UI-free camera that follows the action automatically, for streaming, a TV display or a second monitor.",
+  "features": [
+    {
+      "title": "Camera operator",
+      "text": "Designate one Foundry user whose client shows a clean view with the interface hidden."
+    },
+    {
+      "title": "Auto token following",
+      "text": "The camera follows the action automatically; no one needs to sit at that client."
+    },
+    {
+      "title": "Nine broadcast modes",
+      "text": "Party Spectator, Token Spectator, Combat, Combatant, GM View, Map View, Manual, Mirror player and Follow token."
+    },
+    {
+      "title": "Stream overlay",
+      "text": "An MVP leaderboard overlay on Foundry's stream page."
+    },
+    {
+      "title": "Studio control",
+      "text": "Works with Coffee Pub Showrunner for OBS camera setup."
+    },
+    {
+      "title": "Menubar controls",
+      "text": "Broadcast tools live in Blacksmith's menubar, with mode controls in its secondary bar."
+    }
+  ],
+  "steps": [
+    "Create a Foundry user for the camera (Player role is usual), enable Broadcast in Herald settings, and set Broadcast User to that user.",
+    "Log in as that user in a separate browser window or profile.",
+    "Pick Party Spectator from the Herald menubar menu, move a party token to check it, then point OBS or a monitor at that window."
+  ],
+  "needs": [
+    "Coffee Pub Blacksmith, installed and enabled first"
+  ],
+  "docs": [
+    {
+      "title": "Getting started",
+      "page": "userguide-getting-started"
+    },
+    {
+      "title": "Broadcast modes",
+      "page": "userguide-broadcast-modes"
+    },
+    {
+      "title": "Stream widgets",
+      "page": "userguide-stream-widgets"
+    },
+    {
+      "title": "GM guide",
+      "page": "userguide-gm"
+    },
+    {
+      "title": "Player guide",
+      "page": "userguide-player"
+    }
+  ],
+  "gallery": [],
+  "manifestFallback": "https://github.com/Drowbe/coffee-pub-herald/releases/latest/download/module.json"
+}
