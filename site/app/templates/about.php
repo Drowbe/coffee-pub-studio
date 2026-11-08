@@ -45,7 +45,7 @@
             <path d="M126 62 Q140 56 152 58 M150 44 L152 54 M168 50 L170 58 M170 64 Q182 62 188 70" fill="none" stroke="#7E6E52" stroke-width="2.6" stroke-linecap="round" opacity=".55"/>
             
             
-            <g fill="#fff" fill-opacity=".4" stroke="#0E1A2B" stroke-width="6"><rect x="114" y="97" width="34" height="25" rx="5"/><rect x="152" y="97" width="34" height="25" rx="5"/></g>
+            <g fill="#fff" fill-opacity=".4" stroke="#0E1A2B" stroke-width="4.5"><rect x="114" y="98" width="35" height="22" rx="11"/><rect x="151" y="98" width="35" height="22" rx="11"/></g>
             <path d="M147 106 H153 M115 104 L104 102 M185 104 L196 102" stroke="#14243B" stroke-width="4" stroke-linecap="round" fill="none"/>
             <g class="blink"><circle cx="133" cy="110" r="5" fill="#8FB6D6"/><circle cx="171" cy="110" r="5" fill="#8FB6D6"/><circle cx="134" cy="110" r="2.6" fill="#14243B"/><circle cx="172" cy="110" r="2.6" fill="#14243B"/></g>
             <path d="M118 90 Q131 84 144 90 M156 90 Q169 84 182 90" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
