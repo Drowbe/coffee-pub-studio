@@ -368,3 +368,5 @@ a.feature:hover h3 { text-decoration: underline; }
 .more-tile img { width: 56px; height: 56px; }
 .more-tile b { font-family: var(--serif); font-size: 1.05rem; }
 .more-tile span { color: var(--muted); font-size: .9rem; line-height: 1.4; }
+.soon-tag { display: inline-block; align-self: flex-start; margin: 2px 0 6px; padding: 2px 10px; border-radius: 999px; background: var(--coral-soft); color: var(--coral-text); font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.more-tile .soon-tag { align-self: center; margin: 0; }

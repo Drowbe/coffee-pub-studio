@@ -259,7 +259,8 @@
           "text": "Polls and research your group can find again."
         }
       ],
-      "blurb": "Tasks, dates and research"
+      "blurb": "Tasks, dates and research",
+      "comingSoon": true
     },
     {
       "slug": "mentoring",
@@ -291,7 +292,8 @@
         }
       ],
       "sections": [],
-      "blurb": "Sessions, polls and notes"
+      "blurb": "Sessions, polls and notes",
+      "comingSoon": true
     },
     {
       "slug": "real-estate",
@@ -331,7 +333,8 @@
         }
       ],
       "sections": [],
-      "blurb": "Viewings, costs and paperwork"
+      "blurb": "Viewings, costs and paperwork",
+      "comingSoon": true
     },
     {
       "slug": "anything",
@@ -355,7 +358,8 @@
         }
       ],
       "sections": [],
-      "blurb": "Make it your own"
+      "blurb": "Make it your own",
+      "comingSoon": true
     }
   ],
   "stepsTitle": "How it works",
