@@ -56,14 +56,14 @@ $featured = array_filter($modules, fn($p) => !empty($p['featured']));
 <section id="chameleon">
   <div class="band">
     <div>
-      <div class="eyebrow">Chameleon &middot; Coming soon</div>
+      <div class="eyebrow pm"><?= mark_img("chameleon", 56, "mk pmk") ?><span>Chameleon &middot; Coming soon</span></div>
       <h2>Plan the trip together</h2>
       <p class="lead"><?= h($flag['pitch']) ?></p>
       <ul class="ticks">
         <?php foreach (array_slice($flag['highlights'] ?? [], 1, 3) as $line): ?><li><?= h($line) ?></li><?php endforeach; ?>
       </ul>
       <div class="actions">
-        <span class="btn soon" aria-disabled="true">Coming soon</span>
+        <a class="btn" href="/products/chameleon"><?= h($flag["cta"] ?? "See Chameleon") ?></a>
         <a class="btn ghost" href="<?= h($flag['external']) ?>">See it in action</a>
       </div>
       <p class="muted" style="margin:14px 0 0"><?= h($flag['ctaNote']) ?></p>
@@ -78,7 +78,7 @@ $featured = array_filter($modules, fn($p) => !empty($p['featured']));
 <section id="showrunner">
   <div class="band">
     <div>
-      <div class="eyebrow">For streamers</div>
+      <div class="eyebrow pm"><?= mark_img("showrunner", 56, "mk pmk") ?><span>For streamers</span></div>
       <h2>Feed OBS what it needs</h2>
       <p class="lead"><?= h($s['studioApp']['text']) ?></p>
       <ul class="ticks">
@@ -101,7 +101,7 @@ $featured = array_filter($modules, fn($p) => !empty($p['featured']));
 <section id="platform">
   <div class="band">
     <div>
-      <div class="eyebrow">The platform</div>
+      <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>The platform</span></div>
       <h2>Blacksmith, the engine under the suite</h2>
       <p class="lead">One flagship module does the heavy lifting for the rest: hook management, sockets, windows, tools, shared data and design. Everything else is an experience built on top.</p>
       <div class="actions">
@@ -117,7 +117,7 @@ $featured = array_filter($modules, fn($p) => !empty($p['featured']));
 <?php endif; ?>
 
 <section id="modules">
-  <div class="eyebrow">For tabletop games</div>
+  <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>For tabletop games</span></div>
   <h2>Run the game</h2>
   <p class="lead"><?= count($modules) ?> Foundry VTT modules that each solve dozens of small problems at the table, from a core toolbar to character and combat tools, journals, maps, audio and crafting. They share one look and one hub, Coffee Pub Blacksmith.</p>
   <div class="grid">
