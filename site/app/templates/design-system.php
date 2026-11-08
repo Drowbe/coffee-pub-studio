@@ -129,7 +129,7 @@ $contrast = [
       <div><small>h1 &middot; Fraunces 600, 2.5 to 4.2rem, line 1.08</small><h1 style="margin:6px 0 0;font-size:clamp(2.2rem,4vw,3.4rem)">Provoke what's possible.</h1></div>
       <div><small>h2 &middot; Fraunces 600, 1.9 to 2.7rem, line 1.15</small><h2 style="margin:6px 0 0">Build it.</h2></div>
       <div><small>h3 &middot; Fraunces 600, 1.3rem</small><h3 style="margin:6px 0 0">A card or panel title</h3></div>
-      <div><small>Lead &middot; Figtree, 1.15 to 1.3rem, --muted</small><p class="lead" style="margin-top:6px">I have solved hundreds of problems. Some of them grew into the products below.</p></div>
+      <div><small>Lead &middot; Figtree, 1.15 to 1.3rem, --muted</small><p class="lead" style="margin-top:6px">We have solved hundreds of problems. Some of them grew into the products below.</p></div>
       <div><small>Body &middot; Figtree 400, 18 px, line 1.7</small><p style="margin:6px 0 0;max-width:46rem">Body copy sits in short paragraphs, with plenty of space around them. Links use the teal text colour and a thin underline.</p></div>
     </div>
 
@@ -189,8 +189,8 @@ $contrast = [
 
     <h2 id="voice" class="ds-h">Voice and content</h2>
     <div class="cols">
-      <div class="panel"><h3>Tone</h3><p>Warm, direct and a little playful. Short sentences. Say what a thing does, then stop. Copy says &ldquo;I&rdquo;, not &ldquo;we&rdquo;: the studio is one person, with the occasional guest.</p></div>
-      <div class="panel"><h3>Words I use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. Product names always start with &ldquo;Coffee Pub&rdquo;. US spelling.</p></div>
+      <div class="panel"><h3>Tone</h3><p>Warm, direct and a little playful. Short sentences. Say what a thing does, then stop. Copy says &ldquo;we&rdquo;, not &ldquo;I&rdquo;. Only the About page says &ldquo;I&rdquo;, because it is fine to say there that the studio is mostly one person.</p></div>
+      <div class="panel"><h3>Words we use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. Product names always start with &ldquo;Coffee Pub&rdquo;. US spelling.</p></div>
       <div class="panel"><h3>Honest about status</h3><p>Early things say Early. Unreleased things say Coming soon. No prices, tiers or licence claims until they exist. Modules are free for now.</p></div>
       <div class="panel"><h3>AI note</h3><p>The note about AI assistance lives only on About and in the footer. It is not repeated on product pages.</p></div>
       <div class="panel"><h3>Links</h3><p>Links to other sites open in a new tab. Local links stay in the same tab.</p></div>

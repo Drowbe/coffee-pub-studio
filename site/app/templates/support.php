@@ -22,7 +22,7 @@
 
     <div class="band" style="margin-top:48px">
       <div>
-        <h2 style="font-size:1.6rem">Help me keep building</h2>
+        <h2 style="font-size:1.6rem">Help us keep building</h2>
         <p class="lead">You can support the work on Patreon.</p>
       </div>
       <div class="actions" style="margin:0"><a class="btn" href="<?= h(site()['links']['patreon']) ?>">Support on Patreon</a></div>

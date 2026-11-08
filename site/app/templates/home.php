@@ -10,9 +10,9 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
     <div>
       <div class="eyebrow">Boutique design and development</div>
       <h1><?= h($s['tagline']) ?></h1>
-      <p class="lead">I have solved hundreds of problems. Some of them grew into the products below.</p>
+      <p class="lead">We have solved hundreds of problems. Some of them grew into the products below.</p>
       <div class="actions">
-        <a class="btn" href="#more">See what I have made</a>
+        <a class="btn" href="#more">See what we have made</a>
         <a class="btn ghost" href="/about">About the studio</a>
       </div>
     </div>
@@ -22,8 +22,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 
 <div class="wrap" id="problems">
 <section style="padding-top:24px">
-  <div class="eyebrow">What I am good at</div>
-  <h2>The kinds of problems I solve</h2>
+  <div class="eyebrow">What we are good at</div>
+  <h2>The kinds of problems we solve</h2>
   <p class="lead">Mapping, drawing, calls, collaboration, APIs and more. Here is where each one shows up in the work.</p>
   <div class="grid four">
     <?php foreach (capabilities() as $cap): ?>

@@ -394,7 +394,7 @@
       "text": "Members sign in. Guests can come into a space with just a name, when you allow it."
     }
   ],
-  "stepsNote": "The owner sets the name, the look, the people, the spaces and the modules. I run the servers, the call service, the updates and the backups. Or run the whole thing yourself: the same software can be self-hosted.",
+  "stepsNote": "The owner sets the name, the look, the people, the spaces and the modules. We run the servers, the call service, the updates and the backups. Or run the whole thing yourself: the same software can be self-hosted.",
   "callout": {
     "title": "Yours, and private",
     "text": "No ads, and nobody selling what you say. Your people, plans and files live in your environment and are not shared with anyone else's. You can run it on your own server if you would rather.",

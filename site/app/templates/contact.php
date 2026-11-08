@@ -3,12 +3,12 @@
   <section style="padding-top:56px">
     <div class="eyebrow">Contact</div>
     <h1>Say hello</h1>
-    <p class="lead">Tell me what you are working on or what is not working. I read every message.</p>
+    <p class="lead">Tell us what you are working on or what is not working. We read every message.</p>
 
     <?php if (!empty($sent)): ?>
       <div class="panel" role="status" style="margin-top:40px;max-width:40rem">
         <h3>Message sent</h3>
-        <p style="margin:0">Thank you. I will reply by email.</p>
+        <p style="margin:0">Thank you. We will reply by email.</p>
       </div>
     <?php else: ?>
       <form class="form" method="post" action="/contact" style="margin-top:40px" novalidate>

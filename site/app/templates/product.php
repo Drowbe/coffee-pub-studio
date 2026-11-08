@@ -263,7 +263,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       </div>
     </div>
     <div class="note">
-      <?php if (($p['status'] ?? '') === 'early'): ?><strong>New and still settling in.</strong> Expect rough edges, and tell me what you find. <?php endif; ?>
+      <?php if (($p['status'] ?? '') === 'early'): ?><strong>New and still settling in.</strong> Expect rough edges, and tell us what you find. <?php endif; ?>
       Free for now; some features may later be limited to <a href="<?= h(site()['links']['patreon']) ?>">Patreon</a> supporters. A personal project, so back up your world first.
     </div>
   </section>

@@ -43,7 +43,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
     <div class="foot-grid">
       <div class="foot-about">
         <a class="brand" href="/" aria-label="<?= h($s['name']) ?>"><?= mark_img('studio', 32) ?><span class="wm"><b>Coffee Pub</b> <i><?= h($studio) ?></i></span></a>
-        <p>Boutique design and development. I build apps and Foundry VTT modules for people who plan trips, stream and run tabletop games.</p>
+        <p>Boutique design and development. We build apps and Foundry VTT modules for people who plan trips, stream and run tabletop games.</p>
       </div>
       <nav aria-label="Products">
         <h2>Products</h2>
