@@ -67,10 +67,10 @@
         <h3>My design leadership work lives at willhavebeen.com</h3>
         <p>Case studies, writing, speaking and the longer story, if you want to know who you would be working with.</p>
         <div class="actions" style="margin:20px 0 0">
-          <a class="btn" href="<?= h($pf) ?>/about-me/">About me</a>
-          <a class="btn ghost" href="<?= h($pf) ?>/case-studies/">Case studies</a>
+          <a class="btn" href="<?= h($pf) ?>" target="_blank" rel="noopener">Visit willhavebeen.com</a>
         </div>
-        <p style="margin:18px 0 0"><a href="<?= h($pf) ?>">willhavebeen.com</a></p>
+        <p style="margin:18px 0 0">Or go straight to <a href="<?= h($pf) ?>/about-me/" target="_blank" rel="noopener">about me</a> or <a href="<?= h($pf) ?>/case-studies/" target="_blank" rel="noopener">case studies</a>.</p>
+        <p class="muted" style="margin:14px 0 0"><strong>Don't panic.</strong> These links open willhavebeen.com, my design portfolio, in a new tab. It looks different because it is a different site.</p>
       </div>
     </div>
 
