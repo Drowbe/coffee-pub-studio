@@ -2,7 +2,7 @@
 $s = site();
 $flag = $products[$s['flagship']] ?? null;
 $modules = array_filter($products, fn($p) => empty($p['flagship']) && empty($p['app']));
-$featured = array_filter($modules, fn($p) => !empty($p['featured']));
+$featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith', 'squire', 'artificer', 'minstrel', 'cartographer', 'merchant']));
 ?>
 <div class="home-top"><div class="hero-bg" aria-hidden="true"></div>
 <div class="wrap">
