@@ -345,3 +345,4 @@ a.feature:hover h3 { text-decoration: underline; }
 .callout-link { color: #8FD0D3; font-weight: 600; }
 .callout .callout-img { width: 96px; height: 96px; object-fit: contain; flex: none; }
 @media (max-width: 640px) { .callout { flex-direction: column; align-items: flex-start; padding: 28px; } }
+.feature .feat-img { width: 48px; height: 48px; object-fit: contain; display: block; margin-bottom: 8px; }

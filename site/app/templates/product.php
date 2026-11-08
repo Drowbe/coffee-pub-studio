@@ -24,8 +24,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
 
     <div class="actions">
       <?php if (!empty($p['comingSoon']) && !empty($p['external'])): ?>
-        <span class="btn soon" aria-disabled="true">Coming soon</span>
-        <a class="btn ghost" href="<?= h($p['external']) ?>">See it in action</a>
+        <a class="btn" href="<?= h($p['external']) ?>">See it in action</a>
       <?php elseif (!empty($p['external'])): ?>
         <a class="btn" href="<?= h($p['external']) ?>"><?= h($p['cta'] ?? 'Open') ?></a>
       <?php elseif ($isApp): ?>

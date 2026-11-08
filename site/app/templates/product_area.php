@@ -21,7 +21,7 @@ $mk = $p['mark'] ?? null;
   <section>
     <div class="features">
       <?php foreach ($a['features'] as $i => $f): ?>
-        <div class="feature"><div class="n"><?= sprintf('%02d', $i + 1) ?></div><h3><?= h($f['title']) ?></h3><p><?= h($f['text']) ?></p></div>
+        <div class="feature"><?php if (!empty($f['image'])): ?><img class="feat-img" src="<?= h($f['image']) ?>" alt="" width="48" height="48" loading="lazy"><?php else: ?><div class="n"><?= sprintf('%02d', $i + 1) ?></div><?php endif; ?><h3><?= h($f['title']) ?></h3><p><?= h($f['text']) ?></p></div>
       <?php endforeach; ?>
     </div>
   </section>
