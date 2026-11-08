@@ -39,11 +39,11 @@
             <rect x="136" y="160" width="28" height="30" rx="8" fill="#F2CDB0" stroke="#14243B" stroke-width="3.5"/>
             <ellipse cx="102" cy="114" rx="8" ry="12" fill="#F2CDB0" stroke="#14243B" stroke-width="3.5"/><ellipse cx="198" cy="114" rx="8" ry="12" fill="#F2CDB0" stroke="#14243B" stroke-width="3.5"/>
             <ellipse cx="150" cy="112" rx="48" ry="56" fill="#F2CDB0" stroke="#14243B" stroke-width="3.5"/>
-            <path d="M102 120 C102 152 124 170 150 170 C176 170 198 152 198 120 C193 128 189 131 184 133 C178 127 166 126 150 128 C134 126 122 127 116 133 C111 131 107 128 102 120Z" fill="#A9A396" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
-            <path d="M122 146 Q150 134 178 146" fill="none" stroke="#9D9684" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-            <path d="M103 98 C98 60 120 38 150 38 C180 38 202 60 197 98 C192 80 186 72 178 70 L186 44 L164 62 L158 30 L146 60 L132 32 L130 64 L110 48 L120 72 C112 78 106 86 103 98Z" fill="#B3AA98" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
-            <path d="M124 78 Q150 72 176 78 M130 86 Q150 82 170 86" fill="none" stroke="#14243B" stroke-width="2" stroke-linecap="round" opacity=".28"/>
-            <path d="M106 112 l-6 -3 M106 118 l-7 1 M194 112 l6 -3 M194 118 l7 1" fill="none" stroke="#14243B" stroke-width="2" stroke-linecap="round" opacity=".3"/>
+            <path d="M102 120 C102 152 124 170 150 170 C176 170 198 152 198 120 C193 128 189 131 184 133 C178 127 166 126 150 128 C134 126 122 127 116 133 C111 131 107 128 102 120Z" fill="#B7AB98" fill-opacity=".7"/>
+            <path d="M122 146 Q150 134 178 146" fill="none" stroke="#8F8470" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+            <path d="M103 98 C98 60 120 38 150 38 C180 38 202 60 197 98 C192 80 186 72 178 70 L186 44 L164 62 L158 30 L146 60 L132 32 L130 64 L110 48 L120 72 C112 78 106 86 103 98Z" fill="#A8977A" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            
+            
             <g fill="#fff" fill-opacity=".4" stroke="#0E1A2B" stroke-width="6"><rect x="114" y="97" width="34" height="25" rx="5"/><rect x="152" y="97" width="34" height="25" rx="5"/></g>
             <path d="M147 106 H153 M115 104 L104 102 M185 104 L196 102" stroke="#14243B" stroke-width="4" stroke-linecap="round" fill="none"/>
             <g class="blink"><circle cx="133" cy="110" r="5" fill="#8FB6D6"/><circle cx="171" cy="110" r="5" fill="#8FB6D6"/><circle cx="134" cy="110" r="2.6" fill="#14243B"/><circle cx="172" cy="110" r="2.6" fill="#14243B"/></g>
