@@ -357,3 +357,7 @@ a.feature:hover h3 { text-decoration: underline; }
 .area-card { position: relative; }
 .area-card .more::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .area-card:has(.more):hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+/* exactly three cards across on wide screens */
+.areas-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 980px) { .areas-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .areas-grid { grid-template-columns: 1fr; } }
