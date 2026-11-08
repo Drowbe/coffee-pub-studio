@@ -70,7 +70,7 @@
     {
       "slug": "travel",
       "art": 1,
-      "title": "Trips",
+      "title": "Travel",
       "summary": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end.",
       "image": "/assets/products/chameleon/suitcase.svg",
       "points": [
@@ -78,7 +78,7 @@
         "A calendar for the dates that matter",
         "Polls for the choices, a budget for the sums"
       ],
-      "eyebrow": "For trips",
+      "eyebrow": "For travel",
       "lead": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget. One address for your people, and nobody else's.",
       "sections": [
         {
@@ -159,7 +159,7 @@
     {
       "slug": "games",
       "art": 2,
-      "title": "Game nights",
+      "title": "Gaming",
       "summary": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk.",
       "image": "/assets/products/chameleon/dice.svg",
       "points": [
