@@ -14,12 +14,54 @@
   "pitch": "Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. Yours, on your own address.",
   "features": [
     {
-      "title": "A chat and a call for every space",
-      "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."
+      "title": "Chat and call",
+      "text": "A chat that stays open between sessions, and a call with voice and video when you want one. Step into a side conversation and come back, or pop the call out into its own window.",
+      "image": "/assets/products/chameleon/chat-call.svg"
     },
     {
-      "title": "The tools beside the chat",
-      "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."
+      "title": "Planner",
+      "text": "The plan laid out day by day: what you know, what your options are, what you have decided. In a trip it is the Itinerary, in a campaign the Campaign planner.",
+      "image": "/assets/products/chameleon/plan.svg"
+    },
+    {
+      "title": "Places",
+      "text": "The places that matter, with an address, a position and a note.",
+      "image": "/assets/products/chameleon/places.svg"
+    },
+    {
+      "title": "Maps",
+      "text": "Everything with a position on one map, with regions kept on the server for when you are offline.",
+      "image": "/assets/products/chameleon/map.svg"
+    },
+    {
+      "title": "Research",
+      "text": "Notes, links and photos, tagged and shared.",
+      "image": "/assets/products/chameleon/research.svg"
+    },
+    {
+      "title": "Calendar",
+      "text": "The group's dates, with the events of every trip you are on.",
+      "image": "/assets/products/chameleon/calendar.svg"
+    },
+    {
+      "title": "Budget",
+      "text": "What you spend, what you planned, who owes whom.",
+      "image": "/assets/products/chameleon/budget.svg"
+    },
+    {
+      "title": "Polls",
+      "text": "Pick one, pick any, or suggest another option.",
+      "image": "/assets/products/chameleon/poll.svg"
+    },
+    {
+      "title": "To-do",
+      "text": "Tasks with due dates, linked to what they are about.",
+      "image": "/assets/products/chameleon/clipboard.svg"
+    },
+    {
+      "title": "Stream",
+      "text": "Every person as an OBS source, on a clear background.",
+      "image": "/assets/products/chameleon/stream.svg"
     }
   ],
   "areasTitle": "What it is for",
@@ -287,5 +329,7 @@
       ],
       "note": "Coming soon"
     }
-  ]
+  ],
+  "featuresTitle": "The modules",
+  "featuresLead": "Every space turns on the modules it needs. Chat and calls are always there, and the rest sit beside them."
 }

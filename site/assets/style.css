@@ -353,3 +353,7 @@ a.feature:hover h3 { text-decoration: underline; }
 .phead-art { min-width: 0; }
 @media (max-width: 900px) { .phead-split { grid-template-columns: 1fr; gap: 24px; } }
 .plan-note { display: block; margin-top: 14px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+/* whole card clickable */
+.area-card { position: relative; }
+.area-card .more::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.area-card:has(.more):hover { transform: translateY(-2px); box-shadow: var(--shadow); }

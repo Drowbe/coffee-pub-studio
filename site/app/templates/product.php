@@ -75,11 +75,12 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
 
   <?php if ($features): ?>
   <section>
-    <h2><?= $isFlag ? 'What it does' : 'What you get' ?></h2>
+    <h2><?= h($p['featuresTitle'] ?? ($isFlag ? 'What it does' : 'What you get')) ?></h2>
+    <?php if (!empty($p['featuresLead'])): ?><p class="lead"><?= h($p['featuresLead']) ?></p><?php endif; ?>
     <div class="features">
       <?php foreach ($features as $i => $f): ?>
         <div class="feature">
-          <div class="n"><?= sprintf('%02d', $i + 1) ?></div>
+          <?php if (!empty($f['image'])): ?><img class="feat-img" src="<?= h($f['image']) ?>" alt="" width="48" height="48" loading="lazy"><?php else: ?><div class="n"><?= sprintf('%02d', $i + 1) ?></div><?php endif; ?>
           <?php if ($f['title'] !== ''): ?><h3><?= h($f['title']) ?></h3><p><?= h($f['text']) ?></p>
           <?php else: ?><h3 style="font-weight:600"><?= h($f['text']) ?></h3><?php endif; ?>
         </div>
