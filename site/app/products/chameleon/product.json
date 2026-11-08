@@ -24,35 +24,9 @@
   "requires": [],
   "system": [],
   "fallbackVersion": null,
-  "hero": "/assets/products/chameleon/shot-workspace-1280.webp",
+  "hero": null,
   "github": "https://github.com/Drowbe/coffee-pub-collaborator",
   "wiki": "https://github.com/Drowbe/coffee-pub-collaborator/wiki",
   "comingSoon": true,
-  "pitch": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget.",
-  "gallery": [
-    {
-      "url": "/assets/products/chameleon/shot-planner-1280.webp",
-      "caption": "Trip planner"
-    },
-    {
-      "url": "/assets/products/chameleon/shot-places-1280.webp",
-      "caption": "Places on the map"
-    },
-    {
-      "url": "/assets/products/chameleon/shot-budget-1280.webp",
-      "caption": "Budget"
-    },
-    {
-      "url": "/assets/products/chameleon/shot-settle-1280.webp",
-      "caption": "Settling up"
-    },
-    {
-      "url": "/assets/products/chameleon/shot-calendar-1280.webp",
-      "caption": "Calendar"
-    },
-    {
-      "url": "/assets/products/chameleon/shot-polls-1280.webp",
-      "caption": "Polls"
-    }
-  ]
+  "pitch": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget."
 }

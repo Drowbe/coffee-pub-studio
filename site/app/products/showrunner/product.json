@@ -53,5 +53,5 @@
     {"title": "Automations API", "page": "api-automations"},
     {"title": "Known issues", "page": "known-issues"}
   ],
-  "note": "Free to use. Windows support is new and has not yet been confirmed on a real Windows machine, so check the Known issues page if a window misbehaves. A personal project, so back up your OBS profile before trying anything new."
+  "note": "Coffee Pub Showrunner is free to download and use for now. It is proprietary, not open source: you can read the source, but you can't copy, redistribute or resell it. A later version may be paid, but a version you have already downloaded stays usable. Windows support is new, and I have not yet confirmed it on a real Windows machine, so check the Known issues page if a window misbehaves. This is a personal project, so back up your OBS profile before trying anything new."
 }

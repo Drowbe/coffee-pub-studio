@@ -39,7 +39,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php endif; ?>
     </div>
     <?php if (!empty($p['ctaNote'])): ?><p class="muted" style="margin:14px 0 0"><?= h($p['ctaNote']) ?></p><?php endif; ?>
-    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.collaborator.coffeepub.ai</code>: your people, your spaces, your tools.</p><?php endif; ?>
+    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.coffeepubstudio.live</code>: your people, your spaces, your tools.</p><?php endif; ?>
 
     <div class="facts">
       <?php if (!$isFlag): ?>
@@ -55,7 +55,6 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php else: ?>
         <div class="fact"><span>Runs</span><b>In your browser</b></div>
         <div class="fact"><span>Status</span><b>Coming soon</b></div>
-        <div class="fact"><span>Plans</span><b>Free and paid</b></div>
       <?php endif; ?>
     </div>
   </div>

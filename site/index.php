@@ -18,6 +18,9 @@ switch (true) {
         foreach (products() as $slug => $_) {
             $urls[] = '/products/' . $slug;
         }
+        if (product('chameleon') !== null) {
+            array_push($urls, '/products/chameleon/travel', '/products/chameleon/games');
+        }
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
         foreach ($urls as $u) {
             echo '  <url><loc>' . h(site()['url'] . $u) . "</loc></url>\n";
@@ -35,6 +38,16 @@ switch (true) {
 
     case $path === '/products/collaborator':
         header('Location: /products/chameleon', true, 301);
+        break;
+
+    case preg_match('#^/products/chameleon/(travel|games)$#', $path, $m) === 1:
+        // Chameleon's use pages: standalone pages kept in the product's own folder.
+        if (product('chameleon') === null) {
+            page('404', ['title' => 'Not found'], 404);
+            break;
+        }
+        header('Content-Type: text/html; charset=utf-8');
+        echo external_links((string)file_get_contents(APP_DIR . '/products/chameleon/page-' . $m[1] . '.html'));
         break;
 
     case preg_match('#^/products/([a-z0-9-]+)$#', $path, $m) === 1:
