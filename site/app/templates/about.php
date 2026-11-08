@@ -52,6 +52,19 @@
     <h2 style="margin-top:80px;font-size:1.9rem">Sometimes with friends</h2>
     <p class="lead" style="margin-top:12px">Some problems need more hands. When they do, I bring in guest developers and designers who share my passion for problem solving, and we build it together. If that sounds like you, <a href="/contact">say hello</a>.</p>
 
+    <section id="ai">
+      <h2 style="margin-top:80px;font-size:1.9rem">AI assistance and the illusion of good code</h2>
+      <p class="muted" style="margin:12px 0 0">This is how I build the Foundry VTT modules. The people who play with them often ask, so here it is plainly.</p>
+      <div style="max-width:46rem;margin-top:20px">
+        <p>I started writing Foundry modules for use at my own table back in 2020. There were already a ton of amazing modules out there, but they either didn't quite do what I wanted or didn't deliver the kind of user experience I was looking for.</p>
+        <p>I've been a design leader for more than 20 years, but I spent the first half of my career as a developer, so building my own modules seemed like a fun way to kill some time. I'm a pretty good designer. I'm a decent developer. But, over time, my hand-written code and hacks got a little messy (and memory-leaky, and a little buggy. Feels good to say it out loud.).</p>
+        <p>Today, the Coffee Pub suite of modules is developed with AI assistance, primarily Claude and Cursor, for documentation, refactoring, debugging, and other development work. Every change is reviewed and committed by me, and nothing reaches a release that I haven't crawled and run at my own table. I can't seem to give up my IDE. The UX design, architecture, and ideas still come from my own fever dreams and chronic lack of sleep.</p>
+        <p>Testing and verifying a change means running it in Foundry so I can watch the console, break things, fix them, and hone the experience. The repositories carry a set of tools for testing the things that are difficult to catch through review and manual testing alone. They help ensure styles don't conflict, shared coding and documentation standards stay consistent, and the suite of modules continues to work well as a system without silently breaking.</p>
+        <p>Those checks are there because AI-assisted development can move very quickly, and without oversight, engagement, and planning, it can also go confidently off the rails and deliver the illusion of good code. The AI helps me build faster. It doesn't decide what gets built, its architecture, or how it should work. You can blame this human for that.</p>
+        <p>If the idea of AI-assisted development keeps you up at night or just isn't your jam, no worries at all. I get it. You do you.</p>
+      </div>
+    </section>
+
     <h2 style="margin-top:80px;font-size:1.9rem">Good to know</h2>
     <div class="cols">
       <div class="panel">
@@ -59,8 +72,8 @@
         <p>The Foundry modules are open source under the MIT license, with the code on <a href="https://github.com/Drowbe">GitHub</a>. They are free today, and some features may later be limited to supporters on <a href="<?= h(site()['links']['patreon']) ?>">Patreon</a>.</p>
       </div>
       <div class="panel">
-        <h3>Made by hand</h3>
-        <p>I started these projects by hand. Over the past year I have added AI assistance to the toolbox, with every change still reviewed by a person.</p>
+        <h3>AI-assisted, human-reviewed</h3>
+        <p>I started these projects by hand. Today I build with AI assistance, and every change is still reviewed, committed and played by me. <a href="#ai">How I use it</a>.</p>
       </div>
       <div class="panel">
         <h3>Personal projects</h3>
