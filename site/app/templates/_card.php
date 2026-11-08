@@ -1,6 +1,8 @@
 <a class="card" href="/products/<?= h($p['slug']) ?>">
   <div class="thumb">
-    <?php if (!empty($p['hero'])): ?>
+    <?php if (!empty($p['cardImage'])): ?>
+      <img class="art" src="<?= h($p['cardImage']) ?>" alt="" loading="lazy">
+    <?php elseif (!empty($p['hero'])): ?>
       <img src="<?= h($p['hero']) ?>" alt="" loading="lazy">
     <?php else: ?>
       <img class="art" src="<?= h(art_for($p['category'])) ?>" alt="" loading="lazy">

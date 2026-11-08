@@ -1,5 +1,6 @@
 {
   "slug": "blacksmith",
+  "cardImage": "/assets/art/blacksmith-card.svg",
   "name": "Coffee Pub Blacksmith",
   "short": "Blacksmith",
   "repo": "Drowbe/coffee-pub-blacksmith",

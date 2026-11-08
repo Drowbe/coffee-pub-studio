@@ -12,13 +12,13 @@ $modules = array_filter($products, fn($p) => empty($p['flagship']) && empty($p['
 
     <h2 style="margin-top:56px;font-size:1.5rem">Flagships</h2>
     <div class="grid">
-      <?php foreach ($flag + $hub + $apps as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
+      <?php foreach ($flag + $apps as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
     </div>
 
-    <h2 class="hmark" style="margin-top:56px;font-size:1.5rem"><?= mark_img('gaming', 56, 'mk') ?>More Foundry VTT modules</h2>
-    <p class="muted" style="margin:0">Every module here except Monarch builds on Coffee Pub Blacksmith.</p>
+    <h2 class="hmark" style="margin-top:56px;font-size:1.5rem"><?= mark_img('gaming', 56, 'mk') ?>Foundry VTT modules</h2>
+    <p class="muted" style="margin:0">Every module here except Monarch builds on Coffee Pub Blacksmith, the first one below.</p>
     <div class="grid">
-      <?php foreach ($modules as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
+      <?php foreach ($hub + $modules as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
     </div>
   </section>
 </div>

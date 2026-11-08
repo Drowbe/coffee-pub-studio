@@ -1,6 +1,7 @@
 {
   "slug": "showrunner",
   "mark": "showrunner",
+  "cardImage": "/assets/art/showrunner-card.svg",
   "name": "Coffee Pub Showrunner",
   "short": "Showrunner",
   "repo": "Drowbe/coffee-pub-showrunner",
