@@ -32,8 +32,14 @@ function products(): array
         $all = [];
         foreach (glob(APP_DIR . '/products/*/product.json') ?: [] as $file) {
             $p = read_json($file);
-            if (!empty($p['slug']) && empty($p['hidden'])) {
+            // A product owner edits their own file, so a broken one must only hide that product, never break the site.
+            $ok = !empty($p['slug']) && empty($p['hidden'])
+                && $p['slug'] === basename(dirname($file))
+                && !array_filter(['name', 'short', 'tagline', 'category'], fn($k) => !isset($p[$k]) || !is_string($p[$k]) || $p[$k] === '');
+            if ($ok) {
                 $all[$p['slug']] = $p;
+            } elseif (!empty($p['slug']) && empty($p['hidden'])) {
+                error_log('Product ' . basename(dirname($file)) . ': product.json is invalid or incomplete, page hidden');
             }
         }
         uasort($all, fn($a, $b) => strcasecmp($a['name'], $b['name']));
