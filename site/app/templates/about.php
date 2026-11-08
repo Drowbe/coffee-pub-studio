@@ -55,7 +55,8 @@
     <section id="ai">
       <h2 style="margin-top:80px;font-size:1.9rem">AI assistance and the illusion of good code</h2>
       <p class="muted" style="margin:12px 0 0">This is how I build the Foundry VTT modules. The people who play with them often ask, so here it is plainly.</p>
-      <div style="max-width:46rem;margin-top:20px">
+      <div class="ai-split">
+      <div class="ai-text">
         <p>I started writing Foundry modules for use at my own table back in 2020. There were already a ton of amazing modules out there, but they either didn't quite do what I wanted or didn't deliver the kind of user experience I was looking for.</p>
         <p>I've been a design leader for more than 20 years, but I spent the first half of my career as a developer, so building my own modules seemed like a fun way to kill some time. I'm a pretty good designer. I'm a decent developer. But, over time, my hand-written code and hacks got a little messy (and memory-leaky, and a little buggy. Feels good to say it out loud.).</p>
         <p>Today, the Coffee Pub suite of modules is developed with AI assistance, primarily Claude and Cursor, for documentation, refactoring, debugging, and other development work. Every change is reviewed and committed by me, and nothing reaches a release that I haven't crawled and run at my own table. I can't seem to give up my IDE. The UX design, architecture, and ideas still come from my own fever dreams and chronic lack of sleep.</p>
@@ -63,6 +64,22 @@
         <p>Those checks are there because AI-assisted development can move very quickly, and without oversight, engagement, and planning, it can also go confidently off the rails and deliver the illusion of good code. The AI helps me build faster. It doesn't decide what gets built, its architecture, or how it should work. You can blame this human for that.</p>
         <p>If the idea of AI-assisted development keeps you up at night or just isn't your jam, no worries at all. I get it. You do you.</p>
       </div>
+      <div class="ha single ai-art" role="img" aria-label="A code window being checked line by line with a magnifying glass, a check mark, a spark and a cup of coffee">
+        <svg class="scene" viewBox="0 0 600 500" aria-hidden="true" focusable="false">
+          <rect x="40" y="60" width="520" height="400" rx="36" fill="var(--sand)"/>
+          <rect x="70" y="110" width="360" height="270" rx="20" fill="var(--surface)" stroke="#14243B" stroke-width="3.5"/>
+          <path d="M70 150V130a20 20 0 0 1 20-20H410a20 20 0 0 1 20 20V150Z" fill="var(--accent)"/>
+          <circle cx="96" cy="130" r="7" fill="#fff"/><circle cx="118" cy="130" r="7" fill="#fff" opacity=".8"/><circle cx="140" cy="130" r="7" fill="#fff" opacity=".6"/>
+          <g fill="var(--line)"><rect x="96" y="176" width="150" height="12" rx="6"/><rect x="120" y="202" width="210" height="12" rx="6"/><rect x="120" y="228" width="120" height="12" rx="6"/><rect x="96" y="280" width="180" height="12" rx="6"/><rect x="120" y="306" width="140" height="12" rx="6"/><rect x="96" y="332" width="90" height="12" rx="6"/></g>
+          <path d="M120 254 q12 -14 24 0 t24 0 t24 0 t24 0 t24 0 t24 0" fill="none" stroke="var(--coral)" stroke-width="5" stroke-linecap="round" class="wave"/>
+          <g class="cur c1"><circle cx="0" cy="0" r="26" fill="#fff" fill-opacity=".55" stroke="#14243B" stroke-width="5"/><path d="M19 19 L44 44" stroke="#14243B" stroke-width="8" stroke-linecap="round"/></g>
+          <g transform="translate(440 120)"><g class="target"><circle r="36" fill="var(--coral)" stroke="#14243B" stroke-width="3.5"/><path d="M-16 2 l12 13 l22 -26" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+          <g class="twinkle" transform="translate(500 210)"><path d="M0 -34 L9 -9 L34 0 L9 9 L0 34 L-9 9 L-34 0 L-9 -9Z" fill="#F6B35B" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/></g>
+          <g class="twinkle t2" transform="translate(78 84)"><path d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4Z" fill="#fff"/></g>
+          <g transform="translate(470 330)"><g class="pin"><path d="M0 -28c-8 -12 8 -14 0 -30M18 -28c-8 -12 8 -14 0 -30" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".85"/><path d="M-30 -14H48V30a30 30 0 0 1-30 30H0a30 30 0 0 1-30-30Z" fill="var(--surface)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/><path d="M48 0h12a14 14 0 0 1 0 28H46" fill="none" stroke="#14243B" stroke-width="3.5" stroke-linecap="round"/><rect x="-22" y="-8" width="62" height="10" rx="5" fill="var(--coral)" opacity=".8"/></g></g>
+        </svg>
+      </div>
+    </div>
     </section>
 
     <h2 style="margin-top:80px;font-size:1.9rem">Good to know</h2>

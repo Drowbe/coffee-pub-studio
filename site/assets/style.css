@@ -385,3 +385,8 @@ a.feature:hover h3 { text-decoration: underline; }
 .ha .bulb .rays { transform-box: fill-box; transform-origin: center; }
 .card h3.hm { display: flex; align-items: center; gap: 12px; }
 .card h3.hm .mk { width: 40px; height: 40px; flex: none; }
+/* About: AI section with an illustration beside the text */
+.ai-split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 20px; }
+.ai-text { max-width: 46rem; }
+.ai-art { max-width: 460px; margin-top: 8px; position: sticky; top: 96px; }
+@media (max-width: 900px) { .ai-split { grid-template-columns: 1fr; gap: 28px; } .ai-art { position: static; max-width: 380px; } }
