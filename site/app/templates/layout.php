@@ -40,22 +40,37 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
 <main id="main"><?= $content ?></main>
 <footer class="site">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="<?= h($s['name']) ?>"><?= mark_img('studio', 32) ?><span class="wm"><b>Coffee Pub</b> <i><?= h($studio) ?></i></span></a>
-    <div class="row">
-      <div>&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?></div>
-      <nav aria-label="Footer">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <a class="brand" href="/" aria-label="<?= h($s['name']) ?>"><?= mark_img('studio', 32) ?><span class="wm"><b>Coffee Pub</b> <i><?= h($studio) ?></i></span></a>
+        <p>Boutique design and development. I build apps and Foundry VTT modules for people who plan trips, stream and run tabletop games.</p>
+      </div>
+      <nav aria-label="Products">
+        <h2>Products</h2>
+        <a href="/products/chameleon">Coffee Pub Chameleon</a>
+        <a href="/products/showrunner">Showrunner</a>
+        <a href="/products#modules">Foundry VTT modules</a>
+        <a href="/products">All products</a>
+      </nav>
+      <nav aria-label="Studio">
+        <h2>Studio</h2>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
+        <a href="/support">Get help</a>
         <a href="/design-system">Design system</a>
-        <a href="https://willhavebeen.com">willhavebeen.com</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/terms.html">Terms</a>
-        <?php if (!empty($s['links']['patreon'])): ?><a href="<?= h($s['links']['patreon']) ?>">Patreon</a><?php endif; ?>
-        <?php if (!empty($s['links']['github'])): ?><a href="<?= h($s['links']['github']) ?>">GitHub</a><?php endif; ?>
-        <?php if (!empty($s['links']['youtube'])): ?><a href="<?= h($s['links']['youtube']) ?>">YouTube</a><?php endif; ?>
+      </nav>
+      <nav aria-label="Elsewhere">
+        <h2>Elsewhere</h2>
+        <a href="https://willhavebeen.com" target="_blank" rel="noopener">willhavebeen.com</a>
+        <?php if (!empty($s['links']['patreon'])): ?><a href="<?= h($s['links']['patreon']) ?>" target="_blank" rel="noopener">Patreon</a><?php endif; ?>
+        <?php if (!empty($s['links']['github'])): ?><a href="<?= h($s['links']['github']) ?>" target="_blank" rel="noopener">GitHub</a><?php endif; ?>
+        <?php if (!empty($s['links']['youtube'])): ?><a href="<?= h($s['links']['youtube']) ?>" target="_blank" rel="noopener">YouTube</a><?php endif; ?>
       </nav>
     </div>
-    <div class="buildnote"><?= h($s["buildNote"]) ?></div>
+    <div class="foot-base">
+      <div class="buildnote"><?= h($s["buildNote"]) ?></div>
+      <div class="legal">&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a></div>
+    </div>
   </div>
 </footer>
 <script>
