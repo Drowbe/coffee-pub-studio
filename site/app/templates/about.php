@@ -69,8 +69,7 @@
         <div class="actions" style="margin:20px 0 0">
           <a class="btn" href="<?= h($pf) ?>" target="_blank" rel="noopener">Visit willhavebeen.com</a>
         </div>
-        <p style="margin:18px 0 0">Or go straight to <a href="<?= h($pf) ?>/about-me/" target="_blank" rel="noopener">about me</a> or <a href="<?= h($pf) ?>/case-studies/" target="_blank" rel="noopener">case studies</a>.</p>
-        <p class="muted" style="margin:14px 0 0"><strong>Don't panic.</strong> These links open willhavebeen.com, my design portfolio, in a new tab. It looks different because it is a different site.</p>
+        <p style="margin:18px 0 0">Or go straight to <a href="<?= h($pf) ?>/about-me/" target="_blank" rel="noopener">about me</a>, <a href="<?= h($pf) ?>/case-studies/" target="_blank" rel="noopener">case studies</a>, or <a href="<?= h($pf) ?>/dont-panic/" target="_blank" rel="noopener">Don't Panic</a>, my articles on pixels, pathways and everything.</p>
       </div>
     </div>
 
