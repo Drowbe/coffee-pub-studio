@@ -66,7 +66,6 @@ $featured = array_filter($modules, fn($p) => !empty($p['featured']));
         <a class="btn" href="/products/chameleon"><?= h($flag["cta"] ?? "See Chameleon") ?></a>
         <a class="btn ghost" href="<?= h($flag['external']) ?>">See it in action</a>
       </div>
-      <p class="muted" style="margin:14px 0 0"><?= h($flag['ctaNote']) ?></p>
     </div>
     <a class="shot" href="/products/chameleon" aria-label="About Chameleon">
       <?php $only = 1; include APP_DIR . "/templates/_hero_art.php"; unset($only); ?>
