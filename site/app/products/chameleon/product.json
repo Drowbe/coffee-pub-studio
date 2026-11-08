@@ -271,6 +271,7 @@
     {
       "slug": "mentoring",
       "title": "Mentoring",
+      "image": "/assets/products/chameleon/mentoring.svg",
       "eyebrow": "For mentoring",
       "summary": "Run a mentoring group: meet for each session, vote on what to cover next, and keep the notes where everyone can find them.",
       "lead": "Run a mentoring group: meet for each session, vote on what to cover next, and keep the notes where everyone can find them.",
@@ -305,6 +306,7 @@
     {
       "slug": "real-estate",
       "title": "Real estate",
+      "image": "/assets/products/chameleon/real-estate.svg",
       "eyebrow": "For real estate",
       "summary": "Buyers, sellers, agents and contractors in one space: talk it through, keep the dates, the places and the costs together, and tick off the paperwork.",
       "lead": "Buyers, sellers, agents and contractors in one space: talk it through, keep the dates, the places and the costs together, and tick off the paperwork.",
@@ -347,6 +349,7 @@
     {
       "slug": "anything",
       "title": "Anything you can dream up",
+      "image": "/assets/products/chameleon/anything.svg",
       "eyebrow": "For anything",
       "summary": "A space is a place to meet, whatever the group is for. Name things the way your group does, turn on the modules it needs, and see what you build.",
       "lead": "A space is a place to meet, whatever the group is for. Name things the way your group does, turn on the modules it needs, and see what you build.",
