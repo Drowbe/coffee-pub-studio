@@ -8,7 +8,7 @@ $mk = $p['mark'] ?? null;
   <div class="phead">
     <div class="eyebrow pm">
       <?php if ($mk): ?><?= mark_img($mk, 56, 'mk pmk') ?><?php endif; ?>
-      <span><?= h($a['eyebrow'] ?? $p['short']) ?><?= !empty($a['comingSoon']) ? ' &middot; Coming soon' : '' ?></span>
+      <span><?= h($a['eyebrow'] ?? $p['short']) ?><?= !empty($a['comingSoon']) ? ' &middot; ' . h($p['statusLabel'] ?? 'Coming soon') : '' ?></span>
     </div>
     <h1><?= h($a['title']) ?></h1>
     <?php if (!empty($a['lead'])): ?><p class="lead"><?= h($a['lead']) ?></p><?php endif; ?>
@@ -38,7 +38,7 @@ $mk = $p['mark'] ?? null;
       <?php foreach ($others as $o): ?>
         <a class="more-tile" href="/products/<?= h($p['slug']) ?>/<?= h($o['slug']) ?>">
           <?php if (!empty($o['image'])): ?><img src="<?= h($o['image']) ?>" alt="" width="56" height="56" loading="lazy"><?php elseif ($mk): ?><?= mark_img($mk, 56, 'mk') ?><?php endif; ?>
-          <b><?= h($o['title']) ?></b><?php if (!empty($o['comingSoon'])): ?><span class="soon-tag">Coming soon</span><?php endif; ?>
+          <b><?= h($o['title']) ?></b><?php if (!empty($o['comingSoon'])): ?><span class="soon-tag"><?= h($p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
           <span><?= h($o['blurb'] ?? '') ?></span>
         </a>
       <?php endforeach; ?>

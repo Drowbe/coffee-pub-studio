@@ -413,6 +413,7 @@
   "github": "https://github.com/Drowbe/coffee-pub-chameleon",
   "wiki": "https://github.com/Drowbe/coffee-pub-chameleon/wiki",
   "comingSoon": true,
+  "statusLabel": "In private beta",
   "plansTitle": "Plans",
   "plansLead": "An environment plus the modules you choose. Each plan says how many people, how much storage, how much of the assistant and how many calls at once it includes.",
   "plans": [
@@ -425,7 +426,7 @@
         "calls without a cap",
         "every module"
       ],
-      "note": "Coming soon"
+      "note": "In private beta"
     },
     {
       "name": "Basic",
@@ -436,7 +437,7 @@
         "calls without a cap",
         "every module"
       ],
-      "note": "Coming soon"
+      "note": "In private beta"
     },
     {
       "name": "Unlimited",
@@ -447,7 +448,7 @@
         "calls without a cap",
         "every module"
       ],
-      "note": "Coming soon"
+      "note": "In private beta"
     }
   ],
   "featuresTitle": "The modules",

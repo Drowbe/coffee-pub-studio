@@ -15,7 +15,7 @@
       <span class="badge"><?= h($p['category']) ?></span>
       <?php if (!empty($p['hub'])): ?><span class="badge hub">Flagship</span><?php endif; ?>
       <?php if (($p['status'] ?? '') === 'early'): ?><span class="badge early">Early</span><?php endif; ?>
-      <?php if (!empty($p['comingSoon'])): ?><span class="badge soon">Coming soon</span><?php endif; ?>
+      <?php if (!empty($p['comingSoon'])): ?><span class="badge soon"><?= h($p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
     </div>
   </div>
 </a>
