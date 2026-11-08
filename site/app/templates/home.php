@@ -96,29 +96,23 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
   </div>
 </section>
 
-<?php $bs = $products['blacksmith'] ?? null; if ($bs && !empty($bs['platform'])): $pl = $bs['platform']; ?>
-<section id="platform">
-  <div class="band">
+<?php $bs = $products['blacksmith'] ?? null; $pl = $bs['platform'] ?? null; ?>
+<section id="modules">
+  <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>For tabletop games</span></div>
+  <h2>Run the game</h2>
+  <p class="lead"><?= count($modules) ?> Foundry VTT modules that each solve dozens of small problems at the table, from a core toolbar to character and combat tools, journals, maps, audio and crafting. They share one look and one engine.</p>
+  <?php if ($bs && $pl): ?>
+  <div class="engine">
     <div>
-      <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>The platform</span></div>
-      <h2>Blacksmith, the engine under the suite</h2>
-      <p class="lead">One flagship module does the heavy lifting for the rest: hook management, sockets, windows, tools, shared data and design. Everything else is an experience built on top.</p>
-      <div class="actions">
-        <a class="btn" href="/products/blacksmith">See Blacksmith</a>
-        <a class="btn ghost" href="<?= h($bs['wiki']) ?>/api-core">Read the API docs</a>
-      </div>
+      <h3><a href="/products/blacksmith">Blacksmith</a>, the engine under the suite</h3>
+      <p>One module does the heavy lifting for the rest: hook management, sockets, windows, tools, shared data and design. Everything else is an experience built on top.</p>
+      <p style="margin:12px 0 0"><a href="<?= h($bs['wiki']) ?>/api-core">Read the API docs</a></p>
     </div>
     <div class="stats">
       <?php foreach ($pl['stats'] as $st): ?><div class="stat"><b><?= h($st['n']) ?></b><span><?= h($st['l']) ?></span></div><?php endforeach; ?>
     </div>
   </div>
-</section>
-<?php endif; ?>
-
-<section id="modules">
-  <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>For tabletop games</span></div>
-  <h2>Run the game</h2>
-  <p class="lead"><?= count($modules) ?> Foundry VTT modules that each solve dozens of small problems at the table, from a core toolbar to character and combat tools, journals, maps, audio and crafting. They share one look and one hub, Coffee Pub Blacksmith.</p>
+  <?php endif; ?>
   <div class="grid">
     <?php foreach ($featured as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
   </div>
