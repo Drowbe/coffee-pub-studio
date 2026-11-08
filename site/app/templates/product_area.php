@@ -4,6 +4,7 @@ $mk = $p['mark'] ?? null;
 ?>
 <div class="wrap">
   <div class="crumbs"><a href="/products">Products</a> / <a href="/products/<?= h($p['slug']) ?>"><?= h($p['short']) ?></a> / <?= h($a['title']) ?></div>
+  <?php $art = (int)($a['art'] ?? 0); if ($art >= 1 && $art <= 3): ?><div class="phead-split"><?php endif; ?>
   <div class="phead">
     <div class="eyebrow pm">
       <?php if ($mk): ?><?= mark_img($mk, 56, 'mk pmk') ?><?php endif; ?>
@@ -16,6 +17,10 @@ $mk = $p['mark'] ?? null;
       <a class="btn ghost" href="/products/<?= h($p['slug']) ?>">Back to <?= h($p['short']) ?></a>
     </div>
   </div>
+  <?php if ($art >= 1 && $art <= 3): ?>
+    <div class="phead-art"><?php $only = $art; include __DIR__ . '/_hero_art.php'; unset($only); ?></div>
+  </div>
+  <?php endif; ?>
   <?php $sections = $a['sections'] ?? []; include __DIR__ . '/_sections.php'; ?>
   <?php if (!empty($a['features'])): ?>
   <section>

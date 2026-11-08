@@ -346,3 +346,9 @@ a.feature:hover h3 { text-decoration: underline; }
 .callout .callout-img { width: 96px; height: 96px; object-fit: contain; flex: none; }
 @media (max-width: 640px) { .callout { flex-direction: column; align-items: flex-start; padding: 28px; } }
 .feature .feat-img { width: 48px; height: 48px; object-fit: contain; display: block; margin-bottom: 8px; }
+
+/* Product / area header with the animated hero illustration beside the text */
+.phead-split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+.phead-split .phead { max-width: none; }
+.phead-art { min-width: 0; }
+@media (max-width: 900px) { .phead-split { grid-template-columns: 1fr; gap: 24px; } }

@@ -1,6 +1,7 @@
 {
   "slug": "chameleon",
   "mark": "chameleon",
+  "heroArt": true,
   "name": "Coffee Pub Chameleon",
   "short": "Chameleon",
   "repo": "Drowbe/coffee-pub-chameleon",
@@ -20,6 +21,7 @@
   "areas": [
     {
       "slug": "travel",
+      "art": 1,
       "title": "Trips",
       "summary": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end.",
       "image": "/assets/products/chameleon/suitcase.svg",
@@ -77,6 +79,7 @@
     },
     {
       "slug": "games",
+      "art": 2,
       "title": "Game nights",
       "summary": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk.",
       "image": "/assets/products/chameleon/dice.svg",
@@ -121,6 +124,7 @@
     },
     {
       "slug": "projects",
+      "art": 3,
       "title": "Projects and mentoring",
       "summary": "Plan a product or design project with the people on it, and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes.",
       "image": "/assets/products/chameleon/clipboard.svg",

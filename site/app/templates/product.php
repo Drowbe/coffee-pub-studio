@@ -11,6 +11,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
 <div class="wrap">
   <div class="crumbs"><a href="/products">Products</a> / <?= h($p['short']) ?></div>
 
+  <?php $art = !empty($p['heroArt']); if ($art): ?><div class="phead-split"><?php endif; ?>
   <div class="phead">
     <?php $mk = $p['mark'] ?? ($isApp ? null : 'gaming'); ?>
     <div class="eyebrow pm">
@@ -57,7 +58,10 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php endif; ?>
     </div>
   </div>
-
+  <?php if ($art): ?>
+    <div class="phead-art"><?php unset($only); include __DIR__ . '/_hero_art.php'; ?></div>
+  </div>
+  <?php else: ?>
   <div class="frame<?= empty($p['hero']) ? ' art-frame' : '' ?>">
     <div class="bar"><i></i><i></i><i></i></div>
     <?php if (!empty($p['hero'])): ?>
@@ -67,6 +71,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <div class="art-note">Screenshot coming soon</div>
     <?php endif; ?>
   </div>
+  <?php endif; ?>
 
   <?php if ($features): ?>
   <section>
