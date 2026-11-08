@@ -348,7 +348,7 @@
     },
     {
       "slug": "anything",
-      "title": "Anything you can dream up",
+      "title": "Anything imaginable",
       "image": "/assets/products/chameleon/anything.svg",
       "eyebrow": "For anything",
       "summary": "A space is a place to meet, whatever the group is for. Name things the way your group does, turn on the modules it needs, and see what you build.",
@@ -395,7 +395,7 @@
     "text": "No ads, and nobody selling what you say. Your people, plans and files live in your environment and are not shared with anyone else's. You can run it on your own server if you would rather.",
     "image": "/assets/products/chameleon/lock.svg",
     "link": {
-      "label": "Self-host it",
+      "label": "Self-hosting Coming Soon",
       "url": "https://github.com/Drowbe/coffee-pub-chameleon"
     }
   },

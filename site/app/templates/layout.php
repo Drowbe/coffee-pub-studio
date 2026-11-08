@@ -55,7 +55,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
         <?php if (!empty($s['links']['youtube'])): ?><a href="<?= h($s['links']['youtube']) ?>">YouTube</a><?php endif; ?>
       </nav>
     </div>
-    <div><?= h($s['buildNote']) ?></div>
+    <div class="buildnote"><?= h($s["buildNote"]) ?></div>
   </div>
 </footer>
 <script>

@@ -423,3 +423,4 @@ a.feature:hover h3 { text-decoration: underline; }
 .show-shot { margin: 0; }
 .show-shot img { display: block; width: 100%; height: auto; max-height: 620px; object-fit: contain; margin: 0 auto; border-radius: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--band); }
 @media (max-width: 900px) { .show-row { grid-template-columns: 1fr; gap: 18px; } .show-row:nth-child(even) .show-text { order: 0; } }
+footer.site .buildnote { text-align: center; }
