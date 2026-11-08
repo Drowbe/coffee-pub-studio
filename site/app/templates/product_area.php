@@ -33,10 +33,14 @@ $mk = $p['mark'] ?? null;
   <?php endif; ?>
   <?php $others = array_filter($p['areas'] ?? [], fn($o) => $o['slug'] !== $a['slug']); if ($others): ?>
   <section>
-    <h2>More about <?= h($p['short']) ?></h2>
-    <div class="features">
+    <h2>Other ways to use <?= h($p['short']) ?></h2>
+    <div class="more-row">
       <?php foreach ($others as $o): ?>
-        <a class="feature" href="/products/<?= h($p['slug']) ?>/<?= h($o['slug']) ?>"><h3><?= h($o['title']) ?></h3><p><?= h($o['summary'] ?? '') ?></p></a>
+        <a class="more-tile" href="/products/<?= h($p['slug']) ?>/<?= h($o['slug']) ?>">
+          <?php if (!empty($o['image'])): ?><img src="<?= h($o['image']) ?>" alt="" width="56" height="56" loading="lazy"><?php elseif ($mk): ?><?= mark_img($mk, 56, 'mk') ?><?php endif; ?>
+          <b><?= h($o['title']) ?></b>
+          <span><?= h($o['blurb'] ?? '') ?></span>
+        </a>
       <?php endforeach; ?>
     </div>
   </section>

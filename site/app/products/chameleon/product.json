@@ -154,7 +154,8 @@
           "title": "Stream",
           "text": "Every person as an OBS source, on a clear background."
         }
-      ]
+      ],
+      "blurb": "Plans, places and the budget"
     },
     {
       "slug": "games",
@@ -221,7 +222,8 @@
           "title": "Stream",
           "text": "Every player as an OBS source, on a clear background."
         }
-      ]
+      ],
+      "blurb": "Chat, calls and streams"
     },
     {
       "slug": "projects",
@@ -256,7 +258,8 @@
           "title": "Polls and research",
           "text": "Polls and research your group can find again."
         }
-      ]
+      ],
+      "blurb": "Tasks, dates and research"
     },
     {
       "slug": "mentoring",
@@ -287,7 +290,8 @@
           "text": "The dates of each session, in one place."
         }
       ],
-      "sections": []
+      "sections": [],
+      "blurb": "Sessions, polls and notes"
     },
     {
       "slug": "real-estate",
@@ -326,7 +330,8 @@
           "text": "Decide together, and keep notes and listings your group can find again."
         }
       ],
-      "sections": []
+      "sections": [],
+      "blurb": "Viewings, costs and paperwork"
     },
     {
       "slug": "anything",
@@ -349,7 +354,8 @@
           "text": "Plan, places, maps, calendar, to-do, polls, budget, research and stream: turn on what the group needs and leave the rest."
         }
       ],
-      "sections": []
+      "sections": [],
+      "blurb": "Make it your own"
     }
   ],
   "stepsTitle": "How it works",

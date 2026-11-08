@@ -361,3 +361,10 @@ a.feature:hover h3 { text-decoration: underline; }
 .areas-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 980px) { .areas-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .areas-grid { grid-template-columns: 1fr; } }
+/* other areas: one compact row of tiles */
+.more-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 24px; }
+.more-tile { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 20px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; text-decoration: none; color: var(--text); transition: transform .2s, box-shadow .2s; }
+.more-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.more-tile img { width: 56px; height: 56px; }
+.more-tile b { font-family: var(--serif); font-size: 1.05rem; }
+.more-tile span { color: var(--muted); font-size: .9rem; line-height: 1.4; }
