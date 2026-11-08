@@ -5,7 +5,7 @@
       <div class="about-hero-text">
     <div class="eyebrow">About the studio</div>
     <h1>Coffee Pub Studio is mostly me</h1>
-    <p class="lead">I'm Thomas Carroll, a design leader who cannot stop building things. The studio is where I take a problem all the way from the first idea to something people use, now and then alongside guest designers and developers who love solving problems as much as I do.</p>
+    <p class="lead">I'm <strong>Thomas Carroll</strong>, a design leader who cannot stop building things. The studio is where I take a problem all the way from the first idea to something people use, now and then alongside guest designers and developers who love solving problems as much as I do.</p>
     <div class="actions">
       <a class="btn" href="<?= h($pf) ?>">Visit willhavebeen.com</a>
       <a class="btn ghost" href="/products">Browse the products</a>
