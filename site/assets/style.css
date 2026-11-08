@@ -408,3 +408,8 @@ a.feature:hover h3 { text-decoration: underline; }
 .engine .stats { margin: 0; }
 @media (max-width: 900px) { .engine { grid-template-columns: 1fr; gap: 20px; padding: 22px; } }
 .engine .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* Gallery: show every screenshot whole, landscape or portrait, at one height */
+.gallery { grid-auto-columns: max-content; align-items: start; }
+.gallery img { display: block; width: auto; height: 400px; max-width: 86vw; aspect-ratio: auto; object-fit: contain; background: var(--band); }
+.gallery figcaption { width: 0; min-width: 100%; }
+@media (max-width: 620px) { .gallery img { height: 320px; } }

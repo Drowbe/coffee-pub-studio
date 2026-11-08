@@ -13,10 +13,10 @@
   "pitch": "A desktop app that gets your game, your players and your cues into OBS, and keeps them there. OBS still does the streaming and recording; Showrunner does the setup and the cueing.",
   "description": "A standalone macOS and Windows app that wraps any web page in a fixed-size window so OBS can capture it as its own source, keeps those sources cropped, pointed and in sync, and lets Foundry modules cue OBS actions.",
   "download": "https://github.com/Drowbe/coffee-pub-showrunner/releases",
-  "appVersion": "0.3.1",
+  "appVersion": "0.3.2",
   "downloads": [
-    {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.1/Coffee.Pub.Showrunner-0.3.1-universal.dmg"},
-    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.1/Coffee.Pub.Showrunner.Setup.0.3.1.exe", "note": "New, and not yet tested on real Windows hardware. Check the known issues page if a window misbehaves."}
+    {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.2/Coffee.Pub.Showrunner-0.3.2-universal.dmg"},
+    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.2/Coffee.Pub.Showrunner.Setup.0.3.2.exe", "note": "I tested Windows on real hardware with an earlier release and it worked. I have not yet re-checked 0.3.2 on Windows. Check the known issues page if a window misbehaves."}
   ],
   "platforms": "macOS and Windows",
   "fallbackVersion": null,
@@ -50,9 +50,17 @@
     {"title": "Getting started", "page": "userguide-getting-started"},
     {"title": "Windows, settings and the edge dock", "page": "userguide-settings"},
     {"title": "Windows and regions as OBS sources", "page": "userguide-obs"},
-    {"title": "Players in OBS", "page": "userguide-tavern"},
+    {"title": "Players in OBS", "page": "userguide-chameleon"},
     {"title": "Automations API", "page": "api-automations"},
     {"title": "Known issues", "page": "known-issues"}
   ],
-  "note": "Coffee Pub Showrunner is free to download and use for now. It is proprietary, not open source: you can read the source, but you can't copy, redistribute or resell it. A later version may be paid, but a version you have already downloaded stays usable. Windows support is new, and I have not yet confirmed it on a real Windows machine, so check the Known issues page if a window misbehaves. This is a personal project, so back up your OBS profile before trying anything new."
+  "gallery": [
+    {"url": "/assets/products/showrunner/showrunner-configuration.webp", "caption": "Connections, OBS controls and scenes: see everything Showrunner is connected to at a glance."},
+    {"url": "/assets/products/showrunner/showrunner-chameleon.webp", "caption": "Chameleon tab: every participant and character, with one click to add them to OBS."},
+    {"url": "/assets/products/showrunner/showrunner-window.webp", "caption": "Each app window is its own OBS source, with size, session group and launch options."},
+    {"url": "/assets/products/showrunner/showrunner-regions.webp", "caption": "Carve a window into regions, like a chat feed or stats panel, each its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-edge-dock.webp", "caption": "The edge dock: hover for REC and LIVE timers, the current scene and a thumbnail of every window."},
+    {"url": "/assets/products/showrunner/showrunner-automations-youtube.webp", "caption": "Automations server and YouTube upload, set up once and used by rule sets."}
+  ],
+  "note": "Coffee Pub Showrunner is free to download and use for now. It is proprietary, not open source: you can read the source, but you can't copy, redistribute or resell it. A later version may be paid, but a version you have already downloaded stays usable. I tested Windows on real hardware with an earlier release and it worked, but I have not yet re-checked 0.3.2 there, so check the Known issues page if a window misbehaves. This is a personal project, so back up your OBS profile before trying anything new."
 }
