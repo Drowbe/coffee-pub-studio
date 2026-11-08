@@ -3,21 +3,21 @@
   "mark": "chameleon",
   "name": "Coffee Pub Chameleon",
   "short": "Chameleon",
-  "repo": "Drowbe/coffee-pub-collaborator",
-  "branch": "master",
+  "repo": "Drowbe/coffee-pub-chameleon",
+  "branch": "main",
   "category": "Collaboration",
   "status": "stable",
   "flagship": true,
-  "nameIsPlaceholder": true,
-  "tagline": "Plan the trip. Talk it through. Keep it all in one place.",
-  "description": "A private place for your group to plan a trip together. Chat all week, call when it counts, and keep the plans, the places and the budget right beside it. Also works for game nights and projects.",
-  "highlights": [
-    "A chat for your group, with a call when you want one",
-    "Itinerary, places on a map, dates and budget in one space",
-    "Polls for the choices, and a budget for splitting the costs",
-    "Guest access with just a name, if the owner allows it",
-    "Also for game nights, with each player as an OBS source, and for projects",
-    "No ads, and your data stays in your own group environment"
+  "tagline": "One place for the whole group.",
+  "description": "A private place for your group. Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. A space can be a trip, a campaign or a project.",
+  "pitch": "Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. Yours, on your own address.",
+  "features": [
+    {"title": "A chat and a call for every space", "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."},
+    {"title": "Trips", "text": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end."},
+    {"title": "Game nights", "text": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk."},
+    {"title": "Projects and mentoring", "text": "Plan a product or design project with the people on it and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes."},
+    {"title": "The tools beside the chat", "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."},
+    {"title": "Yours, and private", "text": "No ads, and nobody selling what you say. Your people, plans and files live in your own environment and are not shared with anyone else's. Guests can come into a space with just a name, when you allow it. You can also run it on your own server."}
   ],
   "external": "https://chameleon.coffeepubstudio.com/",
   "cta": "See Chameleon",
@@ -25,8 +25,7 @@
   "system": [],
   "fallbackVersion": null,
   "hero": null,
-  "github": "https://github.com/Drowbe/coffee-pub-collaborator",
-  "wiki": "https://github.com/Drowbe/coffee-pub-collaborator/wiki",
-  "comingSoon": true,
-  "pitch": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget."
+  "github": "https://github.com/Drowbe/coffee-pub-chameleon",
+  "wiki": "https://github.com/Drowbe/coffee-pub-chameleon/wiki",
+  "comingSoon": true
 }

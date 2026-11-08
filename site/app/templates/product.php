@@ -39,7 +39,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php endif; ?>
     </div>
     <?php if (!empty($p['ctaNote'])): ?><p class="muted" style="margin:14px 0 0"><?= h($p['ctaNote']) ?></p><?php endif; ?>
-    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.coffeepubstudio.live</code>: your people, your spaces, your tools.</p><?php endif; ?>
+    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.collaborator.coffeepub.ai</code>: your people, your spaces, your tools.</p><?php endif; ?>
 
     <div class="facts">
       <?php if (!$isFlag): ?>
@@ -55,6 +55,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php else: ?>
         <div class="fact"><span>Runs</span><b>In your browser</b></div>
         <div class="fact"><span>Status</span><b>Coming soon</b></div>
+        <div class="fact"><span>Plans</span><b>Free and paid</b></div>
       <?php endif; ?>
     </div>
   </div>
@@ -83,6 +84,17 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
     </div>
   </section>
   <?php endif; ?>
+
+  <?php foreach (($p['sections'] ?? []) as $sec): if (empty($sec['title'])) continue; ?>
+  <section<?= !empty($sec['id']) && preg_match('/^[a-z0-9-]+$/', $sec['id']) ? ' id="' . h($sec['id']) . '"' : '' ?>>
+    <?php if (!empty($sec['eyebrow'])): ?><div class="eyebrow"><?= h($sec['eyebrow']) ?></div><?php endif; ?>
+    <h2><?= h($sec['title']) ?></h2>
+    <?php if (!empty($sec['text'])): ?><p class="lead"><?= h($sec['text']) ?></p><?php endif; ?>
+    <?php if (!empty($sec['points'])): ?>
+      <ul class="ticks"><?php foreach ($sec['points'] as $pt): ?><li><?= h($pt) ?></li><?php endforeach; ?></ul>
+    <?php endif; ?>
+  </section>
+  <?php endforeach; ?>
 
   <?php if (!empty($p['platform'])): $pl = $p['platform']; ?>
   <section id="developers">
