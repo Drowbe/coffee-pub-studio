@@ -39,7 +39,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php endif; ?>
     </div>
     <?php if (!empty($p['ctaNote'])): ?><p class="muted" style="margin:14px 0 0"><?= h($p['ctaNote']) ?></p><?php endif; ?>
-    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.collaborator.coffeepub.ai</code>: your people, your spaces, your tools.</p><?php endif; ?>
+    <?php if ($isFlag): ?><p class="muted" style="margin:10px 0 0">Your own environment at <code>yourname.coffeepubstudio.live</code>: your people, your spaces, your tools.</p><?php endif; ?>
 
     <div class="facts">
       <?php if (!$isFlag): ?>
@@ -55,7 +55,6 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php else: ?>
         <div class="fact"><span>Runs</span><b>In your browser</b></div>
         <div class="fact"><span>Status</span><b>Coming soon</b></div>
-        <div class="fact"><span>Plans</span><b>Free and paid</b></div>
       <?php endif; ?>
     </div>
   </div>
@@ -85,16 +84,27 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
   </section>
   <?php endif; ?>
 
-  <?php foreach (($p['sections'] ?? []) as $sec): if (empty($sec['title'])) continue; ?>
-  <section<?= !empty($sec['id']) && preg_match('/^[a-z0-9-]+$/', $sec['id']) ? ' id="' . h($sec['id']) . '"' : '' ?>>
-    <?php if (!empty($sec['eyebrow'])): ?><div class="eyebrow"><?= h($sec['eyebrow']) ?></div><?php endif; ?>
-    <h2><?= h($sec['title']) ?></h2>
-    <?php if (!empty($sec['text'])): ?><p class="lead"><?= h($sec['text']) ?></p><?php endif; ?>
-    <?php if (!empty($sec['points'])): ?>
-      <ul class="ticks"><?php foreach ($sec['points'] as $pt): ?><li><?= h($pt) ?></li><?php endforeach; ?></ul>
-    <?php endif; ?>
+  <?php $sections = $p['sections'] ?? []; include __DIR__ . '/_sections.php'; ?>
+
+  <?php if (!empty($p['areas'])): ?>
+  <section id="areas">
+    <h2><?= h($p['areasTitle'] ?? 'What it is for') ?></h2>
+    <?php if (!empty($p['areasLead'])): ?><p class="lead"><?= h($p['areasLead']) ?></p><?php endif; ?>
+    <div class="areas-grid">
+      <?php foreach ($p['areas'] as $ar): if (empty($ar['slug']) || empty($ar['title'])) continue; $href = '/products/' . $p['slug'] . '/' . $ar['slug']; ?>
+        <div class="area-card">
+          <?php if (!empty($ar['image'])): ?><img class="area-img" src="<?= h($ar['image']) ?>" alt="" width="72" height="72" loading="lazy"><?php endif; ?>
+          <h3><?= h($ar['title']) ?></h3>
+          <?php if (!empty($ar['summary'])): ?><p><?= h($ar['summary']) ?></p><?php endif; ?>
+          <?php if (!empty($ar['points'])): ?><ul class="ticks"><?php foreach ($ar['points'] as $pt): ?><li><?= h($pt) ?></li><?php endforeach; ?></ul><?php endif; ?>
+          <a class="more" href="<?= h($href) ?>">More about <?= h(strtolower($ar['title'])) ?></a>
+        </div>
+      <?php endforeach; ?>
+    </div>
   </section>
-  <?php endforeach; ?>
+  <?php endif; ?>
+
+  <?php if (!empty($p['callout']['title'])): $co = $p['callout']; include __DIR__ . '/_callout.php'; endif; ?>
 
   <?php if (!empty($p['platform'])): $pl = $p['platform']; ?>
   <section id="developers">
@@ -120,10 +130,11 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
 
   <?php if (!$isFlag && ($p['steps'] ?? [])): ?>
   <section>
-    <h2>Up and running in three steps</h2>
+    <h2><?= h($p['stepsTitle'] ?? 'Up and running in three steps') ?></h2>
     <div class="steps">
-      <?php foreach ($p['steps'] as $step): ?><div class="step"><p><?= h($step) ?></p></div><?php endforeach; ?>
+      <?php foreach ($p['steps'] as $step): ?><div class="step"><?php if (is_array($step)): ?><h3><?= h($step['title'] ?? '') ?></h3><p><?= h($step['text'] ?? '') ?></p><?php else: ?><p><?= h($step) ?></p><?php endif; ?></div><?php endforeach; ?>
     </div>
+    <?php if (!empty($p['stepsNote'])): ?><p class="lead" style="margin-top:24px"><?= h($p['stepsNote']) ?></p><?php endif; ?>
   </section>
   <?php endif; ?>
 

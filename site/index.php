@@ -15,8 +15,13 @@ switch (true) {
     case $path === '/sitemap.xml':
         header('Content-Type: application/xml; charset=utf-8');
         $urls = ['/', '/products', '/about', '/support', '/contact', '/design-system', '/privacy.html', '/terms.html'];
-        foreach (products() as $slug => $_) {
+        foreach (products() as $slug => $p_) {
             $urls[] = '/products/' . $slug;
+            foreach (($p_['areas'] ?? []) as $ar_) {
+                if (!empty($ar_['slug'])) {
+                    $urls[] = '/products/' . $slug . '/' . $ar_['slug'];
+                }
+            }
         }
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
         foreach ($urls as $u) {
@@ -35,6 +40,23 @@ switch (true) {
 
     case $path === '/products/collaborator':
         header('Location: /products/chameleon', true, 301);
+        break;
+
+    case preg_match('#^/products/([a-z0-9-]+)/([a-z0-9-]+)$#', $path, $m) === 1:
+        // A deeper "area" page of a product, listed under "areas" in its product.json, in the shared layout.
+        $p = product($m[1]);
+        $a = null;
+        foreach (($p['areas'] ?? []) as $cand) {
+            if (($cand['slug'] ?? '') === $m[2] && !empty($cand['title'])) {
+                $a = $cand;
+                break;
+            }
+        }
+        if ($p === null || $a === null) {
+            page('404', ['title' => 'Not found'], 404);
+            break;
+        }
+        page('product_area', ['title' => $a['title'] . ' · ' . $p['short'], 'desc' => $a['lead'] ?? $p['tagline'], 'p' => $p, 'a' => $a]);
         break;
 
     case preg_match('#^/products/([a-z0-9-]+)$#', $path, $m) === 1:

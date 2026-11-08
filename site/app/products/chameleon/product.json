@@ -12,12 +12,98 @@
   "description": "A private place for your group. Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. A space can be a trip, a campaign or a project.",
   "pitch": "Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. Yours, on your own address.",
   "features": [
-    {"title": "A chat and a call for every space", "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."},
-    {"title": "Trips", "text": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end."},
-    {"title": "Game nights", "text": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk."},
-    {"title": "Projects and mentoring", "text": "Plan a product or design project with the people on it and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes."},
-    {"title": "The tools beside the chat", "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."},
-    {"title": "Yours, and private", "text": "No ads, and nobody selling what you say. Your people, plans and files live in your own environment and are not shared with anyone else's. Guests can come into a space with just a name, when you allow it. You can also run it on your own server."}
+    {
+      "title": "A chat and a call for every space",
+      "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."
+    },
+    {
+      "title": "Trips",
+      "text": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end."
+    },
+    {
+      "title": "Game nights",
+      "text": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk."
+    },
+    {
+      "title": "Projects and mentoring",
+      "text": "Plan a product or design project with the people on it and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes."
+    },
+    {
+      "title": "The tools beside the chat",
+      "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."
+    },
+    {
+      "title": "Yours, and private",
+      "text": "No ads, and nobody selling what you say. Your people, plans and files live in your own environment and are not shared with anyone else's. Guests can come into a space with just a name, when you allow it. You can also run it on your own server."
+    }
+  ],
+  "sections": [
+    {
+      "id": "travel",
+      "eyebrow": "For trips",
+      "title": "Plan the trip. Talk it through. Keep it all in one place.",
+      "text": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget. One address for your people, and nobody else's.",
+      "points": [
+        "A chat, and a call when you want one. Chat for the whole trip, any day of the week. When talking is not enough, start a call with voice and video. Step into a side conversation and come back. Pop the call out into its own window. The chat is there whether or not you are on the call.",
+        "An itinerary everyone can see. In a trip, the Planner is called the Itinerary. It lays the trip out day by day: what you know, what your options are, what you have decided. Flights, stays, stops, ideas between days, and the cost of each.",
+        "Money without the awkward bit. Costs planned and paid, a target, and who owes whom. Add a cost from the itinerary and it is counted once.",
+        "Dates and to-dos, together. One calendar for the group, a month, a week or a list, with a to-do list beside it. Give a task a day and it lands on the calendar.",
+        "Decide, then move on. Ask the group: pick one, pick any, suggest another option. The result can carry straight onto the itinerary.",
+        "Itinerary: The trip day by day, with what it costs.",
+        "Places: The places that matter, with an address, a position and a note.",
+        "Maps: Everything with a position on one map, with regions kept on the server for when you are offline.",
+        "Research: Notes, links and photos, tagged and shared.",
+        "Calendar: The group's dates, with the events of every trip you are on.",
+        "Budget: What you spend, what you planned, who owes whom.",
+        "Polls: Pick one, pick any, or suggest another option.",
+        "To-do: Tasks with due dates, linked to what they are about.",
+        "Stream: Every person as an OBS source, on a clear background.",
+        "Each of these is a module. It can sit beside the chat, float over it or open in its own window. You can turn on more, such as the Assistant, which answers questions about anything the group holds.",
+        "In your pocket, too. The same screens fit a phone, so the plan is there when you are in the street."
+      ]
+    },
+    {
+      "id": "games",
+      "eyebrow": "For games",
+      "title": "Run the campaign. Talk it through. Keep it all in one place.",
+      "text": "A chat for your group, a call when you want one, and the tools beside them: the sessions, the quests, the lore and the polls. One address for your players, and nobody else's.",
+      "points": [
+        "A chat, and a call when you want one. Chat for the whole campaign, any day of the week. When talking is not enough, start a call with voice and video. Take a few players into a whisper and come back. Pop the call out into its own window. The chat is there whether or not you are on the call. The Common room is where everyone in the group meets, whichever campaign they are in.",
+        "A timeline everyone can see. The Campaign planner lays the campaign out on a timeline, day by day. The recap of last session sits on its day, where the next game master or player will look for it.",
+        "Every player on stream. Each player is an OBS source on a clear background. Show their video, or a Character picture that stands in for them. Put your players on a stream, or over a map, with no editing.",
+        "Sessions: The Calendar: when you next play, with the dates of every campaign you are in.",
+        "Campaign planner: The campaign on a timeline, day by day.",
+        "Quests: Tasks with due dates, linked to what they are about.",
+        "Lore: Notes, links and pictures, tagged and searchable. Once the game master sets up the AI service, you can ask it about them.",
+        "Polls: Pick one, pick any, or suggest another option.",
+        "Stream: Every player as an OBS source, on a clear background.",
+        "Each of these is a module. It can sit beside the chat, float over it or open in its own window. You can turn on more, such as Places and Maps, for the world your players move through.",
+        "In your pocket, too. The same screens fit a phone, so the campaign is there when you are away from the table."
+      ]
+    },
+    {
+      "id": "projects",
+      "eyebrow": "For projects and mentoring",
+      "title": "Talk the problem through",
+      "text": "Plan a product or design project with the people on it, and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes.",
+      "points": [
+        "Chat, and a call for working things out.",
+        "To-do, the plan and a calendar for the steps and dates.",
+        "Polls and research your group can find again.",
+        "Or anything else your group does together."
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "eyebrow": "How it works",
+      "title": "Get an environment, make spaces, share a link",
+      "text": "The owner sets the name, the look, the people, the spaces and the modules. I run the servers, the call service, the updates and the backups. Or run the whole thing yourself: the same software can be self-hosted.",
+      "points": [
+        "Get an environment: its own address, its own sign-in, its own people. Nothing in it is shared with anyone else's.",
+        "Make spaces in it. A space is a place to meet: a chat, a call when you want one, and the modules you turn on for it. A family might have one, a company one per team, a game night one per campaign.",
+        "Share a link. Members sign in. Guests can come into a space with just a name, when you allow it."
+      ]
+    }
   ],
   "external": "https://chameleon.coffeepubstudio.com/",
   "cta": "See Chameleon",

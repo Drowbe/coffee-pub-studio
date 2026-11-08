@@ -18,7 +18,7 @@
     <p class="muted">Read the <a href="https://github.com/Drowbe/coffee-pub-showrunner/wiki">documentation</a> and its <a href="https://github.com/Drowbe/coffee-pub-showrunner/wiki/known-issues">Known issues</a>, or <a href="https://github.com/Drowbe/coffee-pub-showrunner/issues">report an issue</a>.</p>
 
     <h2 style="margin-top:48px;font-size:1.5rem">Chameleon</h2>
-    <p class="muted">Account and environment questions are handled on <a href="https://collaborator.coffeepub.ai/">collaborator.coffeepub.ai</a>. For anything else, use the <a href="/contact">contact page</a>.</p>
+    <p class="muted">Account and environment questions are handled on <a href="https://chameleon.coffeepubstudio.com/">chameleon.coffeepubstudio.com</a>. For anything else, use the <a href="/contact">contact page</a>.</p>
 
     <div class="band" style="margin-top:48px">
       <div>
