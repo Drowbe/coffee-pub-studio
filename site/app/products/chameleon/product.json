@@ -60,6 +60,11 @@
       "image": "/assets/products/chameleon/poll.svg"
     },
     {
+      "title": "Whiteboard",
+      "text": "A shared canvas the whole group can draw, sketch and plan on together, live.",
+      "image": "/assets/products/chameleon/whiteboard.svg"
+    },
+    {
       "title": "To-do",
       "text": "Tasks with due dates, linked to what they are about.",
       "image": "/assets/products/chameleon/clipboard.svg"
