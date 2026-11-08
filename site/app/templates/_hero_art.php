@@ -209,6 +209,35 @@ $only = $only ?? null;
     <?= $call ?>
   </svg>
 
+  <?php endif; if ($only === 7): ?>
+  <!-- Scene 7: Showrunner (a game window captured into OBS, players as sources) -->
+  <svg class="scene s7" viewBox="0 0 600 500" aria-hidden="true" focusable="false">
+    <rect x="40" y="70" width="490" height="390" rx="34" fill="var(--sand)"/>
+    <rect x="56" y="86" width="458" height="358" rx="24" fill="var(--accent-soft)"/>
+    <rect x="80" y="120" width="310" height="220" rx="18" fill="#14243B"/>
+    <rect x="92" y="132" width="286" height="192" rx="9" fill="#213B5E"/>
+    <rect x="108" y="162" width="150" height="144" rx="8" fill="#EBD9B3"/>
+    <g stroke="#fff" stroke-opacity=".8" stroke-width="1.5"><path d="M146 162V306M184 162V306M222 162V306M108 210H258M108 258H258"/></g>
+    <g class="token t1"><circle cx="150" cy="214" r="12" fill="#14243B"/><circle cx="150" cy="214" r="7" fill="#F6B35B"/></g>
+    <g class="token t2"><circle cx="212" cy="262" r="12" fill="#14243B"/><circle cx="212" cy="262" r="7" fill="#F26B52"/></g>
+    <g fill="#2D4E79"><rect x="274" y="162" width="88" height="12" rx="6"/><rect x="274" y="184" width="68" height="12" rx="6"/><rect x="274" y="206" width="80" height="12" rx="6"/><rect x="274" y="248" width="88" height="44" rx="10"/></g>
+    <rect x="108" y="138" width="58" height="18" rx="9" fill="#F26B52"/><circle class="rec" cx="122" cy="147" r="5" fill="#fff"/><rect x="132" y="144" width="26" height="6" rx="3" fill="#fff"/>
+    <g class="corners" fill="none" stroke="#F26B52" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M62 142V116a18 18 0 0 1 18-18H106M364 98H390a18 18 0 0 1 18 18V142M408 318V344a18 18 0 0 1-18 18H364M106 362H80a18 18 0 0 1-18-18V318"/>
+    </g>
+    <path d="M408 230 H424" stroke="#14243B" stroke-width="4" stroke-linecap="round" stroke-dasharray="0.1 9"/>
+    <g>
+      <rect x="430" y="116" width="82" height="62" rx="12" fill="#14243B"/><g class="av"><circle cx="471" cy="138" r="10" fill="#F26B52"/><path d="M451 170 C451 152 491 152 491 170Z" fill="#F26B52"/></g>
+      <rect x="430" y="190" width="82" height="62" rx="12" fill="#14243B"/><g class="av a2"><circle cx="471" cy="212" r="10" fill="#8FD0D3"/><path d="M451 244 C451 226 491 226 491 244Z" fill="#8FD0D3"/></g>
+      <rect x="430" y="264" width="82" height="62" rx="12" fill="#14243B"/><g class="av"><circle cx="471" cy="286" r="10" fill="#F6B35B"/><path d="M451 318 C451 300 491 300 491 318Z" fill="#F6B35B"/></g>
+    </g>
+    <rect x="80" y="376" width="432" height="52" rx="16" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+    <rect x="94" y="386" width="118" height="32" rx="10" fill="var(--sand)"/>
+    <rect class="corners" x="226" y="386" width="140" height="32" rx="10" fill="var(--coral-soft)" stroke="var(--coral)" stroke-width="3"/>
+    <rect x="380" y="386" width="118" height="32" rx="10" fill="var(--sand)"/>
+    <g font-family="Figtree,system-ui,sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="#14243B"><text x="153" y="407">Intro</text><text x="296" y="407">PLAY VIEW</text><text x="439" y="407">Outro</text></g>
+  </svg>
+
   <?php endif; if (!$only): ?>
   <div class="hcap" aria-hidden="true"><span class="k1">Trips, planned together</span><span class="k2">Games, run together</span><span class="k3">Ideas, shaped together</span></div>
   <?php endif; ?>

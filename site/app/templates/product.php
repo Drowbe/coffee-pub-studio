@@ -59,7 +59,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
     </div>
   </div>
   <?php if ($art): ?>
-    <div class="phead-art"><?php unset($only); include __DIR__ . '/_hero_art.php'; ?></div>
+    <div class="phead-art"><?php $only = is_int($p['heroArt']) ? $p['heroArt'] : null; include __DIR__ . '/_hero_art.php'; unset($only); ?></div>
   </div>
   <?php else: ?>
   <div class="frame<?= empty($p['hero']) ? ' art-frame' : '' ?>">
@@ -159,14 +159,29 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
   </section>
   <?php endif; ?>
 
-  <?php if (!empty($p['gallery'])): ?>
-  <section>
-    <h2>See it in action</h2>
+  <?php if (!empty($p['gallery'])): $rows = true; // screens always run down the page beside their words, never as a sideways strip ?>
+  <section id="tour">
+    <h2><?= h($p['galleryTitle'] ?? 'See it in action') ?></h2>
+    <?php if (!empty($p['galleryLead'])): ?><p class="lead"><?= h($p['galleryLead']) ?></p><?php endif; ?>
+    <?php if ($rows): ?>
+    <div class="show">
+      <?php foreach ($p['gallery'] as $g): ?>
+        <div class="show-row">
+          <div class="show-text">
+            <?php if (!empty($g['title'])): ?><h3><?= h($g['title']) ?></h3><?php endif; ?>
+            <p><?= h($g['text'] ?? $g['caption'] ?? '') ?></p>
+          </div>
+          <figure class="show-shot"><img src="<?= h($g['url']) ?>" alt="<?= h($g['caption'] ?? $g['title'] ?? '') ?>" loading="lazy"></figure>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <?php else: ?>
     <div class="gallery" tabindex="0" aria-label="Screenshots">
       <?php foreach ($p['gallery'] as $g): ?>
         <figure><img src="<?= h($g['url']) ?>" alt="<?= h($g['caption']) ?>" loading="lazy"><figcaption><?= h($g['caption']) ?></figcaption></figure>
       <?php endforeach; ?>
     </div>
+    <?php endif; ?>
   </section>
   <?php endif; ?>
 

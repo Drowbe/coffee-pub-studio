@@ -413,3 +413,13 @@ a.feature:hover h3 { text-decoration: underline; }
 .gallery img { display: block; width: auto; height: 400px; max-width: 86vw; aspect-ratio: auto; object-fit: contain; background: var(--band); }
 .gallery figcaption { width: 0; min-width: 100%; }
 @media (max-width: 620px) { .gallery img { height: 320px; } }
+.ha .corners { transform-box: fill-box; transform-origin: center; animation: haPulse 2.6s ease-in-out infinite; }
+/* Product tour: each screen next to the words that explain it */
+.show { display: grid; gap: 64px; margin-top: 40px; }
+.show-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 48px; align-items: center; }
+.show-row:nth-child(even) .show-text { order: 2; }
+.show-text h3 { font-size: 1.5rem; margin: 0 0 10px; }
+.show-text p { margin: 0; color: var(--muted); font-size: 1.1rem; line-height: 1.65; max-width: 30rem; }
+.show-shot { margin: 0; }
+.show-shot img { display: block; width: 100%; height: auto; max-height: 620px; object-fit: contain; margin: 0 auto; border-radius: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--band); }
+@media (max-width: 900px) { .show-row { grid-template-columns: 1fr; gap: 18px; } .show-row:nth-child(even) .show-text { order: 0; } }

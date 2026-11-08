@@ -2,6 +2,7 @@
   "slug": "showrunner",
   "mark": "showrunner",
   "cardImage": "/assets/art/showrunner-card.svg",
+  "heroArt": 7,
   "name": "Coffee Pub Showrunner",
   "short": "Showrunner",
   "repo": "Drowbe/coffee-pub-showrunner",
@@ -55,10 +56,11 @@
     {"title": "Known issues", "page": "known-issues"}
   ],
   "gallery": [
-    {"url": "/assets/products/showrunner/showrunner-configuration.webp", "caption": "Connections, OBS controls and scenes: see everything Showrunner is connected to at a glance."},
-    {"url": "/assets/products/showrunner/showrunner-chameleon.webp", "caption": "Chameleon tab: every participant and character, with one click to add them to OBS."},
-    {"url": "/assets/products/showrunner/showrunner-window.webp", "caption": "Each app window is its own OBS source, with size, session group and launch options."},
-    {"url": "/assets/products/showrunner/showrunner-regions.webp", "caption": "Carve a window into regions, like a chat feed or stats panel, each its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-wide-obs.webp", "caption": "Showrunner keeps the OBS scene wired up: the game window, regions and players as sources."},
+    {"url": "/assets/products/showrunner/showrunner-wide-connections.webp", "caption": "Connections, OBS controls and scenes at a glance."},
+    {"url": "/assets/products/showrunner/showrunner-wide-window.webp", "caption": "Each app window is its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-wide-regions.webp", "caption": "Split a window into regions, each its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-wide-chameleon.webp", "caption": "Chameleon: your room, members and participants, ready to add to OBS."},
     {"url": "/assets/products/showrunner/showrunner-edge-dock.webp", "caption": "The edge dock: hover for REC and LIVE timers, the current scene and a thumbnail of every window."},
     {"url": "/assets/products/showrunner/showrunner-automations-youtube.webp", "caption": "Automations server and YouTube upload, set up once and used by rule sets."}
   ],
