@@ -1,12 +1,54 @@
 <?php $pf = 'https://willhavebeen.com'; ?>
 <div class="wrap">
   <section style="padding-top:56px">
+    <div class="about-hero">
+      <div class="about-hero-text">
     <div class="eyebrow">About the studio</div>
     <h1>Coffee Pub Studio is mostly me</h1>
     <p class="lead">I'm Thomas Carroll, a design leader who cannot stop building things. The studio is where I take a problem all the way from the first idea to something people use, now and then alongside guest designers and developers who love solving problems as much as I do.</p>
     <div class="actions">
       <a class="btn" href="<?= h($pf) ?>">Visit willhavebeen.com</a>
       <a class="btn ghost" href="/products">Browse the products</a>
+    </div>
+      </div>
+      <div class="me-art" role="img" aria-label="An illustration of Thomas: spiky hair, glasses, a black tee, a backpack and cargo shorts, hands behind his back">
+        <svg viewBox="0 0 300 440" aria-hidden="true" focusable="false">
+          <rect x="10" y="30" width="280" height="390" rx="140" fill="var(--sand)"/>
+          <ellipse cx="150" cy="428" rx="84" ry="9" fill="#14243B" opacity=".14"/>
+          <g class="twinkle" transform="translate(48 96)"><path d="M0 -16 L4 -4 L16 0 L4 4 L0 16 L-4 4 L-16 0 L-4 -4Z" fill="#fff"/></g>
+          <g class="twinkle t2" transform="translate(256 168)"><path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3Z" fill="#F6B35B"/></g>
+          <g class="me-fig">
+            <rect x="82" y="190" width="136" height="132" rx="28" fill="#3C5A7D" stroke="#14243B" stroke-width="3.5"/>
+            <g fill="none" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M86 236 C70 262 78 292 100 306" stroke-width="22"/><path d="M214 236 C230 262 222 292 200 306" stroke-width="22"/>
+            </g>
+            <g fill="none" stroke="#F0C9A4" stroke-width="15" stroke-linecap="round">
+              <path d="M86 236 C70 262 78 292 100 306"/><path d="M214 236 C230 262 222 292 200 306"/>
+            </g>
+            <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#26405F" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            <path d="M100 192 L76 216 L88 242 L108 224Z M200 192 L224 216 L212 242 L192 224Z" fill="#26405F" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            <g fill="none" stroke-linecap="round"><path d="M126 184 L118 308 M174 184 L182 308" stroke="#14243B" stroke-width="17"/><path d="M126 184 L118 308 M174 184 L182 308" stroke="#0B7A84" stroke-width="11"/>
+              <path d="M124 236 H176" stroke="#14243B" stroke-width="8"/><path d="M124 236 H176" stroke="#0B7A84" stroke-width="4"/></g>
+            <rect x="143" y="228" width="14" height="16" rx="3" fill="#F26B52" stroke="#14243B" stroke-width="2.5"/>
+            <path d="M96 320 H204 L212 392 H158 L150 352 L142 392 H88Z" fill="#CDB88B" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            <path d="M96 338 H206 M104 360 H134 M166 360 H196" stroke="#14243B" stroke-width="2" stroke-dasharray="4 4" fill="none" opacity=".6"/>
+            <rect x="104" y="372" width="26" height="22" rx="4" fill="#B9A474" stroke="#14243B" stroke-width="2.5"/><rect x="170" y="372" width="26" height="22" rx="4" fill="#B9A474" stroke="#14243B" stroke-width="2.5"/>
+            <g stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"><rect x="108" y="392" width="26" height="20" fill="#F0C9A4"/><rect x="166" y="392" width="26" height="20" fill="#F0C9A4"/><rect x="108" y="406" width="26" height="8" fill="#fff"/><rect x="166" y="406" width="26" height="8" fill="#fff"/></g>
+            <g stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"><path d="M96 428 C96 414 106 412 120 412 H138 C146 412 146 428 146 428Z" fill="#F7EEDA"/><path d="M154 428 C154 428 154 412 162 412 H180 C194 412 204 414 204 428Z" fill="#F7EEDA"/></g>
+            <path d="M96 428 H146 M154 428 H204" stroke="#F26B52" stroke-width="6" stroke-linecap="round"/>
+            <rect x="136" y="160" width="28" height="30" rx="8" fill="#F0C9A4" stroke="#14243B" stroke-width="3.5"/>
+            <ellipse cx="102" cy="114" rx="8" ry="12" fill="#F0C9A4" stroke="#14243B" stroke-width="3.5"/><ellipse cx="198" cy="114" rx="8" ry="12" fill="#F0C9A4" stroke="#14243B" stroke-width="3.5"/>
+            <ellipse cx="150" cy="112" rx="48" ry="56" fill="#F0C9A4" stroke="#14243B" stroke-width="3.5"/>
+            <path d="M103 98 C98 60 120 38 150 38 C180 38 202 60 197 98 C192 80 186 72 178 70 L186 44 L164 62 L158 30 L146 60 L132 32 L130 64 L110 48 L120 72 C112 78 106 86 103 98Z" fill="#D8CFB8" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            <g fill="#fff" fill-opacity=".55" stroke="#14243B" stroke-width="4"><rect x="115" y="98" width="32" height="24" rx="9"/><rect x="153" y="98" width="32" height="24" rx="9"/></g>
+            <path d="M147 106 H153 M115 104 L104 102 M185 104 L196 102" stroke="#14243B" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <g class="blink"><circle cx="131" cy="110" r="3.6" fill="#14243B"/><circle cx="169" cy="110" r="3.6" fill="#14243B"/></g>
+            <path d="M118 90 Q131 84 144 90 M156 90 Q169 84 182 90" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <path d="M150 118 Q144 130 152 132" stroke="#14243B" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M134 143 Q150 153 168 140" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          </g>
+        </svg>
+      </div>
     </div>
 
     <div class="about-grid">

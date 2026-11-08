@@ -390,3 +390,13 @@ a.feature:hover h3 { text-decoration: underline; }
 .ai-text { max-width: 46rem; }
 .ai-art { max-width: 460px; margin-top: 8px; position: sticky; top: 96px; }
 @media (max-width: 900px) { .ai-split { grid-template-columns: 1fr; gap: 28px; } .ai-art { position: static; max-width: 380px; } }
+/* About: self-portrait beside the intro */
+.about-hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.me-art { width: 100%; max-width: 320px; justify-self: center; }
+.me-art svg { display: block; width: 100%; height: auto; overflow: visible; }
+.me-fig { animation: haBob 4.5s ease-in-out infinite; }
+.me-art .blink { transform-box: fill-box; transform-origin: center; animation: meBlink 5s infinite; }
+.me-art .twinkle { animation: haTwinkle 2.6s ease-in-out infinite; } .me-art .twinkle.t2 { animation-delay: 1.2s; }
+@keyframes meBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@media (max-width: 900px) { .about-hero { grid-template-columns: 1fr; gap: 24px; } .me-art { max-width: 240px; justify-self: start; } }
+@media (prefers-reduced-motion: reduce) { .me-fig, .me-art .blink, .me-art .twinkle { animation: none; } }
