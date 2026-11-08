@@ -19,6 +19,11 @@
       "image": "/assets/products/chameleon/chat-call.svg"
     },
     {
+      "title": "Application sharing",
+      "text": "Share an application with the group during a call, so everyone works from the same window, whatever the group is for.",
+      "image": "/assets/products/chameleon/chat-call.svg"
+    },
+    {
       "title": "Planner",
       "text": "The plan laid out day by day: what you know, what your options are, what you have decided. In a trip it is the Itinerary, in a campaign the Campaign planner.",
       "image": "/assets/products/chameleon/plan.svg"
@@ -293,7 +298,8 @@
       ],
       "sections": [],
       "blurb": "Sessions, polls and notes",
-      "comingSoon": true
+      "comingSoon": true,
+      "art": 4
     },
     {
       "slug": "real-estate",
@@ -334,7 +340,8 @@
       ],
       "sections": [],
       "blurb": "Viewings, costs and paperwork",
-      "comingSoon": true
+      "comingSoon": true,
+      "art": 5
     },
     {
       "slug": "anything",
@@ -359,7 +366,8 @@
       ],
       "sections": [],
       "blurb": "Make it your own",
-      "comingSoon": true
+      "comingSoon": true,
+      "art": 6
     }
   ],
   "stepsTitle": "How it works",

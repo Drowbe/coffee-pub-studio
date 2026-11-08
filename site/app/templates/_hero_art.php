@@ -128,6 +128,87 @@ $only = $only ?? null;
     <?= $call ?>
   </svg>
 
+  <?php endif; if ($only === 4): ?>
+  <!-- Scene 4: mentoring (a climber, a flag, an idea) -->
+  <svg class="scene s4" viewBox="0 0 600 500" aria-hidden="true" focusable="false">
+    <rect x="50" y="76" width="470" height="380" rx="34" fill="var(--sand)"/>
+    <rect x="66" y="92" width="438" height="348" rx="24" fill="var(--accent-soft)"/>
+    <path d="M66 440 H504 V420 C430 400 380 424 300 414 C220 404 150 430 66 416Z" fill="var(--bg)" opacity=".55"/>
+    <g fill="var(--surface)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round">
+      <rect x="90" y="380" width="60" height="60" rx="8"/><rect x="150" y="340" width="60" height="100" rx="8"/>
+      <rect x="210" y="300" width="60" height="140" rx="8"/><rect x="270" y="260" width="60" height="180" rx="8"/>
+    </g>
+    <g class="pin"><path d="M300 260V196" stroke="#14243B" stroke-width="4" stroke-linecap="round"/>
+      <path d="M302 198 L350 214 L302 232Z" fill="var(--coral)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/></g>
+    <path d="M118 380 L178 340 L238 300 L298 260" fill="none" stroke="var(--coral)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0.1 13"/>
+    <g class="climb"><circle r="19" fill="#14243B"/><circle r="12" fill="#F6B35B"/><circle r="5.5" fill="none" stroke="#14243B" stroke-width="2.5"/></g>
+    <g class="bulb" transform="translate(430 190)">
+      <g class="rays" stroke="#F6B35B" stroke-width="5" stroke-linecap="round"><path d="M0 -70V-58M0 58V70M-70 0H-58M58 0H70M-50 -50l8 8M42 42l8 8M50 -50l-8 8M-42 42l-8 8"/></g>
+      <g class="token"><circle r="36" fill="#F6B35B" stroke="#14243B" stroke-width="3.5"/><path d="M-14 4 Q0 -22 14 4" fill="none" stroke="#14243B" stroke-width="3" stroke-linecap="round"/>
+        <rect x="-14" y="34" width="28" height="14" rx="4" fill="var(--surface)" stroke="#14243B" stroke-width="3"/></g>
+    </g>
+    <g class="card" transform="translate(22 38)">
+      <rect width="218" height="136" rx="20" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+      <path d="M0 40V20a20 20 0 0 1 20-20H198a20 20 0 0 1 20 20V40Z" fill="var(--accent)"/>
+      <circle cx="26" cy="20" r="11" fill="#fff"/><rect x="48" y="15" width="78" height="10" rx="5" fill="#fff" opacity=".85"/>
+      <g stroke="var(--accent)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 66l6 6 11-12"/><path d="M20 90l6 6 11-12"/></g>
+      <circle cx="29" cy="114" r="7" fill="none" stroke="var(--coral)" stroke-width="3" class="stop"/>
+      <rect x="52" y="63" width="124" height="10" rx="5" fill="var(--line)"/><rect x="52" y="87" width="96" height="10" rx="5" fill="var(--line)"/><rect x="52" y="111" width="110" height="10" rx="5" fill="var(--line)"/>
+    </g>
+    <?= $call ?>
+  </svg>
+
+  <?php endif; if ($only === 5): ?>
+  <!-- Scene 5: real estate (a house, a sold tag, a key) -->
+  <svg class="scene s5" viewBox="0 0 600 500" aria-hidden="true" focusable="false">
+    <rect x="50" y="76" width="470" height="380" rx="34" fill="var(--sand)"/>
+    <rect x="66" y="92" width="438" height="348" rx="24" fill="var(--accent-soft)"/>
+    <path d="M66 440 H504 V404 C420 388 360 410 280 400 C200 390 130 412 66 400Z" fill="var(--bg)" opacity=".6"/>
+    <g class="sun" transform="translate(470 138)"><g class="rays" stroke="#F6B35B" stroke-width="5" stroke-linecap="round"><path d="M0 -50V-38M0 38V50M-50 0H-38M38 0H50M-35 -35l8 8M27 27l8 8M35 -35l-8 8M-27 27l-8 8"/></g><circle r="27" fill="#F6B35B"/></g>
+    <rect x="240" y="214" width="26" height="48" rx="4" fill="var(--sand)" stroke="#14243B" stroke-width="3.5"/>
+    <rect x="90" y="290" width="200" height="150" rx="8" fill="var(--surface)" stroke="#14243B" stroke-width="3.5"/>
+    <path d="M66 298 L190 194 L314 298Z" fill="var(--coral)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+    <rect x="170" y="366" width="42" height="74" rx="8" fill="var(--accent)" stroke="#14243B" stroke-width="3"/><circle cx="202" cy="404" r="3.5" fill="#fff"/>
+    <g class="win" fill="#F6B35B" stroke="#14243B" stroke-width="3"><rect x="108" y="318" width="44" height="40" rx="6"/><rect x="228" y="318" width="44" height="40" rx="6"/></g>
+    <path d="M130 318V358M108 338H152M250 318V358M228 338H272" stroke="#14243B" stroke-width="2.5"/>
+    <g class="pin"><g transform="translate(190 188)"><path d="M0 0 C-14 -18 -17 -30 -17 -36 a17 17 0 1 1 34 0 C17 -30 14 -18 0 0Z" fill="var(--sea)" stroke="#14243B" stroke-width="3" stroke-linejoin="round"/><circle cy="-36" r="6" fill="#fff"/></g></g>
+    <g transform="translate(400 112)"><g class="sway"><path d="M0 0V26" stroke="#14243B" stroke-width="3.5" stroke-linecap="round"/>
+      <g transform="translate(-52 26)"><rect width="104" height="58" rx="12" fill="var(--coral)" stroke="#14243B" stroke-width="3.5"/><text x="52" y="38" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-size="24" font-weight="700" fill="#fff">SOLD</text></g></g></g>
+    <g class="pencil"><g transform="translate(300 250)"><circle r="20" fill="none" stroke="#F6B35B" stroke-width="9"/><circle r="20" fill="none" stroke="#14243B" stroke-width="2.5"/>
+      <path d="M20 0H96M72 0V22M90 0V16" fill="none" stroke="#F6B35B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+    <g class="card" transform="translate(22 38)">
+      <rect width="218" height="124" rx="20" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+      <path d="M0 40V20a20 20 0 0 1 20-20H198a20 20 0 0 1 20 20V40Z" fill="var(--accent)"/>
+      <circle cx="26" cy="20" r="11" fill="#fff"/><rect x="48" y="15" width="78" height="10" rx="5" fill="#fff" opacity=".85"/>
+      <rect x="20" y="58" width="90" height="12" rx="6" fill="var(--line)"/><rect x="20" y="82" width="64" height="12" rx="6" fill="var(--line)"/>
+      <rect x="130" y="56" width="68" height="40" rx="12" fill="var(--coral-soft)" stroke="var(--coral)" stroke-width="2" class="day"/>
+    </g>
+    <?= $call ?>
+  </svg>
+
+  <?php endif; if ($only === 6): ?>
+  <!-- Scene 6: anything you can dream up (an open space, shapes dropping in) -->
+  <svg class="scene s6" viewBox="0 0 600 500" aria-hidden="true" focusable="false">
+    <rect x="50" y="76" width="470" height="380" rx="34" fill="var(--sand)"/>
+    <rect x="66" y="92" width="438" height="348" rx="24" fill="var(--accent-soft)"/>
+    <g fill="#fff" opacity=".7"><circle cx="110" cy="130" r="4"/><circle cx="470" cy="260" r="4"/><circle cx="360" cy="110" r="3"/><circle cx="96" cy="330" r="3"/></g>
+    <rect x="90" y="250" width="220" height="150" rx="22" fill="var(--surface)" stroke="var(--line2)" stroke-width="3" stroke-dasharray="10 10"/>
+    <g class="target"><circle cx="200" cy="325" r="30" fill="var(--coral-soft)" stroke="var(--coral)" stroke-width="3"/><path d="M200 310V340M185 325H215" stroke="var(--coral)" stroke-width="5" stroke-linecap="round"/></g>
+    <g class="av"><circle cx="150" cy="200" r="30" fill="var(--coral)" stroke="#14243B" stroke-width="3.5"/></g>
+    <g class="av a2"><path d="M262 160 L296 218 L228 218Z" fill="var(--accent)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/></g>
+    <g class="spin"><rect x="336" y="150" width="56" height="56" rx="10" fill="#F6B35B" stroke="#14243B" stroke-width="3.5"/></g>
+    <g class="twinkle" transform="translate(450 150)"><path d="M0 -38 L10 -10 L38 0 L10 10 L0 38 L-10 10 L-38 0 L-10 -10Z" fill="var(--coral)" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/></g>
+    <g class="pencil"><g transform="translate(120 140) rotate(-40)"><rect x="0" y="-6" width="86" height="12" rx="6" fill="#14243B"/><rect x="82" y="-6" width="16" height="12" rx="4" fill="#F6B35B" stroke="#14243B" stroke-width="2.5"/></g></g>
+    <g class="twinkle t2" transform="translate(120 112)"><path d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4Z" fill="#F6B35B"/></g>
+    <g class="twinkle t3" transform="translate(500 330)"><path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3Z" fill="#fff"/></g>
+    <g class="card" transform="translate(300 54)">
+      <rect width="190" height="84" rx="18" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+      <circle cx="26" cy="28" r="9" fill="var(--accent)"/><rect x="46" y="23" width="96" height="10" rx="5" fill="var(--line)"/>
+      <rect x="20" y="52" width="150" height="10" rx="5" fill="var(--line)"/>
+    </g>
+    <?= $call ?>
+  </svg>
+
   <?php endif; if (!$only): ?>
   <div class="hcap" aria-hidden="true"><span class="k1">Trips, planned together</span><span class="k2">Games, run together</span><span class="k3">Ideas, shaped together</span></div>
   <?php endif; ?>

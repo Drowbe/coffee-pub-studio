@@ -370,3 +370,16 @@ a.feature:hover h3 { text-decoration: underline; }
 .more-tile span { color: var(--muted); font-size: .9rem; line-height: 1.4; }
 .soon-tag { display: inline-block; align-self: flex-start; margin: 2px 0 6px; padding: 2px 10px; border-radius: 999px; background: var(--coral-soft); color: var(--coral-text); font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .more-tile .soon-tag { align-self: center; margin: 0; }
+
+/* extra hero scenes: mentoring, real estate, anything */
+.ha .climb { offset-path: path("M118 380 L178 340 L238 300 L298 260"); offset-rotate: 0deg; animation: haClimb 5s ease-in-out infinite; }
+@keyframes haClimb { 0%, 8% { offset-distance: 0%; } 80%, 100% { offset-distance: 100%; } }
+.ha .sway { transform-box: fill-box; transform-origin: 50% 0; animation: haSway 3.6s ease-in-out infinite; }
+@keyframes haSway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.ha .win { animation: haBlink 3.4s steps(1) infinite; }
+.ha .spin { transform-box: fill-box; transform-origin: center; animation: haSpin 9s linear infinite; }
+.ha .twinkle { animation: haTwinkle 2.6s ease-in-out infinite; } .ha .twinkle.t2 { animation-delay: .8s; } .ha .twinkle.t3 { animation-delay: 1.6s; }
+@keyframes haTwinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.ha .s6 .twinkle:not(.t2):not(.t3) { transform-box: fill-box; transform-origin: center; animation: haSpinSlow 12s linear infinite; }
+@keyframes haSpinSlow { to { transform: rotate(360deg); } }
+.ha .bulb .rays { transform-box: fill-box; transform-origin: center; }
