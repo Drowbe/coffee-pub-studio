@@ -56,7 +56,7 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 <section id="chameleon">
   <div class="band">
     <div>
-      <div class="eyebrow pm"><?= mark_img("chameleon", 56, "mk pmk") ?><span>Chameleon &middot; Coming soon</span></div>
+      <div class="eyebrow pm"><?= mark_img("chameleon", 56, "mk pmk") ?><span>Chameleon &middot; In private beta</span></div>
       <h2>Plan the trip together</h2>
       <p class="lead"><?= h($flag['pitch']) ?></p>
       <ul class="ticks">
