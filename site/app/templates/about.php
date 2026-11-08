@@ -20,13 +20,13 @@
           <g class="me-fig">
             <rect x="82" y="190" width="136" height="132" rx="28" fill="#3C5A7D" stroke="#14243B" stroke-width="3.5"/>
             <g fill="none" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M86 236 C70 262 78 292 100 306" stroke-width="22"/><path d="M214 236 C230 262 222 292 200 306" stroke-width="22"/>
+              <path d="M82 236 C70 262 78 292 100 306" stroke-width="22"/><path d="M218 236 C230 262 222 292 200 306" stroke-width="22"/>
             </g>
             <g fill="none" stroke="#F2CDB0" stroke-width="15" stroke-linecap="round">
-              <path d="M86 236 C70 262 78 292 100 306"/><path d="M214 236 C230 262 222 292 200 306"/>
+              <path d="M82 236 C70 262 78 292 100 306"/><path d="M218 236 C230 262 222 292 200 306"/>
             </g>
             <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
-            <path d="M100 192 L76 216 L88 242 L108 224Z M200 192 L224 216 L212 242 L192 224Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
+            <path d="M100 190 L72 212 L80 242 L110 230Z M200 190 L228 212 L220 242 L190 230Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <g fill="none" stroke-linecap="round"><path d="M126 184 L118 308 M174 184 L182 308" stroke="#14243B" stroke-width="17"/><path d="M126 184 L118 308 M174 184 L182 308" stroke="#0B7A84" stroke-width="11"/>
               <path d="M124 236 H176" stroke="#14243B" stroke-width="8"/><path d="M124 236 H176" stroke="#0B7A84" stroke-width="4"/></g>
             <rect x="143" y="228" width="14" height="16" rx="3" fill="#F26B52" stroke="#14243B" stroke-width="2.5"/>
