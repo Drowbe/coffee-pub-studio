@@ -430,3 +430,13 @@ footer.site nav h2 { font: 700 .8rem/1 var(--sans, inherit); letter-spacing: .08
 footer.site .foot-base { border-top: 1px solid var(--line); padding-top: 22px; display: grid; gap: 8px; justify-items: center; text-align: center; }
 footer.site .foot-base .legal { font-size: .9rem; }
 @media (max-width: 760px) { footer.site .foot-grid { grid-template-columns: 1fr 1fr; } footer.site .foot-about { grid-column: 1 / -1; } }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 20px; }
+.icon-tile, .art-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 20px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; text-decoration: none; color: var(--text); }
+.icon-tile:hover, .art-tile:hover { background: var(--band); }
+.icon-tile code, .art-tile code { font-size: .72rem; word-break: break-all; color: var(--muted); }
+.art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+.art-tile img { width: 100%; height: auto; border-radius: 10px; }
+.scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; margin-top: 24px; }
+.scene { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 16px; }
+.scene figcaption { padding: 10px 6px 2px; color: var(--muted); }
+.ds-nav a[aria-current="page"] { background: var(--band); }

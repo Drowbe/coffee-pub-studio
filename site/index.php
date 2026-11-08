@@ -14,7 +14,7 @@ switch (true) {
 
     case $path === '/sitemap.xml':
         header('Content-Type: application/xml; charset=utf-8');
-        $urls = ['/', '/products', '/about', '/support', '/contact', '/design-system', '/privacy.html', '/terms.html'];
+        $urls = ['/', '/products', '/about', '/support', '/contact', '/design-system', '/design-system/icons', '/design-system/illustrations', '/privacy.html', '/terms.html'];
         foreach (products() as $slug => $p_) {
             $urls[] = '/products/' . $slug;
             foreach (($p_['areas'] ?? []) as $ar_) {
@@ -99,6 +99,14 @@ switch (true) {
     case $path === '/privacy.html' || $path === '/terms.html':
         $k = $path === '/privacy.html' ? 'privacy' : 'terms';
         page($k, ['title' => $k === 'privacy' ? 'Privacy policy' : 'Terms of service', 'desc' => site()['description']]);
+        break;
+
+    case $path === '/design-system/icons':
+        page('design-icons', ['title' => 'Icons', 'desc' => 'Every icon used across Coffee Pub products, ready to link to.']);
+        break;
+
+    case $path === '/design-system/illustrations':
+        page('design-illustrations', ['title' => 'Illustrations and animation', 'desc' => 'The flat illustrations and animated scenes shared across Coffee Pub products.']);
         break;
 
     case $path === '/design-system':

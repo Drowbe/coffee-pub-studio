@@ -37,7 +37,7 @@ $contrast = [
     <p class="lead">One place for the marks, colours, type, components and voice behind the studio and its products. If something here disagrees with a page, this page wins.</p>
     <nav class="ds-nav" aria-label="On this page">
       <a href="#principles">Principles</a><a href="#marks">Brand marks</a><a href="#colour">Colour</a><a href="#type">Type</a>
-      <a href="#layout">Layout</a><a href="#components">Components</a><a href="#illustration">Illustration</a><a href="#voice">Voice</a><a href="#access">Accessibility</a>
+      <a href="#layout">Layout</a><a href="#components">Components</a><a href="#illustration">Illustration</a><a href="#voice">Voice</a><a href="#access">Accessibility</a><a href="/design-system/icons">Icons &rarr;</a><a href="/design-system/illustrations">All illustrations &rarr;</a>
     </nav>
 
     <h2 id="principles" class="ds-h">Principles</h2>
@@ -175,6 +175,7 @@ $contrast = [
     <div class="band" style="margin-top:20px"><div><h2 style="font-size:1.7rem">A full-width band</h2><p class="lead">Bands change the background to <code>--band</code> and carry a headline, a line of copy and one action.</p></div><div class="actions" style="margin:0"><span class="btn">Action</span></div></div>
 
     <h2 id="illustration" class="ds-h">Illustration and motion</h2>
+    <p class="lead"><a href="/design-system/icons">Browse every icon</a> and <a href="/design-system/illustrations">every illustration and animated scene</a>, each with a direct file link.</p>
     <div class="cols">
       <div class="panel"><h3>Style</h3><p>Flat shapes, no gradients or outlines, only palette colours, rounded corners, a coral accent on every piece. Illustrations are hand-built SVG, never stock.</p></div>
       <div class="panel"><h3>Hero scenes</h3><p>Three animated scenes on one loop: a trip, a game and a design jam. They are pure CSS inside inline SVG, 18 seconds in total, six per scene.</p></div>
