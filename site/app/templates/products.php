@@ -16,7 +16,7 @@ $modules = array_filter($products, fn($p) => empty($p['flagship']) && empty($p['
       <a class="card" href="#modules">
         <div class="thumb"><img class="art" src="/assets/art/blacksmith-card.svg" alt="" loading="lazy"></div>
         <div class="body">
-          <h3>Foundry VTT Modules</h3>
+          <h3 class="hm"><?= mark_img('gaming', 56, 'mk') ?>Foundry VTT Modules</h3>
           <p>A suite of modules for Foundry VTT tabletop games, from the toolbar and combat stats to crafting, lore and audio, all built on Coffee Pub Blacksmith.</p>
           <div class="badges"><span class="badge">Modules</span></div>
         </div>

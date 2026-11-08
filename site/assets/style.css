@@ -383,3 +383,5 @@ a.feature:hover h3 { text-decoration: underline; }
 .ha .s6 .twinkle:not(.t2):not(.t3) { transform-box: fill-box; transform-origin: center; animation: haSpinSlow 12s linear infinite; }
 @keyframes haSpinSlow { to { transform: rotate(360deg); } }
 .ha .bulb .rays { transform-box: fill-box; transform-origin: center; }
+.card h3.hm { display: flex; align-items: center; gap: 12px; }
+.card h3.hm .mk { width: 40px; height: 40px; flex: none; }

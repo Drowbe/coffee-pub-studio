@@ -9,7 +9,7 @@
     <?php endif; ?>
   </div>
   <div class="body">
-    <h3><?= h($p['short']) ?></h3>
+    <h3<?= !empty($p['mark']) ? ' class="hm"' : '' ?>><?php if (!empty($p['mark'])): ?><?= mark_img($p['mark'], 56, 'mk') ?><?php endif; ?><?= h($p['short']) ?></h3>
     <p><?= h($p['pitch'] ?? $p['tagline']) ?></p>
     <div class="badges">
       <span class="badge"><?= h($p['category']) ?></span>
