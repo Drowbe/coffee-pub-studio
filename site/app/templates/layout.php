@@ -21,7 +21,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
   <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="/assets/brand/favicon.svg">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=<?= @filemtime(dirname(__DIR__, 2) . "/assets/style.css") ?: 1 ?>">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
