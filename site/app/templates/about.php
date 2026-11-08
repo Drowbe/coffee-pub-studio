@@ -49,7 +49,7 @@
             <path d="M147 106 H153 M115 104 L104 102 M185 104 L196 102" stroke="#14243B" stroke-width="4" stroke-linecap="round" fill="none"/>
             <g class="blink"><circle cx="133" cy="110" r="5" fill="#8FB6D6"/><circle cx="171" cy="110" r="5" fill="#8FB6D6"/><circle cx="134" cy="110" r="2.6" fill="#14243B"/><circle cx="172" cy="110" r="2.6" fill="#14243B"/></g>
             <path d="M118 90 Q131 84 144 90 M156 90 Q169 84 182 90" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-            <path d="M150 118 Q144 130 152 132" stroke="#14243B" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M151 110 Q142 128 143 134 Q150 140 159 134" stroke="#14243B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="#E6B999" fill-opacity=".55"/>
             <path d="M134 143 Q150 153 168 140" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
           </g>
         </svg>
