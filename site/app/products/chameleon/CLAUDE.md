@@ -18,7 +18,7 @@ Do not edit anything else in the site: templates, `style.css`, `assets/brand/`, 
 ## Rules
 
 - Name: "Coffee Pub Chameleon", then "Chameleon". Never "Collaborator".
-- Voice: first person ("I"), plain words. No prices, plans or tiers. No claims you cannot back up.
+- Voice: first person ("I"), plain words. No prices. The Plans section (plans, plansTitle, plansLead in product.json) is allowed and shows limits only; the assistant cap on Free and Basic is still to be set. No claims you cannot back up.
 - Screenshots: 1280 px wide, WebP or PNG, brand theme, no personal data, no old product names. Reference them as `/assets/products/chameleon/<file>`.
 - Links to other sites are fine. Never link to a running app address other than the product's own `external` link.
 - No secrets, keys, tokens or personal data in any file.

@@ -142,6 +142,22 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
   </section>
   <?php endif; ?>
 
+  <?php if (!empty($p['plans'])): ?>
+  <section id="plans">
+    <h2><?= h($p['plansTitle'] ?? 'Plans') ?></h2>
+    <?php if (!empty($p['plansLead'])): ?><p class="lead"><?= h($p['plansLead']) ?></p><?php endif; ?>
+    <div class="areas-grid">
+      <?php foreach ($p['plans'] as $pn): if (empty($pn['name'])) continue; ?>
+        <div class="area-card">
+          <h3><?= h($pn['name']) ?></h3>
+          <?php if (!empty($pn['points'])): ?><ul class="ticks"><?php foreach ($pn['points'] as $pt): ?><li><?= h($pt) ?></li><?php endforeach; ?></ul><?php endif; ?>
+          <?php if (!empty($pn['note'])): ?><span class="plan-note"><?= h($pn['note']) ?></span><?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
   <?php if (!empty($p['gallery'])): ?>
   <section>
     <h2>See it in action</h2>

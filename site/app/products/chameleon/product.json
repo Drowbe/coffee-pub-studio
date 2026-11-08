@@ -13,8 +13,14 @@
   "description": "A private place for your group. Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. A space can be a trip, a campaign or a project.",
   "pitch": "Chat all week, call when it counts, and keep the plans, the maps and the notes right beside it. Yours, on your own address.",
   "features": [
-    {"title": "A chat and a call for every space", "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."},
-    {"title": "The tools beside the chat", "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."}
+    {
+      "title": "A chat and a call for every space",
+      "text": "A space is a place to meet: a chat that stays open, a call when you want one, and the modules you turn on for it."
+    },
+    {
+      "title": "The tools beside the chat",
+      "text": "A plan, places and a map, a calendar, to-do, polls, a budget, and notes and research your group can find again."
+    }
   ],
   "areasTitle": "What it is for",
   "areasLead": "Name things the way your group does. A space can be a trip, a campaign or a team.",
@@ -25,7 +31,11 @@
       "title": "Trips",
       "summary": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end.",
       "image": "/assets/products/chameleon/suitcase.svg",
-      "points": ["A plan, places and a map in one space", "A calendar for the dates that matter", "Polls for the choices, a budget for the sums"],
+      "points": [
+        "A plan, places and a map in one space",
+        "A calendar for the dates that matter",
+        "Polls for the choices, a budget for the sums"
+      ],
       "eyebrow": "For trips",
       "lead": "A chat for your group, a call when you want one, and the tools you need beside them: the itinerary, the map, the dates and the budget. One address for your people, and nobody else's.",
       "sections": [
@@ -66,15 +76,42 @@
         }
       ],
       "features": [
-        {"title": "Itinerary", "text": "The trip day by day, with what it costs."},
-        {"title": "Places", "text": "The places that matter, with an address, a position and a note."},
-        {"title": "Maps", "text": "Everything with a position on one map, with regions kept on the server for when you are offline."},
-        {"title": "Research", "text": "Notes, links and photos, tagged and shared."},
-        {"title": "Calendar", "text": "The group's dates, with the events of every trip you are on."},
-        {"title": "Budget", "text": "What you spend, what you planned, who owes whom."},
-        {"title": "Polls", "text": "Pick one, pick any, or suggest another option."},
-        {"title": "To-do", "text": "Tasks with due dates, linked to what they are about."},
-        {"title": "Stream", "text": "Every person as an OBS source, on a clear background."}
+        {
+          "title": "Itinerary",
+          "text": "The trip day by day, with what it costs."
+        },
+        {
+          "title": "Places",
+          "text": "The places that matter, with an address, a position and a note."
+        },
+        {
+          "title": "Maps",
+          "text": "Everything with a position on one map, with regions kept on the server for when you are offline."
+        },
+        {
+          "title": "Research",
+          "text": "Notes, links and photos, tagged and shared."
+        },
+        {
+          "title": "Calendar",
+          "text": "The group's dates, with the events of every trip you are on."
+        },
+        {
+          "title": "Budget",
+          "text": "What you spend, what you planned, who owes whom."
+        },
+        {
+          "title": "Polls",
+          "text": "Pick one, pick any, or suggest another option."
+        },
+        {
+          "title": "To-do",
+          "text": "Tasks with due dates, linked to what they are about."
+        },
+        {
+          "title": "Stream",
+          "text": "Every person as an OBS source, on a clear background."
+        }
       ]
     },
     {
@@ -83,7 +120,11 @@
       "title": "Game nights",
       "summary": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk.",
       "image": "/assets/products/chameleon/dice.svg",
-      "points": ["A chat that stays open between sessions", "Every player as a browser source for OBS", "Notes and research your group can find again"],
+      "points": [
+        "A chat that stays open between sessions",
+        "Every player as a browser source for OBS",
+        "Notes and research your group can find again"
+      ],
       "eyebrow": "For games",
       "lead": "A chat for your group, a call when you want one, and the tools beside them: the sessions, the quests, the lore and the polls. One address for your players, and nobody else's.",
       "sections": [
@@ -114,12 +155,30 @@
         }
       ],
       "features": [
-        {"title": "Sessions", "text": "The Calendar: when you next play, with the dates of every campaign you are in."},
-        {"title": "Campaign planner", "text": "The campaign on a timeline, day by day."},
-        {"title": "Quests", "text": "Tasks with due dates, linked to what they are about."},
-        {"title": "Lore", "text": "Notes, links and pictures, tagged and searchable. Once the game master sets up the AI service, you can ask it about them."},
-        {"title": "Polls", "text": "Pick one, pick any, or suggest another option."},
-        {"title": "Stream", "text": "Every player as an OBS source, on a clear background."}
+        {
+          "title": "Sessions",
+          "text": "The Calendar: when you next play, with the dates of every campaign you are in."
+        },
+        {
+          "title": "Campaign planner",
+          "text": "The campaign on a timeline, day by day."
+        },
+        {
+          "title": "Quests",
+          "text": "Tasks with due dates, linked to what they are about."
+        },
+        {
+          "title": "Lore",
+          "text": "Notes, links and pictures, tagged and searchable. Once the game master sets up the AI service, you can ask it about them."
+        },
+        {
+          "title": "Polls",
+          "text": "Pick one, pick any, or suggest another option."
+        },
+        {
+          "title": "Stream",
+          "text": "Every player as an OBS source, on a clear background."
+        }
       ]
     },
     {
@@ -128,7 +187,11 @@
       "title": "Projects and mentoring",
       "summary": "Plan a product or design project with the people on it, and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes.",
       "image": "/assets/products/chameleon/clipboard.svg",
-      "points": ["Chat, and a call for working things out", "To-do, the plan and a calendar for the steps and dates", "Polls and research your group can find again"],
+      "points": [
+        "Chat, and a call for working things out",
+        "To-do, the plan and a calendar for the steps and dates",
+        "Polls and research your group can find again"
+      ],
       "eyebrow": "For projects and mentoring",
       "lead": "Plan a product or design project with the people on it, and talk the problem through. Keep the tasks, the dates and the research in one space. Or run a mentoring group: meet for each session, vote on what to cover next, and keep the notes.",
       "sections": [
@@ -139,24 +202,45 @@
         }
       ],
       "features": [
-        {"title": "Chat and a call", "text": "Chat, and a call for working things out."},
-        {"title": "To-do, plan and calendar", "text": "To-do, the plan and a calendar for the steps and dates."},
-        {"title": "Polls and research", "text": "Polls and research your group can find again."}
+        {
+          "title": "Chat and a call",
+          "text": "Chat, and a call for working things out."
+        },
+        {
+          "title": "To-do, plan and calendar",
+          "text": "To-do, the plan and a calendar for the steps and dates."
+        },
+        {
+          "title": "Polls and research",
+          "text": "Polls and research your group can find again."
+        }
       ]
     }
   ],
   "stepsTitle": "How it works",
   "steps": [
-    {"title": "Get an environment", "text": "Its own address, its own sign-in, its own people. Nothing in it is shared with anyone else's."},
-    {"title": "Make spaces in it", "text": "A space is a place to meet: a chat, a call when you want one, and the modules you turn on for it. A family might have one, a company one per team, a game night one per campaign."},
-    {"title": "Share a link", "text": "Members sign in. Guests can come into a space with just a name, when you allow it."}
+    {
+      "title": "Get an environment",
+      "text": "Its own address, its own sign-in, its own people. Nothing in it is shared with anyone else's."
+    },
+    {
+      "title": "Make spaces in it",
+      "text": "A space is a place to meet: a chat, a call when you want one, and the modules you turn on for it. A family might have one, a company one per team, a game night one per campaign."
+    },
+    {
+      "title": "Share a link",
+      "text": "Members sign in. Guests can come into a space with just a name, when you allow it."
+    }
   ],
   "stepsNote": "The owner sets the name, the look, the people, the spaces and the modules. I run the servers, the call service, the updates and the backups. Or run the whole thing yourself: the same software can be self-hosted.",
   "callout": {
     "title": "Yours, and private",
     "text": "No ads, and nobody selling what you say. Your people, plans and files live in your environment and are not shared with anyone else's. You can run it on your own server if you would rather.",
     "image": "/assets/products/chameleon/lock.svg",
-    "link": {"label": "Self-host it", "url": "https://github.com/Drowbe/coffee-pub-chameleon"}
+    "link": {
+      "label": "Self-host it",
+      "url": "https://github.com/Drowbe/coffee-pub-chameleon"
+    }
   },
   "external": "https://chameleon.coffeepubstudio.com/",
   "cta": "See Chameleon",
@@ -166,5 +250,42 @@
   "hero": null,
   "github": "https://github.com/Drowbe/coffee-pub-chameleon",
   "wiki": "https://github.com/Drowbe/coffee-pub-chameleon/wiki",
-  "comingSoon": true
+  "comingSoon": true,
+  "plansTitle": "Plans",
+  "plansLead": "An environment plus the modules you choose. Each plan says how many people, how much storage, how much of the assistant and how many calls at once it includes.",
+  "plans": [
+    {
+      "name": "Free",
+      "points": [
+        "3 people",
+        "1 GB of storage",
+        "the assistant, with a cap (to be set)",
+        "calls without a cap",
+        "every module"
+      ],
+      "note": "Coming soon"
+    },
+    {
+      "name": "Basic",
+      "points": [
+        "10 people",
+        "10 GB of storage",
+        "the assistant, with a cap (to be set)",
+        "calls without a cap",
+        "every module"
+      ],
+      "note": "Coming soon"
+    },
+    {
+      "name": "Unlimited",
+      "points": [
+        "unlimited people",
+        "unlimited storage",
+        "the assistant without a cap",
+        "calls without a cap",
+        "every module"
+      ],
+      "note": "Coming soon"
+    }
+  ]
 }
