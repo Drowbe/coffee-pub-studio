@@ -19,7 +19,7 @@ Do not edit anything else in the site: templates, `style.css`, `assets/brand/`, 
 ## Rules
 
 - Name: "Coffee Pub Showrunner", then "Showrunner". Mark: `"mark": "showrunner"`.
-- Voice: first person ("I"), plain words. No prices, plans or tiers. No claims you cannot back up.
+- Voice: first person plural ("we"), never "I", plain words. No prices, plans or tiers. No claims you cannot back up.
 - Screenshots: 1280 px wide, WebP or PNG, no personal data. Reference them as `/assets/products/showrunner/<file>`. Add them to `gallery` in `product.json`; the page shows a gallery only when `gallery` has entries.
 - Links to your repo, releases and wiki are yours to keep current.
 - No secrets, keys, tokens or personal data in any file.

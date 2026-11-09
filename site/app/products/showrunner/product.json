@@ -17,7 +17,7 @@
   "appVersion": "0.3.2",
   "downloads": [
     {"os": "macOS", "label": "Download for macOS", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.2/Coffee.Pub.Showrunner-0.3.2-universal.dmg"},
-    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.2/Coffee.Pub.Showrunner.Setup.0.3.2.exe", "note": "I tested Windows on real hardware with an earlier release and it worked. I have not yet re-checked 0.3.2 on Windows. Check the known issues page if a window misbehaves."}
+    {"os": "Windows", "label": "Download for Windows", "url": "https://github.com/Drowbe/coffee-pub-showrunner/releases/download/v0.3.2/Coffee.Pub.Showrunner.Setup.0.3.2.exe", "note": "We tested Windows on real hardware with an earlier release and it worked. We have not yet re-checked 0.3.2 on Windows. Check the known issues page if a window misbehaves."}
   ],
   "platforms": "macOS and Windows",
   "fallbackVersion": null,
@@ -56,13 +56,13 @@
     {"title": "Known issues", "page": "known-issues"}
   ],
   "gallery": [
-    {"url": "/assets/products/showrunner/showrunner-wide-obs.webp", "caption": "Showrunner keeps the OBS scene wired up: the game window, regions and players as sources."},
-    {"url": "/assets/products/showrunner/showrunner-wide-connections.webp", "caption": "Connections, OBS controls and scenes at a glance."},
-    {"url": "/assets/products/showrunner/showrunner-wide-window.webp", "caption": "Each app window is its own OBS source."},
-    {"url": "/assets/products/showrunner/showrunner-wide-regions.webp", "caption": "Split a window into regions, each its own OBS source."},
-    {"url": "/assets/products/showrunner/showrunner-wide-chameleon.webp", "caption": "Chameleon: your room, members and participants, ready to add to OBS."},
-    {"url": "/assets/products/showrunner/showrunner-edge-dock.webp", "caption": "The edge dock: hover for REC and LIVE timers, the current scene and a thumbnail of every window."},
-    {"url": "/assets/products/showrunner/showrunner-automations-youtube.webp", "caption": "Automations server and YouTube upload, set up once and used by rule sets."}
+    {"url": "/assets/products/showrunner/showrunner-wide-obs-live.webp", "title": "The scene, wired up", "text": "This is an OBS scene after Showrunner has set it up: the live game, two regions and the players all arrive as sources. there is nothing to pick or crop by hand.", "caption": "Showrunner keeps the OBS scene wired up: the live game, regions and players as sources."},
+    {"url": "/assets/products/showrunner/showrunner-wide-window.webp", "title": "One window, one source", "text": "Each page you want on stream gets its own window with an exact size, a session group and launch options. OBS captures the page without the title bar, so what you set is what viewers see.", "caption": "Each app window is its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-wide-regions.webp", "title": "Split a window up", "text": "You can cut a window into regions, either by drawing a rectangle or by naming a CSS selector. A chat feed or a stats panel then becomes its own OBS source that you can place anywhere in a scene.", "caption": "Split a window into regions, each its own OBS source."},
+    {"url": "/assets/products/showrunner/showrunner-wide-chameleon.webp", "title": "Players in one click", "text": "Once you're signed in to Chameleon, your room's members and participants are listed here. One click adds a player to OBS as a source, so you're not building player tiles by hand.", "caption": "Chameleon: your room, members and participants, ready to add to OBS."},
+    {"url": "/assets/products/showrunner/showrunner-wide-connections.webp", "title": "Everything at a glance", "text": "The Configuration tab shows whether OBS, Chameleon, Automations and YouTube are connected, and has the recording, streaming and scene controls. You can run a session from one panel.", "caption": "Connections, OBS controls and scenes at a glance."},
+    {"url": "/assets/products/showrunner/showrunner-edge-dock-live.webp", "title": "The edge dock", "text": "The dock keeps your windows parked at the screen edge while OBS keeps capturing them. You can hover for the recording and live timers, the current scene and a thumbnail of each window.", "caption": "The edge dock: hover for REC and LIVE timers, the current scene and a thumbnail of every window."},
+    {"url": "/assets/products/showrunner/showrunner-automations-youtube.webp", "title": "Cues and uploads", "text": "Foundry modules can send events that a rule turns into an OBS action, and finished recordings can upload to your own YouTube channel. You set both up once, and then they run from your rule sets.", "caption": "Automations server and YouTube upload, set up once and used by rule sets."}
   ],
-  "note": "Coffee Pub Showrunner is free to download and use for now. It is proprietary, not open source: you can read the source, but you can't copy, redistribute or resell it. A later version may be paid, but a version you have already downloaded stays usable. I tested Windows on real hardware with an earlier release and it worked, but I have not yet re-checked 0.3.2 there, so check the Known issues page if a window misbehaves. This is a personal project, so back up your OBS profile before trying anything new."
+  "note": "Coffee Pub Showrunner is free to download and use for now. It is proprietary, not open source: you can read the source, but you can't copy, redistribute or resell it. A later version may be paid, but a version you have already downloaded stays usable. We tested Windows on real hardware with an earlier release and it worked, but We have not yet re-checked 0.3.2 there, so check the Known issues page if a window misbehaves. This is a personal project, so back up your OBS profile before trying anything new."
 }
