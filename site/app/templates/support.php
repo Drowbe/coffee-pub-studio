@@ -2,7 +2,7 @@
   <section style="padding-top:56px">
     <div class="eyebrow">Support</div>
     <h1>Need a hand?</h1>
-    <p class="lead">Start with the module's documentation and its Known issues page. If that does not solve it, open an issue on GitHub.</p>
+    <p class="lead">Start with the module's documentation and its Known issues page. If that does not solve it, open an issue on GitHub. For anything else, <a href="/contact">contact us</a>.</p>
 
     <h2 style="margin-top:48px;font-size:1.5rem">Foundry modules</h2>
     <div class="cols">
@@ -19,6 +19,10 @@
 
     <h2 style="margin-top:48px;font-size:1.5rem">Chameleon</h2>
     <p class="muted">Account and environment questions are handled on <a href="https://chameleon.coffeepubstudio.com/">chameleon.coffeepubstudio.com</a>. For anything else, use the <a href="/contact">contact page</a>.</p>
+
+    <h2 style="margin-top:48px;font-size:1.5rem">Anything else</h2>
+    <p class="muted">A question, an idea, or a project you want to talk about? <a href="/contact">Send us a message</a> and we will reply by email.</p>
+    <div class="actions"><a class="btn" href="/contact">Contact us</a></div>
 
     <div class="band" style="margin-top:48px">
       <div>

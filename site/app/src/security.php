@@ -34,10 +34,11 @@ function start_session(): void
     if (!is_dir($dir)) {
         @mkdir($dir, 0700, true);
     }
+    ini_set('session.gc_maxlifetime', '2592000');
     session_save_path($dir);
     session_name('cpsid');
     session_set_cookie_params([
-        'lifetime' => 0, 'path' => '/', 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
+        'lifetime' => 2592000, 'path' => '/', 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
     ]);
     session_start();
 }

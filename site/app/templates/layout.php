@@ -1,7 +1,6 @@
 <?php
 $s = site();
 $cur = rtrim((string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/') ?: '/';
-$nav = ['/products' => 'Products', '/about' => 'About', '/support' => 'Support'];
 $studio = trim((string)preg_replace('/^Coffee Pub\s*/i', '', $s['name']));
 $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
 ?><!doctype html>
@@ -29,9 +28,22 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
   <div class="wrap">
     <a class="brand" href="/" aria-label="<?= h($s['name']) ?>"><?= mark_img('studio', 56) ?><span class="wm"><b>Coffee Pub</b> <i><?= h($studio) ?></i></span></a>
     <nav class="main" aria-label="Main">
-      <?php foreach ($nav as $href => $label): ?>
+      <div class="dd" id="dd-products">
+        <button type="button" class="link dd-btn<?= str_starts_with($cur, '/products') ? ' cur' : '' ?>" aria-expanded="false" aria-controls="dd-menu-products" aria-haspopup="true">Products <span aria-hidden="true">&#9662;</span></button>
+        <div class="dd-menu" id="dd-menu-products">
+          <a href="/products/chameleon"><?= mark_img('chameleon', 40, 'mk') ?><span><b>Coffee Pub Chameleon</b><small>Plan, chat and call together</small></span></a>
+          <a href="/products/showrunner"><?= mark_img('showrunner', 40, 'mk') ?><span><b>Showrunner</b><small>Feed OBS from your game and players</small></span></a>
+          <a href="/products#modules"><?= mark_img('gaming', 40, 'mk') ?><span><b>Foundry VTT modules</b><small>The suite built on Blacksmith</small></span></a>
+          <a class="all" href="/products">All products</a>
+        </div>
+      </div>
+      <?php foreach (['/about' => 'About', '/support' => 'Support'] as $href => $label): ?>
         <a class="link" href="<?= h($href) ?>"<?= str_starts_with($cur, $href) ? ' aria-current="page"' : '' ?>><?= h($label) ?></a>
       <?php endforeach; ?>
+      <?php if (!empty($_COOKIE['cpsid']) && function_exists('admin_logged_in') && admin_logged_in()):
+        $unread = (int)db()->query('SELECT COUNT(*) FROM messages WHERE is_read = 0')->fetchColumn(); ?>
+        <a class="link inbox<?= $unread ? ' has' : '' ?>" href="/admin"><?= $unread ? 'Inbox <span class="count" aria-label="' . $unread . ' unread messages">' . $unread . '</span>' : 'Inbox' ?></a>
+      <?php endif; ?>
       <?php if (!empty($s['links']['patreon'])): ?><a class="pill" href="<?= h($s['links']['patreon']) ?>">Support on Patreon</a><?php endif; ?>
       <button id="theme" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">&#9680;</button>
     </nav>
@@ -69,11 +81,19 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
     </div>
     <div class="foot-base">
       <div class="buildnote"><?= h($s["buildNote"]) ?></div>
-      <div class="legal">&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a></div>
+      <div class="legal">&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/admin" rel="nofollow">Admin</a></div>
     </div>
   </div>
 </footer>
 <script>
+(function () {
+  var dd = document.getElementById('dd-products'); if (!dd) return;
+  var b = dd.querySelector('.dd-btn');
+  function set(o) { dd.classList.toggle('open', o); b.setAttribute('aria-expanded', o ? 'true' : 'false'); }
+  b.addEventListener('click', function (e) { e.stopPropagation(); set(!dd.classList.contains('open')); });
+  document.addEventListener('click', function (e) { if (!dd.contains(e.target)) set(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { set(false); b.focus(); } });
+})();
 document.getElementById('theme').addEventListener('click', function () {
   var r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   var next = dark ? 'light' : 'dark'; r.dataset.theme = next;

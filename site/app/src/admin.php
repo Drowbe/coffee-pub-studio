@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const ADMIN_IDLE_SECONDS = 7200;
+const ADMIN_IDLE_SECONDS = 2592000; // stay signed in for 30 days of no use
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_WINDOW = 900;
 
