@@ -44,7 +44,7 @@ function handle_contact_post(): array
         $errors[] = 'Enter your name (up to 100 characters).';
     }
     if ($len($old['email']) > 190 || !filter_var($old['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Enter a valid email address so I can reply.';
+        $errors[] = 'Enter a valid email address so we can reply.';
     }
     if (!in_array($old['topic'], CONTACT_TOPICS, true)) {
         $errors[] = 'Pick what your message is about.';
@@ -66,5 +66,6 @@ function handle_contact_post(): array
 
     $st = $pdo->prepare('INSERT INTO messages (created_at, name, email, topic, message, ip_hash) VALUES (?, ?, ?, ?, ?, ?)');
     $st->execute([time(), $old['name'], $old['email'], $old['topic'], $old['message'], $ip]);
+    notify_new_message($old);
     return ['ok' => true, 'errors' => [], 'old' => []];
 }

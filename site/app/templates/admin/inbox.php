@@ -7,7 +7,8 @@
     </div>
     <p class="muted" style="margin:12px 0 24px"><?= (int)$unread ?> unread of <?= (int)$total ?> messages &middot;
       <a href="/admin"<?= $filter === 'all' ? ' aria-current="true"' : '' ?>>All</a> &middot;
-      <a href="/admin?show=unread"<?= $filter === 'unread' ? ' aria-current="true"' : '' ?>>Unread</a></p>
+      <a href="/admin?show=unread"<?= $filter === 'unread' ? ' aria-current="true"' : '' ?>>Unread</a> &middot;
+      <a href="/admin/mail">Email alerts<?= mail_enabled() ? ' (on)' : '' ?></a></p>
 
     <?php if (!$rows): ?>
       <div class="panel"><p style="margin:0">No messages yet.</p></div>

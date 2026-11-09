@@ -113,6 +113,35 @@ function admin_route(string $path): void
         admin_redirect('/admin');
     }
 
+    if ($path === '/admin/mail') {
+        $notice = null;
+        if ($method === 'POST' && csrf_ok($_POST['csrf'] ?? null)) {
+            if (($_POST['do'] ?? '') === 'off') {
+                @unlink(mail_file());
+                $notice = 'Email alerts are off.';
+            } else {
+                $old = mail_config();
+                $user = trim((string)($_POST['user'] ?? ''));
+                $pass = preg_replace('/\s+/', '', (string)($_POST['pass'] ?? ''));
+                if ($pass === '') { $pass = (string)($old['pass'] ?? ''); }
+                $to = trim((string)($_POST['to'] ?? ''));
+                if (!filter_var($user, FILTER_VALIDATE_EMAIL) || !filter_var($to, FILTER_VALIDATE_EMAIL) || $pass === '') {
+                    $notice = 'Enter both email addresses and the app password.';
+                } else {
+                    $err = smtp_send($user, $pass, $to, 'Coffee Pub email alerts are on', "This is a test. You will get an email like this whenever someone sends a message on coffeepubstudio.com.\n");
+                    if ($err === null) {
+                        mail_save(['user' => $user, 'pass' => $pass, 'to' => $to]);
+                        $notice = 'Saved. A test email is on its way to ' . $to . '.';
+                    } else {
+                        $notice = 'Not saved. ' . $err;
+                    }
+                }
+            }
+        }
+        page('admin/mail', $base + ['title' => 'Email alerts', 'cfg' => mail_config(), 'enabled' => mail_enabled(), 'notice' => $notice]);
+        return;
+    }
+
     if ($path === '/admin/message') {
         $id = (int)($_GET['id'] ?? 0);
         $st = $pdo->prepare('SELECT * FROM messages WHERE id = ?');
