@@ -80,6 +80,8 @@
   "areas": [
     {
       "slug": "travel",
+      "comingSoon": true,
+      "statusLabel": "In private beta",
       "art": 1,
       "title": "Travel",
       "summary": "Plan the trip with the people coming. Put flights and stays on the plan, drop the places you like on the map, vote on where to eat, and split the costs at the end.",
@@ -170,6 +172,8 @@
     },
     {
       "slug": "games",
+      "comingSoon": true,
+      "statusLabel": "In private beta",
       "art": 2,
       "title": "Gaming",
       "summary": "One space for each campaign, with side conversations for whispers and a calendar for session nights. For a stream, every player is an OBS source: their camera on a clear background, with a border that lights up when they talk.",
@@ -238,6 +242,7 @@
     },
     {
       "slug": "projects",
+      "statusLabel": "Coming soon",
       "art": 3,
       "title": "Projects",
       "summary": "Plan a product or design project with the people on it, and talk the problem through. Keep the tasks, the dates and the research in one space.",
@@ -275,6 +280,7 @@
     },
     {
       "slug": "mentoring",
+      "statusLabel": "Coming soon",
       "title": "Mentoring",
       "image": "/assets/products/chameleon/mentoring.svg",
       "eyebrow": "For mentoring",
@@ -310,6 +316,7 @@
     },
     {
       "slug": "real-estate",
+      "statusLabel": "Coming soon",
       "title": "Real estate",
       "image": "/assets/products/chameleon/real-estate.svg",
       "eyebrow": "For real estate",
@@ -353,6 +360,7 @@
     },
     {
       "slug": "anything",
+      "statusLabel": "Coming soon",
       "title": "Anything imaginable",
       "image": "/assets/products/chameleon/anything.svg",
       "eyebrow": "For anything",

@@ -8,7 +8,7 @@ $mk = $p['mark'] ?? null;
   <div class="phead">
     <div class="eyebrow pm">
       <?php if ($mk): ?><?= mark_img($mk, 56, 'mk pmk') ?><?php endif; ?>
-      <span><?= h($a['eyebrow'] ?? $p['short']) ?><?= !empty($a['comingSoon']) ? ' &middot; ' . h($p['statusLabel'] ?? 'Coming soon') : '' ?></span>
+      <span><?= h($a['eyebrow'] ?? $p['short']) ?><?= !empty($a['comingSoon']) ? ' &middot; ' . h($a['statusLabel'] ?? $p['statusLabel'] ?? 'Coming soon') : '' ?></span>
     </div>
     <h1><?= h($a['title']) ?></h1>
     <?php if (!empty($a['lead'])): ?><p class="lead"><?= h($a['lead']) ?></p><?php endif; ?>

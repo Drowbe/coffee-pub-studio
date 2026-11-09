@@ -99,7 +99,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php foreach ($p['areas'] as $ar): if (empty($ar['slug']) || empty($ar['title'])) continue; $href = '/products/' . $p['slug'] . '/' . $ar['slug']; ?>
         <div class="area-card">
           <?php if (!empty($ar['image'])): ?><img class="area-img" src="<?= h($ar['image']) ?>" alt="" width="72" height="72" loading="lazy"><?php elseif (!empty($p['mark'])): ?><?= mark_img($p['mark'], 72, 'area-img') ?><?php endif; ?>
-          <h3><?= h($ar['title']) ?></h3><?php if (!empty($ar['comingSoon'])): ?><span class="soon-tag"><?= h($p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
+          <h3><?= h($ar['title']) ?></h3><?php if (!empty($ar['comingSoon'])): ?><span class="soon-tag"><?= h($ar['statusLabel'] ?? $p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
           <?php if (!empty($ar['summary'])): ?><p><?= h($ar['summary']) ?></p><?php endif; ?>
           <?php if (!empty($ar['points'])): ?><ul class="ticks"><?php foreach ($ar['points'] as $pt): ?><li><?= h($pt) ?></li><?php endforeach; ?></ul><?php endif; ?>
           <a class="more" href="<?= h($href) ?>">More about <?= h(strtolower($ar['title'])) ?></a>
