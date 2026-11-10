@@ -14,6 +14,14 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
   <?php if (!empty($noindex)): ?><meta name="robots" content="noindex, nofollow"><?php endif; ?>
   <meta property="og:title" content="<?= h($full) ?>">
   <meta property="og:description" content="<?= h($desc ?? $s['description']) ?>">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="<?= h($s['name']) ?>">
+  <meta property="og:url" content="<?= h(rtrim($s['url'], '/') . ($cur === '/' ? '/' : $cur)) ?>">
+  <meta property="og:image" content="<?= h(rtrim($s['url'], '/') . '/assets/brand/og-image.png') ?>">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Coffee Pub Studio: apps and Foundry VTT modules that solve real problems">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="/assets/fonts/fraunces/latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/figtree/latin.woff2" as="font" type="font/woff2" crossorigin>
   <script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
