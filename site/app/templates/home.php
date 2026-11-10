@@ -20,32 +20,6 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
   </section>
 </div></div>
 
-<div class="wrap" id="problems">
-<section style="padding-top:24px">
-  <div class="eyebrow">What we are good at</div>
-  <h2>The kinds of problems we solve</h2>
-  <p class="lead">Mapping, drawing, calls, collaboration, APIs and more. Here is where each one shows up in the work.</p>
-  <div class="grid four">
-    <?php foreach (capabilities() as $cap): ?>
-      <div class="card cap">
-        <div class="thumb"><img class="art" src="/assets/art/<?= h($cap['art']) ?>.svg" alt="" loading="lazy"></div>
-        <div class="body">
-          <h3><?= h($cap['title']) ?></h3>
-          <p><?= h($cap['text']) ?></p>
-          <div class="badges">
-            <?php foreach ($cap['seen'] as $slug):
-              if (isset($products[$slug])) { $label = $products[$slug]['short']; $href = '/products/' . $slug; }
-              else { continue; } ?>
-              <a class="badge" href="<?= h($href) ?>"><?= h($label) ?></a>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      </div>
-    <?php endforeach; ?>
-  </div>
-</section>
-</div>
-
 <div class="wrap" id="more">
 <section style="padding-top:24px">
   <div class="eyebrow">The work</div>
@@ -117,6 +91,30 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
     <?php foreach ($featured as $p): include APP_DIR . '/templates/_card.php'; endforeach; ?>
   </div>
   <div class="actions"><a class="btn ghost" href="/products">See all <?= count($modules) ?> modules</a></div>
+</section>
+
+<section id="problems" style="padding-top:24px">
+  <div class="eyebrow">What we are good at</div>
+  <h2>The kinds of problems we solve</h2>
+  <p class="lead">Mapping, drawing, calls, collaboration, APIs and more. Here is where each one shows up in the work.</p>
+  <div class="grid four">
+    <?php foreach (capabilities() as $cap): ?>
+      <div class="card cap">
+        <div class="thumb"><img class="art" src="/assets/art/<?= h($cap['art']) ?>.svg" alt="" loading="lazy"></div>
+        <div class="body">
+          <h3><?= h($cap['title']) ?></h3>
+          <p><?= h($cap['text']) ?></p>
+          <div class="badges">
+            <?php foreach ($cap['seen'] as $slug):
+              if (isset($products[$slug])) { $label = $products[$slug]['short']; $href = '/products/' . $slug; }
+              else { continue; } ?>
+              <a class="badge" href="<?= h($href) ?>"><?= h($label) ?></a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
 </section>
 
 <section>
