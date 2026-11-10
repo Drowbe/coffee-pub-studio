@@ -12,7 +12,7 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
       <h1><?= h($s['tagline']) ?></h1>
       <p class="lead">We have solved hundreds of problems. Some of them grew into the products below.</p>
       <div class="actions">
-        <a class="btn" href="#more">See what we have made</a>
+        <a class="btn" href="/products">See what we have made</a>
         <a class="btn ghost" href="/about">About the studio</a>
       </div>
     </div>
