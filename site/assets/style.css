@@ -458,8 +458,10 @@ nav.main a.inbox .count { display: inline-block; min-width: 1.4em; padding: 0 .4
 :root[data-theme="dark"] nav.main a.inbox .count { color: #0E1A2B; }
 @media (max-width: 760px) { .dd { position: static; } .dd-menu { left: 16px; right: 16px; min-width: 0; } header.site { position: sticky; } }
 
-.pname { display: flex; align-items: center; gap: 14px; margin: 6px 0 14px; font-family: var(--serif); font-weight: 600; font-size: 1.5rem; line-height: 1.15; color: var(--text); }
-.pname .mk { width: 48px; height: 48px; flex: none; }
+.pname { display: flex; align-items: center; gap: 16px; margin: 6px 0 10px; font-family: var(--serif); font-weight: 600; font-size: clamp(2.3rem, 4.6vw, 3.3rem); line-height: 1.05; letter-spacing: -.015em; color: var(--text); }
+.pname .mk { width: 64px; height: 64px; flex: none; }
+h2.tag { font-size: clamp(1.25rem, 2.2vw, 1.6rem); font-weight: 600; letter-spacing: 0; margin: 0 0 16px; color: var(--accent-text); }
+@media (max-width: 560px) { .pname .mk { width: 48px; height: 48px; } .pname { gap: 12px; } }
 .pname-h { display: flex; align-items: center; gap: 18px; }
 .pname-h .mk { width: 72px; height: 72px; flex: none; }
 @media (max-width: 560px) { .pname-h .mk { width: 52px; height: 52px; } .pname-h { gap: 12px; } }

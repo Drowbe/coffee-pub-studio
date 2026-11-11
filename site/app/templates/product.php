@@ -19,7 +19,7 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
       <?php if (($p['status'] ?? '') === 'early'): ?> &middot; Early<?php endif; ?>
       <?php if (!empty($p['comingSoon'])): ?> &middot; <?= h($p['statusLabel'] ?? 'Coming soon') ?><?php endif; ?>
     </div>
-    <h1 class="pname-h"><?php if ($mk): ?><?= mark_img($mk, 72, 'mk') ?><?php endif; ?><span><?= h($p['name']) ?></span></h1>
+    <h1 class="pname-h"><?php if ($mk): ?><?= mark_img($mk, 72, 'mk') ?><?php endif; ?><span><?= h(preg_replace('/^Coffee Pub\s+/i', '', $p['name'])) ?></span></h1>
     <p class="lead"><?= h($p['pitch'] ?? $p['tagline']) ?></p>
 
     <div class="actions">

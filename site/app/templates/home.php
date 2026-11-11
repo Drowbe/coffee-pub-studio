@@ -31,8 +31,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
   <div class="band">
     <div>
       <div class="eyebrow"><?= h($flag['category'] ?? 'Collaboration') ?> &middot; In private beta</div>
-      <div class="pname"><?= mark_img("chameleon", 56, "mk") ?><span><?= h($flag['name']) ?></span></div>
-      <h2>Plan the trip together</h2>
+      <div class="pname"><?= mark_img("chameleon", 56, "mk") ?><span><?= h(preg_replace('/^Coffee Pub\s+/i', '', $flag['name'])) ?></span></div>
+      <h2 class="tag">Plan the trip together</h2>
       <p class="lead"><?= h($flag['pitch']) ?></p>
       <ul class="ticks">
         <?php foreach (array_slice($flag['highlights'] ?? [], 1, 3) as $line): ?><li><?= h($line) ?></li><?php endforeach; ?>
@@ -53,8 +53,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
   <div class="band">
     <div>
       <div class="eyebrow">For streamers</div>
-      <div class="pname"><?= mark_img("showrunner", 56, "mk") ?><span>Coffee Pub Showrunner</span></div>
-      <h2>Feed OBS what it needs</h2>
+      <div class="pname"><?= mark_img("showrunner", 56, "mk") ?><span>Showrunner</span></div>
+      <h2 class="tag">Feed OBS what it needs</h2>
       <p class="lead"><?= h($s['studioApp']['text']) ?></p>
       <ul class="ticks">
         <li>Wraps your game window and other web pages so OBS captures them cleanly, and keeps every source pointed and cropped after each launch.</li>
@@ -75,8 +75,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 <?php $bs = $products['blacksmith'] ?? null; $pl = $bs['platform'] ?? null; ?>
 <section id="modules">
   <div class="eyebrow">For tabletop games</div>
-  <div class="pname"><?= mark_img("gaming", 56, "mk") ?><span>Coffee Pub Gaming</span></div>
-  <h2>Run the game</h2>
+  <div class="pname"><?= mark_img("gaming", 56, "mk") ?><span>Gaming</span></div>
+  <h2 class="tag">Run the game</h2>
   <p class="lead"><?= count($modules) ?> Foundry VTT modules that each solve dozens of small problems at the table, from a core toolbar to character and combat tools, journals, maps, audio and crafting. They share one look and one engine.</p>
   <?php if ($bs && $pl): ?>
   <div class="engine">
