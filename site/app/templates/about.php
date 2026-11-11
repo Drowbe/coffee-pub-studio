@@ -30,7 +30,7 @@
               <ellipse cx="186" cy="246" rx="18" ry="4.5" fill="#6B4A2F"/>
               <circle cx="89" cy="307" r="11" fill="#F2CDB0"/>
               <circle cx="213" cy="270" r="10.5" fill="#F2CDB0"/>
-              <path d="M178 236 Q173 230 178 224 Q183 218 178 212 M192 236 Q187 230 192 224 Q197 218 192 212" stroke="#fff" stroke-width="3" opacity=".55" fill="none"/>
+              <path class="steam" d="M178 238 Q173 232 178 226 Q183 220 178 214" stroke="#fff" stroke-width="3" opacity=".55" fill="none"/><path class="steam s2" d="M192 238 Q187 232 192 226 Q197 220 192 214" stroke="#fff" stroke-width="3" opacity=".55" fill="none"/>
             </g>
             <path d="M96 320 H204 L212 392 H158 L150 352 L142 392 H88Z" fill="#CDB88B" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M96 338 H206 M104 360 H134 M166 360 H196" stroke="#14243B" stroke-width="2" stroke-dasharray="4 4" fill="none" opacity=".6"/>
