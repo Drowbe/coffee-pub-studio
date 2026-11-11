@@ -19,8 +19,8 @@
           <g class="twinkle t2" transform="translate(256 168)"><path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3Z" fill="#F6B35B"/></g>
           <g class="me-fig">
             <g fill="#F2CDB0" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
-              <path d="M82 236 C78 262 80 284 84 298 L102 296 C103 280 106 252 108 230Z"/>
-              <path d="M218 230 C234 246 244 262 247 280 Q247 292 234 292 L215 278 L221 266 L229 270 C222 260 210 250 198 242Z"/>
+              <path d="M110 230 L58 262 L93 293 L82 301 L46 281 Q30 272 38 258 L80 240Z"/>
+              <path d="M190 232 L236 266 L222 264 L221 277 L248 286 Q270 284 268 268 Q262 254 222 242Z"/>
             </g>
             <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M100 190 L72 212 L80 242 L110 230Z M200 190 L228 212 L220 242 L190 230Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
@@ -28,7 +28,7 @@
               <path d="M204 254 H213 Q223 254 223 267 Q223 280 213 282 H204" fill="none"/>
               <path d="M168 246 H204 V284 Q204 294 194 294 H178 Q168 294 168 284Z" fill="#F7EEDA"/>
               <ellipse cx="186" cy="246" rx="18" ry="4.5" fill="#6B4A2F"/>
-              <circle cx="92" cy="309" r="10" fill="#F2CDB0"/>
+              <circle cx="89" cy="307" r="11" fill="#F2CDB0"/>
               <circle cx="213" cy="270" r="10.5" fill="#F2CDB0"/>
               <path d="M178 236 Q173 230 178 224 Q183 218 178 212 M192 236 Q187 230 192 224 Q197 218 192 212" stroke="#fff" stroke-width="3" opacity=".55" fill="none"/>
             </g>
