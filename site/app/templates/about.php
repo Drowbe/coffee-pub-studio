@@ -20,7 +20,7 @@
           <g class="me-fig">
             <g fill="#F2CDB0" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
               <path d="M74 214 L44 256 Q38 267 48 273 L83 299 L93 291 L58 262 L86 238Z"/>
-              <path d="M222 228 L262 250 Q274 258 270 270 Q266 279 255 279 L222 278 L222 266 L244 262 L222 244Z"/>
+              <path d="M226 214 L256 256 Q262 267 252 275 L222 278 L222 266 L242 262 L214 238Z"/>
             </g>
             <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M100 190 L72 212 L80 242 L110 230Z M200 190 L228 212 L220 242 L190 230Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
