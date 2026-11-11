@@ -11,25 +11,30 @@
       <a class="btn ghost" href="/products">Browse the products</a>
     </div>
       </div>
-      <div class="me-art" role="img" aria-label="An illustration of Thomas: spiky hair, glasses, a black tee, a backpack and cargo shorts, hands behind his back">
+      <div class="me-art" role="img" aria-label="An illustration of Thomas: spiky hair, glasses, a black tee and cargo shorts, holding a cup of coffee">
         <svg viewBox="0 0 300 440" aria-hidden="true" focusable="false">
           <rect x="10" y="30" width="280" height="390" rx="140" fill="var(--sand)"/>
           <ellipse cx="150" cy="428" rx="84" ry="9" fill="#14243B" opacity=".14"/>
           <g class="twinkle" transform="translate(48 96)"><path d="M0 -16 L4 -4 L16 0 L4 4 L0 16 L-4 4 L-16 0 L-4 -4Z" fill="#fff"/></g>
           <g class="twinkle t2" transform="translate(256 168)"><path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3Z" fill="#F6B35B"/></g>
           <g class="me-fig">
-            <rect x="82" y="190" width="136" height="132" rx="28" fill="#3C5A7D" stroke="#14243B" stroke-width="3.5"/>
             <g fill="none" stroke="#14243B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M82 236 C70 262 78 292 100 306" stroke-width="22"/><path d="M218 236 C230 262 222 292 200 306" stroke-width="22"/>
+              <path d="M82 236 C70 262 78 292 100 306" stroke-width="22"/>
             </g>
             <g fill="none" stroke="#F2CDB0" stroke-width="15" stroke-linecap="round">
-              <path d="M82 236 C70 262 78 292 100 306"/><path d="M218 236 C230 262 222 292 200 306"/>
+              <path d="M82 236 C70 262 78 292 100 306"/>
             </g>
             <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M100 190 L72 212 L80 242 L110 230Z M200 190 L228 212 L220 242 L190 230Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
-            <g fill="none" stroke-linecap="round"><path d="M126 184 L118 308 M174 184 L182 308" stroke="#14243B" stroke-width="17"/><path d="M126 184 L118 308 M174 184 L182 308" stroke="#0B7A84" stroke-width="11"/>
-              <path d="M124 236 H176" stroke="#14243B" stroke-width="8"/><path d="M124 236 H176" stroke="#0B7A84" stroke-width="4"/></g>
-            <rect x="143" y="228" width="14" height="16" rx="3" fill="#F26B52" stroke="#14243B" stroke-width="2.5"/>
+            <g stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M222 238 C240 250 246 270 240 282 C232 288 222 282 214 274" stroke="#14243B" stroke-width="22"/><path d="M222 238 C240 250 246 270 240 282 C232 288 222 282 214 274" stroke="#F2CDB0" stroke-width="15"/></g>
+            <g stroke="#14243B" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+              <path d="M204 264 H210 Q219 264 219 272 Q219 280 210 280 H204" fill="none"/>
+              <path d="M176 256 H206 V282 Q206 292 196 292 H186 Q176 292 176 282Z" fill="#F7EEDA"/>
+              <ellipse cx="191" cy="256" rx="15" ry="4" fill="#6B4A2F"/>
+              <path d="M176 272 H206" stroke="#F26B52" stroke-width="5" fill="none"/>
+              <circle cx="213" cy="272" r="8" fill="#F2CDB0"/>
+              <path d="M185 244 Q180 238 185 232 Q190 226 185 220 M197 244 Q192 238 197 232 Q202 226 197 220" stroke="#fff" stroke-width="3" opacity=".55" fill="none"/>
+            </g>
             <path d="M96 320 H204 L212 392 H158 L150 352 L142 392 H88Z" fill="#CDB88B" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M96 338 H206 M104 360 H134 M166 360 H196" stroke="#14243B" stroke-width="2" stroke-dasharray="4 4" fill="none" opacity=".6"/>
             <rect x="104" y="372" width="26" height="22" rx="4" fill="#B9A474" stroke="#14243B" stroke-width="2.5"/><rect x="170" y="372" width="26" height="22" rx="4" fill="#B9A474" stroke="#14243B" stroke-width="2.5"/>
