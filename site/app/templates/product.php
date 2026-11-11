@@ -14,13 +14,12 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
   <?php $art = !empty($p['heroArt']); if ($art): ?><div class="phead-split"><?php endif; ?>
   <div class="phead">
     <?php $mk = $p['mark'] ?? ($isApp ? null : 'gaming'); ?>
-    <div class="eyebrow pm">
-      <?php if ($mk): ?><?= mark_img($mk, 56, 'mk pmk') ?><?php endif; ?>
-      <span><?= h($p['category']) ?>
+    <div class="eyebrow">
+      <?= h($p['category']) ?>
       <?php if (($p['status'] ?? '') === 'early'): ?> &middot; Early<?php endif; ?>
-      <?php if (!empty($p['comingSoon'])): ?> &middot; <?= h($p['statusLabel'] ?? 'Coming soon') ?><?php endif; ?></span>
+      <?php if (!empty($p['comingSoon'])): ?> &middot; <?= h($p['statusLabel'] ?? 'Coming soon') ?><?php endif; ?>
     </div>
-    <h1><?= h($p['name']) ?></h1>
+    <h1 class="pname-h"><?php if ($mk): ?><?= mark_img($mk, 72, 'mk') ?><?php endif; ?><span><?= h($p['name']) ?></span></h1>
     <p class="lead"><?= h($p['pitch'] ?? $p['tagline']) ?></p>
 
     <div class="actions">

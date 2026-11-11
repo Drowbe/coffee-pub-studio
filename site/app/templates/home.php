@@ -30,7 +30,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 <section id="chameleon">
   <div class="band">
     <div>
-      <div class="eyebrow pm"><?= mark_img("chameleon", 56, "mk pmk") ?><span>Chameleon &middot; In private beta</span></div>
+      <div class="eyebrow"><?= h($flag['category'] ?? 'Collaboration') ?> &middot; In private beta</div>
+      <div class="pname"><?= mark_img("chameleon", 56, "mk") ?><span><?= h($flag['name']) ?></span></div>
       <h2>Plan the trip together</h2>
       <p class="lead"><?= h($flag['pitch']) ?></p>
       <ul class="ticks">
@@ -51,7 +52,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 <section id="showrunner">
   <div class="band">
     <div>
-      <div class="eyebrow pm"><?= mark_img("showrunner", 56, "mk pmk") ?><span>For streamers</span></div>
+      <div class="eyebrow">For streamers</div>
+      <div class="pname"><?= mark_img("showrunner", 56, "mk") ?><span>Coffee Pub Showrunner</span></div>
       <h2>Feed OBS what it needs</h2>
       <p class="lead"><?= h($s['studioApp']['text']) ?></p>
       <ul class="ticks">
@@ -72,7 +74,8 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
 
 <?php $bs = $products['blacksmith'] ?? null; $pl = $bs['platform'] ?? null; ?>
 <section id="modules">
-  <div class="eyebrow pm"><?= mark_img("gaming", 56, "mk pmk") ?><span>For tabletop games</span></div>
+  <div class="eyebrow">For tabletop games</div>
+  <div class="pname"><?= mark_img("gaming", 56, "mk") ?><span>Coffee Pub Gaming</span></div>
   <h2>Run the game</h2>
   <p class="lead"><?= count($modules) ?> Foundry VTT modules that each solve dozens of small problems at the table, from a core toolbar to character and combat tools, journals, maps, audio and crafting. They share one look and one engine.</p>
   <?php if ($bs && $pl): ?>
