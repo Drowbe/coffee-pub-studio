@@ -465,3 +465,11 @@ h2.tag { font-size: clamp(1.25rem, 2.2vw, 1.6rem); font-weight: 600; letter-spac
 .pname-h { display: flex; align-items: center; gap: 18px; }
 .pname-h .mk { width: 72px; height: 72px; flex: none; }
 @media (max-width: 560px) { .pname-h .mk { width: 52px; height: 52px; } .pname-h { gap: 12px; } }
+
+/* Click a screenshot to see it larger */
+.show-shot img, .gallery img { cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 3vmin; background: rgba(8, 15, 27, .88); cursor: zoom-out; }
+.lightbox[hidden] { display: none; }
+.lightbox img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); background: var(--band); }
+.lb-x { position: absolute; top: 14px; right: 18px; width: 44px; height: 44px; border-radius: 99px; border: 1px solid var(--line2); background: var(--surface); color: var(--text); font-size: 1.6rem; line-height: 1; cursor: pointer; }
+html.lb-open { overflow: hidden; }

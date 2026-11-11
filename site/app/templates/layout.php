@@ -95,6 +95,23 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
 </footer>
 <script>
 (function () {
+  var imgs = document.querySelectorAll('.show-shot img, .gallery img'); if (!imgs.length) return;
+  var box = document.createElement('div'); box.className = 'lightbox'; box.hidden = true;
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Screenshot');
+  box.innerHTML = '<button type="button" class="lb-x" aria-label="Close">&times;</button><img alt="">';
+  document.body.appendChild(box);
+  var big = box.querySelector('img'), last = null;
+  function open(img) { last = img; big.src = img.currentSrc || img.src; big.alt = img.alt; box.hidden = false; document.documentElement.classList.add('lb-open'); box.querySelector('.lb-x').focus(); }
+  function close() { box.hidden = true; document.documentElement.classList.remove('lb-open'); big.removeAttribute('src'); if (last) last.focus(); }
+  imgs.forEach(function (img) {
+    img.tabIndex = 0; img.setAttribute('role', 'button'); img.setAttribute('aria-label', 'View larger: ' + (img.alt || 'screenshot'));
+    img.addEventListener('click', function () { open(img); });
+    img.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(img); } });
+  });
+  box.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) close(); });
+})();
+(function () {
   var dd = document.getElementById('dd-products'); if (!dd) return;
   var b = dd.querySelector('.dd-btn');
   function set(o) { dd.classList.toggle('open', o); b.setAttribute('aria-expanded', o ? 'true' : 'false'); }
