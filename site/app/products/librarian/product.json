@@ -79,10 +79,14 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-codex.webp",
+      "title": "One entry, three views",
+      "text": "A codex entry shows as a card in the browser, in an edit form and as a journal page. The form takes a category, a location path, links and a plot hook that only the GM sees. The browser filters as you type and shows how many entries match.",
       "caption": "Codex browser"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-quest.webp",
+      "title": "Quests with steps",
+      "text": "Quests are sorted into Active, Available and Complete. Each card lists its objectives, the GM's plot hook, treasure, experience, location and the people involved. Pins on the scene point to the quest, and each objective can have its own pin.",
       "caption": "Quest browser"
     }
   ],

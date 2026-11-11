@@ -79,26 +79,38 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-deathsave.webp",
+      "title": "A character on the ground",
+      "text": "At zero hit points the health bar gives way to death save pips, filled in as successes and failures are rolled. The owner of the character can roll the save right from the card, and the blood on the portrait gets heavier with the damage taken.",
       "caption": "Death save turn card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-small.webp",
+      "title": "The compact card",
+      "text": "The small layout folds portrait, class, walking speed and health bar into one row, with ability scores and active conditions below. Penalties such as -3 to ability checks are totaled at the bottom. It is the same card in less height.",
       "caption": "Compact turn card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-combat-turn.webp",
+      "title": "Combat and round cards",
+      "text": "Combat Begins and Round 1 post as their own cards, in different colors so they stand out when you scroll back through chat. Nothing posts until everyone has rolled initiative, so the order is settled first.",
       "caption": "Combat start and round cards"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-npc.webp",
+      "title": "Monsters, kept vague",
+      "text": "A monster's card can show its portrait and what its conditions cost it, such as -3 to attack rolls and -1 to AC, without a health bar or ability scores. The table gets what it needs to play the fight and no hit point count.",
       "caption": "NPC turn card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-turn-dead.webp",
+      "title": "When a character dies",
+      "text": "If the death saves go wrong, the pips are replaced by a band naming the character as dead, with a skull over the blood-covered portrait. The card updates in place on every screen, so nobody has to repost anything.",
       "caption": "Downed character card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-crier/master/documentation/assets/crier-settings-turn-content.webp",
+      "title": "Choose who sees what",
+      "text": "Each block of the turn card has its own setting: portrait, health, ability scores, conditions and turn penalties. For each one, pick nobody, players, monsters or everyone. Monster names can be hidden from players as well.",
       "caption": "Turn card content settings"
     }
   ],

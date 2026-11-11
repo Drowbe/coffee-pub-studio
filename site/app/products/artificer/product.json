@@ -77,22 +77,32 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-recipe-browser.webp",
+      "title": "Every recipe in one list",
+      "text": "Browse recipes from your compendiums and world journals. Pick one to see its skill, level, rarity, batch yield, preparation steps, apparatus, container, process, time and cost, then open it in the crafting window.",
       "caption": "Recipe browser"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-scene-geography.webp",
+      "title": "Set the habitat once",
+      "text": "On a scene's Geography tab you tick the habitats that describe the place. Artificer reads them to decide which components can be found there, and other Coffee Pub modules read the same setting.",
       "caption": "Scene geography"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-scene-configuration.webp",
+      "title": "Tune each scene",
+      "text": "The Artificer tab narrows what a scene gives: which component types occur, which skills may be rolled, the discovery and harvest DCs, how many spots can exist and how far from the token they appear.",
       "caption": "Scene configuration"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-skillmapping.webp",
+      "title": "Skills and perks",
+      "text": "Each crafting skill has its own row of perks and a description of what it covers. Perks are what make two characters with the same recipe get different results.",
       "caption": "Skill mapping"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-artificer/main/documentation/assets/artificer-createitem.webp",
+      "title": "Make your own components",
+      "text": "The GM fills in a name, image, type, family and traits, then a skill level, habitats and a quirk. Traits drive recipe matching, so a new item works at the crafting station without any code.",
       "caption": "Create an Artificer item"
     }
   ],

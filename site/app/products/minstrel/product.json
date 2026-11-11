@@ -79,23 +79,33 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-soundscenes.webp",
-      "caption": "Sound scenes"
+      "caption": "Sound scenes",
+      "title": "Build a scene from layers",
+      "text": "A sound scene stacks music, looping ambience and effects, each with its own volume. The window shows a master timeline and the scene's tracks, so you can start the whole mood in one click and stop it just as fast."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-cues.webp",
-      "caption": "Cues"
+      "caption": "Cues",
+      "title": "Cues on a soundboard",
+      "text": "Cue sheets group one-shot effects into buttons, sorted into sections such as stingers and movement. Fire one by hand when the moment calls for it, and mark the ones you reach for most as favorites."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-playlists.webp",
-      "caption": "Playlists"
+      "caption": "Playlists",
+      "title": "Your own playlists, as they are",
+      "text": "Minstrel lists your existing Foundry playlists with search, a volume slider per sound and a favorite heart. Nothing is imported or converted, so the sounds you already have are ready to use."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-automation.webp",
-      "caption": "Automation rules"
+      "caption": "Automation rules",
+      "title": "Let the table trigger the sound",
+      "text": "Each automation rule pairs a trigger, such as a scene change, with an action like playing a sound scene. Rules are grouped by category and edited on the right, so music can follow the game without you."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-minstrel/master/documentation/assets/userguide-menubar.webp",
-      "caption": "Menubar transport"
+      "caption": "Menubar transport",
+      "title": "Controls in the menubar",
+      "text": "The menubar adds buttons for scenes, playlists, cues and automation, plus stop buttons for the scene, music, environment, one-shots or everything. You can silence the table without opening the window."
     }
   ],
   "manifestFallback": "https://github.com/Drowbe/coffee-pub-minstrel/releases/latest/download/module.json"

@@ -80,26 +80,38 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-communications.webp",
+      "title": "Talk at the table",
+      "text": "A tray of party, group and one-to-one conversations sits beside the thread. Messages carry reactions and linked documents such as spells, can pop out over the map, and live in journals so a chat wipe does not erase them.",
       "caption": "Messages"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-injury.webp",
+      "title": "A wound with real effects",
+      "text": "A hard hit posts a card with the wound's art, its penalties, treatment, duration and damage in hit points. Applying it puts the effect on the token, and the card records who it was applied to.",
       "caption": "Injury picker"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-checkup.webp",
+      "title": "See who is hurt",
+      "text": "A check-up card lists a character's current hit points and every active injury, fumble, effect and condition, so you can see what is wrong and where each affliction came from.",
       "caption": "Injury check-up"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-criticals.webp",
+      "title": "Criticals with consequences",
+      "text": "A critical draws a card from an authored deck, not a roll table. The card shows what it does, here prone for one round, and the button applies it to the creature that was hit.",
       "caption": "Critical hit card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-fumbles.webp",
+      "title": "Fumbles that land somewhere",
+      "text": "Some fumbles hit an ally. This card gives a Random Party Member button and one button per character, so the table can pick who takes it or let the dice decide.",
       "caption": "Fumble card"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-bibliosoph/main/documentation/assets/bibliosoph-investigation.webp",
+      "title": "One roll, one result",
+      "text": "A search posts a card with narration, the coins found by denomination and the items by rarity. It also says what was added to the searcher's inventory and coin purse.",
       "caption": "Room search card"
     }
   ],

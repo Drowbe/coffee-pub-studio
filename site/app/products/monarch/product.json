@@ -76,19 +76,27 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-import-preview.webp",
-      "caption": "Settings import preview"
+      "caption": "Settings import preview",
+      "title": "Choose what to import",
+      "text": "Importing a settings file opens a preview with every module listed and checked. Untick any you do not want, or use Select All and Select None, then proceed with the import."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-import-result.webp",
-      "caption": "Settings import result"
+      "caption": "Settings import result",
+      "title": "See what came across",
+      "text": "When the import finishes you get a summary: how many settings were imported, how many were world or client scoped, how many you skipped by choice, and any that failed. A reload applies the changes."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-jumpto.webp",
-      "caption": "Jump to a setting by name"
+      "caption": "Jump to a setting by name",
+      "title": "Jump to a setting",
+      "text": "Type a name in the search box and the settings list scrolls to the match instead of hiding everything else. The counts beside each module show how many settings it holds."
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-monarch/main/documentation/assets/monarch-settings-prune.webp",
-      "caption": "Prune orphaned settings"
+      "caption": "Prune orphaned settings",
+      "title": "Find leftover settings",
+      "text": "The prune report lists every module namespace and marks the ones whose module is no longer installed. Orphaned settings are pre-checked, with a warning that pruning cannot be undone, so back up first."
     }
   ],
   "manifestFallback": "https://github.com/Drowbe/coffee-pub-monarch/releases/latest/download/module.json"

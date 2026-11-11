@@ -63,18 +63,26 @@
   "gallery": [
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-shop-list.webp",
+      "title": "A shop at the table",
+      "text": "Double-click a merchant's token and the shop opens, with items grouped by kind, their prices and how many are left. A slate on the right shows the buyer's funds, what they are buying and selling, and the net total before they confirm.",
       "caption": "Shop list view by category"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-shop-masonary.webp",
+      "title": "The shop as a wall",
+      "text": "The same shelves can be drawn as tiles of item art instead of rows. It is a quicker way to see what a shop carries. The shop's own notices, such as a line about rope, sit among the goods and are not for sale.",
       "caption": "Shop wall view"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-receipt.webp",
+      "title": "Receipt for a mail order",
+      "text": "Goods ordered from a catalogue are paid for at once and arrive later. The buyer gets a receipt in their inventory. Consulting it says how long is left, what is coming, by which service and to where.",
       "caption": "Order receipt"
     },
     {
       "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-merchant/main/documentation/assets/merchant-collect.webp",
+      "title": "Collecting the parcel",
+      "text": "When the parcel reaches its destination the GM is asked whether the party is actually there. If they say yes, the crate lands in the buyer's pack with a notice listing what was inside, ready to open.",
       "caption": "Collecting an order"
     }
   ],
