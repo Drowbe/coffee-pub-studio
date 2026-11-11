@@ -19,8 +19,8 @@
           <g class="twinkle t2" transform="translate(256 168)"><path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3Z" fill="#F6B35B"/></g>
           <g class="me-fig">
             <g fill="#F2CDB0" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
-              <path d="M110 230 L58 262 L93 293 L82 301 L46 281 Q30 272 38 258 L80 240Z"/>
-              <path d="M190 232 L236 266 L222 264 L221 277 L248 286 Q270 284 268 268 Q262 254 222 242Z"/>
+              <path d="M74 214 L44 256 Q38 267 48 273 L83 299 L93 291 L58 262 L86 238Z"/>
+              <path d="M222 228 L262 250 Q274 258 270 270 Q266 279 255 279 L222 278 L222 266 L244 262 L222 244Z"/>
             </g>
             <path d="M104 190 C116 178 136 180 150 186 C164 180 184 178 196 190 L216 216 L206 320 L94 320 L84 216Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
             <path d="M100 190 L72 212 L80 242 L110 230Z M200 190 L228 212 L220 242 L190 230Z" fill="#23262C" stroke="#14243B" stroke-width="3.5" stroke-linejoin="round"/>
