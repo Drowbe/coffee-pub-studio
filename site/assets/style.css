@@ -183,8 +183,6 @@ footer.site nav { display: flex; gap: 22px; flex-wrap: wrap; }
   .hero { gap: 48px; padding-top: 56px; }
   .band { gap: 28px; }
   .mock .body { grid-template-columns: 1fr; } .mock .side { display: none; }
-  header.site .wrap { height: auto; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px; gap: 10px; }
-  nav.main { margin-left: 0; width: 100%; flex-wrap: wrap; }
   section { padding-top: 80px; }
   .install { gap: 36px; }
 }
@@ -481,3 +479,25 @@ html.lb-open { overflow: hidden; }
 .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-left: 8px; border: 1px solid var(--line2); border-radius: 50%; color: var(--coral-text); text-decoration: none; }
 .iconbtn:hover { background: var(--band); }
 .iconbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Header: one tidy row on phones, menu behind a button */
+.hr { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.hr nav.main { margin-left: 0; }
+.tools { display: flex; align-items: center; gap: 8px; }
+.tools .iconbtn, .tools #theme { margin-left: 0; }
+.menubtn { display: none; }
+@media (max-width: 760px) {
+  header.site .wrap { height: 64px; gap: 12px; flex-wrap: nowrap; }
+  .brand .mk { width: 40px; height: 40px; } .brand .wm { font-size: 1.25rem; }
+  .menubtn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--line2); border-radius: 50%; background: transparent; color: var(--text); cursor: pointer; }
+  .menubtn:hover { background: var(--band); }
+  nav.main { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 2px; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px 16px 16px; box-shadow: 0 12px 24px rgba(20, 36, 59, .12); }
+  header.site.open nav.main { display: flex; }
+  nav.main a.link, nav.main button.dd-btn { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 12px; font-size: 1.05rem; text-align: left; width: 100%; box-sizing: border-box; }
+  .dd-menu { position: static; box-shadow: none; border: 0; padding: 0 0 6px 8px; min-width: 0; background: transparent; }
+}
+@media (max-width: 420px) {
+  .brand { gap: 8px; } .brand .mk { width: 34px; height: 34px; } .brand .wm { font-size: 1.1rem; }
+  .iconbtn, #theme, .menubtn { width: 36px; height: 36px; }
+  .hr, .tools { gap: 6px; }
+}
