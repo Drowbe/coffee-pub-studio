@@ -72,7 +72,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
       </div>
       <nav aria-label="Products">
         <h2>Products</h2>
-        <a href="/products/chameleon">Coffee Pub Chameleon</a>
+        <a href="/products/chameleon">Chameleon</a>
         <a href="/products/showrunner">Showrunner</a>
         <a href="/products#modules">Foundry VTT modules</a>
         <a href="/products">All products</a>

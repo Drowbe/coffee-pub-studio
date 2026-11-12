@@ -388,7 +388,7 @@ a.feature:hover h3 { text-decoration: underline; }
 .ai-split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 20px; }
 .ai-text { max-width: 46rem; }
 .ai-art { max-width: 460px; margin-top: 8px; position: sticky; top: 96px; }
-@media (max-width: 900px) { .ai-split { grid-template-columns: 1fr; gap: 28px; } .ai-art { position: static; max-width: 380px; } }
+@media (max-width: 900px) { .ai-split { grid-template-columns: 1fr; gap: 28px; } .ai-art { position: relative; max-width: 380px; } }
 /* About: self-portrait beside the intro */
 .about-hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 56px; align-items: center; }
 .me-art { width: 100%; max-width: 320px; justify-self: center; }
@@ -500,4 +500,38 @@ html.lb-open { overflow: hidden; }
   .brand { gap: 8px; } .brand .mk { width: 34px; height: 34px; } .brand .wm { font-size: 1.1rem; }
   .iconbtn, #theme, .menubtn { width: 36px; height: 36px; }
   .hr, .tools { gap: 6px; }
+}
+
+/* Phone rhythm: tighter vertical space, easier tap targets */
+@media (max-width: 760px) {
+  section { padding-top: 52px; }
+  .hero { padding-top: 28px; gap: 28px; }
+  .home-top { padding-bottom: 36px; }
+  .band { padding: 44px 0; gap: 24px; }
+  h1 { margin-bottom: 14px; }
+  .lead { font-size: 1.1rem; }
+  footer.site nav a { display: inline-block; padding: 7px 0; }
+  footer.site .foot-base a { display: inline-block; padding: 6px 2px; }
+  .crumbs a { display: inline-block; padding: 8px 0; }
+}
+
+/* lb-pan: on phones the enlarged screenshot is wider than the screen so you can pan and pinch to read it */
+@media (max-width: 760px) {
+  .lightbox { align-items: flex-start; justify-content: flex-start; overflow: auto; padding: 64px 12px 24px; touch-action: pan-x pan-y pinch-zoom; }
+  .lightbox img { max-width: none; max-height: none; width: max(190vw, 760px); flex: none; }
+  .lb-x { position: fixed; top: 10px; right: 12px; }
+}
+
+/* phone-compact: shorter feature list and area cards, code chips that don't break mid-word */
+@media (max-width: 620px) {
+  .features { gap: 6px; margin-top: 28px; }
+  .feature { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 14px 0 12px; }
+  .feature .feat-img, .feature .n { grid-column: 1; grid-row: 1 / span 2; width: 44px; height: auto; margin: 2px 0 0; }
+  .feature .feat-img { height: 44px; }
+  .feature h3, .feature p { grid-column: 2; margin: 0; }
+  .feature p { margin-top: 4px; font-size: .98rem; line-height: 1.55; }
+  .area-card { padding: 22px; }
+  .area-card .area-img { width: 56px; height: 56px; }
+  .area-card .ticks { display: none; }
+  code, .code { display: inline-block; max-width: 100%; word-break: normal; overflow-wrap: anywhere; }
 }
