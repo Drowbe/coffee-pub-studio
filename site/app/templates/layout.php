@@ -52,7 +52,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
         $unread = (int)db()->query('SELECT COUNT(*) FROM messages WHERE is_read = 0')->fetchColumn(); ?>
         <a class="link inbox<?= $unread ? ' has' : '' ?>" href="/admin"><?= $unread ? 'Inbox <span class="count" aria-label="' . $unread . ' unread messages">' . $unread . '</span>' : 'Inbox' ?></a>
       <?php endif; ?>
-      <?php if (!empty($s['links']['patreon'])): ?><a class="pill" href="<?= h($s['links']['patreon']) ?>">Support on Patreon</a><?php endif; ?>
+      <?php if (!empty($s['links']['patreon'])): ?><a class="iconbtn" href="<?= h($s['links']['patreon']) ?>" target="_blank" rel="noopener" aria-label="Support on Patreon" title="Support on Patreon"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.7 5 6.1 5c2.1 0 3.6 1.2 5.9 3.5C14.3 6.2 15.8 5 17.9 5c3.4 0 5.2 3.4 3.7 6.8C19.5 16.4 12 21 12 21z" fill="currentColor"/></svg></a><?php endif; ?>
       <button id="theme" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">&#9680;</button>
     </nav>
   </div>
