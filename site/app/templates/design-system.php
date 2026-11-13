@@ -136,7 +136,7 @@ $contrast = [
     <h2 id="layout" class="ds-h">Layout and shape</h2>
     <div class="cols">
       <div class="panel"><h3>Container</h3><p>Content is up to 1425 px wide, with a side gutter that grows from 24 px to 60 px. Reading text stays within 42 to 46 rem.</p></div>
-      <div class="panel"><h3>Rhythm</h3><p>Sections are 96 px apart. Cards and panels sit 32 px apart in a grid. Body text is 18 px on a 1.7 line.</p></div>
+      <div class="panel"><h3>Rhythm</h3><p>Sections are 96 px apart. Cards and panels sit 32 px apart in a grid. Body text is 18 px on a 1.7 line. On phones sections are 52 px apart, bands 44 px, and tap targets at least 44 px.</p></div>
       <div class="panel"><h3>Radius</h3><p>Buttons are rounded squares (14 px). Pills and icon-only buttons are round. Cards and panels use 24 px, inputs and icon tiles 16 px. Marks use 2.5 units on a 56 unit grid.</p></div>
       <div class="panel"><h3>Depth</h3><p>Mostly flat, with a one pixel border. Linked cards lift 4 px and gain a soft shadow on hover. Dark mode uses a deeper shadow.</p></div>
     </div>
@@ -146,9 +146,21 @@ $contrast = [
 
     <h3 style="margin-top:40px">Buttons and pills</h3>
     <div class="actions">
-      <span class="btn">Primary</span><span class="btn ghost">Secondary</span><span class="btn soon" aria-disabled="true">Coming soon</span><span class="pill" style="margin-left:0">Pill action</span>
+      <a class="btn" href="#components" onclick="return false">Primary</a><a class="btn ghost" href="#components" onclick="return false">Secondary</a><span class="btn soon" aria-disabled="true">Coming soon</span><span class="pill" style="margin-left:0">Pill action</span>
     </div>
-    <p class="muted" style="max-width:40rem">Buttons lift slightly on hover and carry a small icon that says what they do: an arrow for going to a page, a download tray for downloads, a book for documentation, an envelope for contact, a play mark for demos. The site adds the icon to every button link automatically from its label and link, so write plain labels. The disabled "coming soon" button stays flat.</p>
+    <p class="muted" style="max-width:40rem">Buttons are rounded squares. On hover they lift a little and turn coral, the same coral as the eyebrow text; outlined buttons keep their fill and take a coral border and label. The icon moves too. Every button link gets an icon that says what it does, added automatically from its label and link, so write plain labels. The disabled "coming soon" button stays flat.</p>
+    <div class="actions" style="margin-top:8px">
+      <a class="btn" href="#components" onclick="return false">Go to a page</a>
+      <a class="btn" href="#components" onclick="return false">Download</a>
+      <a class="btn ghost" href="#components" onclick="return false">Documentation</a>
+      <a class="btn ghost" href="#components" onclick="return false">GitHub</a>
+      <a class="btn ghost" href="#components" onclick="return false">Get in touch</a>
+      <a class="btn ghost" href="#components" onclick="return false">See it in action</a>
+      <a class="btn ghost" href="#components" onclick="return false">Support on Patreon</a>
+      <a class="btn ghost" href="#components" onclick="return false">Back to products</a>
+      <a class="btn ghost" href="https://example.com/" onclick="return false">An outside site</a>
+    </div>
+    <p class="muted" style="max-width:40rem">Icons: an arrow for a page on the site, a download tray for Download and Install, a book for documentation, code brackets for GitHub, an envelope for contact, a play mark for demos, the Patreon mark for Patreon, a left arrow for Back, and an up-right arrow for another website.</p>
 
     <h3 style="margin-top:40px">Badges and chips</h3>
     <div class="badges" style="padding-top:0">
@@ -175,11 +187,31 @@ $contrast = [
     <h3 style="margin-top:40px">Band</h3>
     <div class="band" style="margin-top:20px"><div><h2 style="font-size:1.7rem">A full-width band</h2><p class="lead">Bands change the background to <code>--band</code> and carry a headline, a line of copy and one action.</p></div><div class="actions" style="margin:0"><span class="btn">Action</span></div></div>
 
+    <h3 style="margin-top:40px">Header and menu</h3>
+    <div class="cols" style="margin-top:20px">
+      <div class="panel"><h3>Desktop</h3><p>The logo on the left, then Products (a menu with Chameleon, Showrunner, Foundry VTT modules and All products), About and Support. A round Patreon icon button and the light and dark toggle sit at the right. The header stays at the top while the page scrolls.</p></div>
+      <div class="panel"><h3>Phone</h3><p>One 64 px row: the logo, the Patreon icon, the theme toggle and a menu button. The links open in a panel under the header, with the Products menu expanded inside it. It closes when a link is tapped, on Escape, or when you tap outside it.</p></div>
+      <div class="panel"><h3>Icon buttons</h3><p>Round, 40 px (36 px on small phones), a one pixel outline, a tooltip and an accessible label. Use them for repeated utilities, never for the main action.</p></div>
+    </div>
+
+    <h3 style="margin-top:40px">Product heading</h3>
+    <div class="cols" style="margin-top:20px">
+      <div class="panel"><h3>Order</h3><p>The eyebrow (category, then status) sits above. Below it the product's mark sits beside its name in the large heading, then the pitch and the actions. The home page blocks follow the same order with the name larger than the headline under it.</p></div>
+      <div class="panel"><h3>Names</h3><p>&ldquo;Coffee Pub&rdquo; is implied, so headings and menus use the short name: Chameleon, Showrunner, Gaming. The full name stays in page titles, search results and descriptive text.</p></div>
+      <div class="panel"><h3>Status</h3><p>A product or area that is not finished says so in its own words: &ldquo;In private beta&rdquo; for things people can try by invitation, &ldquo;Coming soon&rdquo; for things not yet started. Each area can carry its own label.</p></div>
+    </div>
+
+    <h3 style="margin-top:40px">Screenshots</h3>
+    <div class="cols" style="margin-top:20px">
+      <div class="panel"><h3>Tour rows</h3><p>Each screenshot sits next to a short title and a few plain sentences saying what it shows and why it matters. Rows alternate sides on desktop and stack on phones.</p></div>
+      <div class="panel"><h3>Click to enlarge</h3><p>Any tour screenshot opens in a large view over a dimmed page. Close it with a click, the Escape key or the &times; button. On phones the image is wider than the screen so it can be panned and pinched to read the detail.</p></div>
+    </div>
+
     <h2 id="illustration" class="ds-h">Illustration and motion</h2>
     <p class="lead"><a href="/design-system/icons">Browse every icon</a> and <a href="/design-system/illustrations">every illustration and animated scene</a>, each with a direct file link.</p>
     <div class="cols">
       <div class="panel"><h3>Style</h3><p>Flat shapes, no gradients or outlines, only palette colours, rounded corners, a coral accent on every piece. Illustrations are hand-built SVG, never stock.</p></div>
-      <div class="panel"><h3>Hero scenes</h3><p>Three animated scenes on one loop: a trip, a game and a design jam. They are pure CSS inside inline SVG, 18 seconds in total, six per scene.</p></div>
+      <div class="panel"><h3>Hero scenes</h3><p>Three animated scenes on one loop: a trip, a game and a design jam. They are pure CSS inside inline SVG, 18 seconds in total, six per scene. Other scenes play on their own where they belong, such as the Showrunner scene in its home page block and on its product page. Small touches, like the steam rising from the mug on the About portrait, loop quietly.</p></div>
       <div class="panel"><h3>Reduced motion</h3><p>With reduced motion on, the scenes stop on a still frame and nothing animates. Motion never carries meaning on its own.</p></div>
     </div>
     <div class="grid four exact" style="margin-top:32px">
@@ -191,8 +223,8 @@ $contrast = [
     <h2 id="voice" class="ds-h">Voice and content</h2>
     <div class="cols">
       <div class="panel"><h3>Tone</h3><p>Warm, direct and a little playful. Short sentences. Say what a thing does, then stop. Copy says &ldquo;we&rdquo;, not &ldquo;I&rdquo;. Only the About page says &ldquo;I&rdquo;, because it is fine to say there that the studio is mostly one person.</p></div>
-      <div class="panel"><h3>Words we use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. Product names always start with &ldquo;Coffee Pub&rdquo;. US spelling.</p></div>
-      <div class="panel"><h3>Honest about status</h3><p>Early things say Early. Unreleased things say Coming soon. No prices, tiers or licence claims until they exist. Modules are free for now.</p></div>
+      <div class="panel"><h3>Words we use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. The full product name starts with &ldquo;Coffee Pub&rdquo;, but it is implied: headings and menus use the short name. US spelling.</p></div>
+      <div class="panel"><h3>Honest about status</h3><p>Early things say Early. Things people can try by invitation say In private beta. Unreleased things say Coming soon. No prices, tiers or licence claims until they exist. Modules are free for now.</p></div>
       <div class="panel"><h3>AI note</h3><p>The note about AI assistance lives only on About and in the footer. It is not repeated on product pages.</p></div>
       <div class="panel"><h3>Links</h3><p>Links to other sites open in a new tab. Local links stay in the same tab.</p></div>
     </div>
@@ -200,7 +232,7 @@ $contrast = [
     <h2 id="access" class="ds-h">Accessibility and themes</h2>
     <div class="cols">
       <div class="panel"><h3>Light and dark</h3><p>Light is the default. The toggle in the header switches themes, and the site follows the system setting until you choose.</p></div>
-      <div class="panel"><h3>Focus and keys</h3><p>Everything works with a keyboard. Focus shows a 3 px teal ring, and there is a skip link to the content.</p></div>
+      <div class="panel"><h3>Focus and keys</h3><p>Everything works with a keyboard. Focus shows a teal ring (coral on buttons), and there is a skip link to the content. Hover motion is decoration only; nothing depends on it, and it stops with reduced motion.</p></div>
       <div class="panel"><h3>Text and images</h3><p>Body text meets 4.5 : 1 in both themes. Decorative art has empty alt text. Product screenshots carry alt text naming the product.</p></div>
     </div>
   </section>
