@@ -137,7 +137,7 @@ $contrast = [
     <div class="cols">
       <div class="panel"><h3>Container</h3><p>Content is up to 1425 px wide, with a side gutter that grows from 24 px to 60 px. Reading text stays within 42 to 46 rem.</p></div>
       <div class="panel"><h3>Rhythm</h3><p>Sections are 96 px apart. Cards and panels sit 32 px apart in a grid. Body text is 18 px on a 1.7 line.</p></div>
-      <div class="panel"><h3>Radius</h3><p>Pills and buttons are fully round. Cards and panels use 24 px, inputs and icon tiles 16 px. Marks use 2.5 units on a 56 unit grid.</p></div>
+      <div class="panel"><h3>Radius</h3><p>Buttons are rounded squares (14 px). Pills and icon-only buttons are round. Cards and panels use 24 px, inputs and icon tiles 16 px. Marks use 2.5 units on a 56 unit grid.</p></div>
       <div class="panel"><h3>Depth</h3><p>Mostly flat, with a one pixel border. Linked cards lift 4 px and gain a soft shadow on hover. Dark mode uses a deeper shadow.</p></div>
     </div>
 
@@ -148,6 +148,7 @@ $contrast = [
     <div class="actions">
       <span class="btn">Primary</span><span class="btn ghost">Secondary</span><span class="btn soon" aria-disabled="true">Coming soon</span><span class="pill" style="margin-left:0">Pill action</span>
     </div>
+    <p class="muted" style="max-width:40rem">Buttons lift slightly on hover and carry a small icon that says what they do: an arrow for going to a page, a download tray for downloads, a book for documentation, an envelope for contact, a play mark for demos. The site adds the icon to every button link automatically from its label and link, so write plain labels. The disabled "coming soon" button stays flat.</p>
 
     <h3 style="margin-top:40px">Badges and chips</h3>
     <div class="badges" style="padding-top:0">
