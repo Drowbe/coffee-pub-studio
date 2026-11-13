@@ -551,3 +551,9 @@ html.lb-open { overflow: hidden; }
 .btn:hover .bi-download { transform: translateY(2px); }
 .btn:hover .bi-play { transform: scale(1.18); }
 @media (max-width: 760px) { .btn { padding: 14px 20px; } }
+
+/* btn-coral: hover turns buttons to the eyebrow coral */
+.btn:hover { background: var(--coral-text); color: var(--accent-ink); box-shadow: 0 10px 22px color-mix(in srgb, var(--coral-text) 30%, transparent); }
+.btn.ghost:hover { background: var(--surface); color: var(--coral-text); border-color: var(--coral-text); box-shadow: 0 10px 22px color-mix(in srgb, var(--coral-text) 18%, transparent); }
+.btn.soon:hover { background: color-mix(in srgb, var(--accent) 55%, var(--bg)); color: var(--soon-ink); box-shadow: none; }
+.btn:focus-visible { outline-color: var(--coral-text); }
