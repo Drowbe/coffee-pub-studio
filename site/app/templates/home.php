@@ -65,10 +65,9 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
       <div class="actions"><a class="btn" href="/products/showrunner">See Showrunner</a>
         <a class="btn ghost" href="<?= h($s['studioApp']['url']) ?>">Download</a></div>
     </div>
-    <div class="shot">
-      <div class="frame art-frame" style="max-width:none"><div class="bar"><i></i><i></i><i></i></div>
-        <img class="art wide" src="<?= h(art_for('Streaming')) ?>" alt=""></div>
-    </div>
+    <a class="shot" href="/products/showrunner" aria-label="About Showrunner">
+      <?php $only = 7; include APP_DIR . "/templates/_hero_art.php"; unset($only); ?>
+    </a>
   </div>
 </section>
 
