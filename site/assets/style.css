@@ -535,3 +535,19 @@ html.lb-open { overflow: hidden; }
   .area-card .ticks { display: none; }
   code, .code { display: inline-block; max-width: 100%; word-break: normal; overflow-wrap: anywhere; }
 }
+
+/* Buttons: rounded squares, a little lift on hover, and an icon that says what they do */
+.btn { border-radius: 14px; padding: 14px 22px; gap: 10px; transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 32%, transparent); }
+.btn.ghost:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.btn:active { transform: translateY(0) scale(.98); box-shadow: none; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.btn.soon:hover { transform: none; box-shadow: none; }
+.btn .bi { flex: none; transition: transform .18s ease; }
+.btn:hover .bi { transform: scale(1.12) rotate(-6deg); }
+.btn:hover .bi-arrow { transform: translateX(4px); }
+.btn:hover .bi-back { transform: translateX(-4px); }
+.btn:hover .bi-ext { transform: translate(2px, -2px); }
+.btn:hover .bi-download { transform: translateY(2px); }
+.btn:hover .bi-play { transform: scale(1.18); }
+@media (max-width: 760px) { .btn { padding: 14px 20px; } }

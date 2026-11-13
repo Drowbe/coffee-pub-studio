@@ -62,7 +62,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
     </div>
   </div>
 </header>
-<main id="main"><?= $content ?></main>
+<main id="main"><?= btn_icons((string)$content) ?></main>
 <footer class="site">
   <div class="wrap">
     <div class="foot-grid">
