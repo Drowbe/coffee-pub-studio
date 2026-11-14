@@ -37,7 +37,7 @@ $contrast = [
     <p class="lead">One place for the marks, colours, type, components and voice behind the studio and its products. If something here disagrees with a page, this page wins.</p>
     <nav class="ds-nav" aria-label="On this page">
       <a href="#principles">Principles</a><a href="#marks">Brand marks</a><a href="#colour">Colour</a><a href="#type">Type</a>
-      <a href="#layout">Layout</a><a href="#components">Components</a><a href="#illustration">Illustration</a><a href="#voice">Voice</a><a href="#access">Accessibility</a><a href="/design-system/icons">Icons &rarr;</a><a href="/design-system/illustrations">All illustrations &rarr;</a>
+      <a href="#layout">Layout</a><a href="#components">Components</a><a href="#illustration">Illustration</a><a href="#voice">Voice</a><a href="#privacy">Privacy</a><a href="#access">Accessibility</a><a href="/design-system/icons">Icons &rarr;</a><a href="/design-system/illustrations">All illustrations &rarr;</a>
     </nav>
 
     <h2 id="principles" class="ds-h">Principles</h2>
@@ -223,10 +223,25 @@ $contrast = [
     <h2 id="voice" class="ds-h">Voice and content</h2>
     <div class="cols">
       <div class="panel"><h3>Tone</h3><p>Warm, direct and a little playful. Short sentences. Say what a thing does, then stop. Copy says &ldquo;we&rdquo;, not &ldquo;I&rdquo;. Only the About page says &ldquo;I&rdquo;, because it is fine to say there that the studio is mostly one person.</p></div>
-      <div class="panel"><h3>Words we use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. The full product name starts with &ldquo;Coffee Pub&rdquo;, but it is implied: headings and menus use the short name. US spelling.</p></div>
+      <div class="panel"><h3>Words we use</h3><p>&ldquo;Provoke what's possible. Build it.&rdquo; is the core message. The full product name starts with &ldquo;Coffee Pub&rdquo;, but it is implied: headings and menus use the short name. The area is called Products everywhere. Say &ldquo;GM&rdquo; after first writing &ldquo;game master&rdquo;. US spelling.</p></div>
       <div class="panel"><h3>Honest about status</h3><p>Early things say Early. Things people can try by invitation say In private beta. Unreleased things say Coming soon. No prices, tiers or licence claims until they exist. Modules are free for now.</p></div>
       <div class="panel"><h3>AI note</h3><p>The note about AI assistance lives only on About and in the footer. It is not repeated on product pages.</p></div>
       <div class="panel"><h3>Links</h3><p>Links to other sites open in a new tab. Local links stay in the same tab.</p></div>
+    </div>
+
+    <h3 style="margin-top:40px">Proof and numbers</h3>
+    <div class="cols" style="margin-top:20px">
+      <div class="panel"><h3>Only real numbers</h3><p>The home page shows live figures from our public GitHub repositories: how many there are, how many releases we have shipped and when the latest one went out. They refresh on their own and are never typed in. We leave out a number when it is small or unverifiable, such as stars.</p></div>
+      <div class="panel"><h3>Quotes</h3><p>A quote appears only with the person's approval, credited by first name and role. Quotes go in the site settings; the section stays hidden until there is one.</p></div>
+      <div class="panel"><h3>Preview cards</h3><p>Every product has its own 1200 by 630 preview card for links shared in chat and social media: the mark, the name, the category and one line. Pages without one use the studio card.</p></div>
+    </div>
+
+    <h2 id="privacy" class="ds-h">Privacy and cookies</h2>
+    <div class="cols">
+      <div class="panel"><h3>No tracking</h3><p>The site uses no analytics, advertising or tracking, and loads no fonts, images or scripts from other sites. That is why there is no cookie banner.</p></div>
+      <div class="panel"><h3>What is stored</h3><p>One session cookie that ends when the browser closes, set only when the contact form is opened, and one light or dark preference kept on the visitor's own device. Both are listed on the <a href="/privacy">privacy page</a>. If anything new is stored, update that page first.</p></div>
+      <div class="panel"><h3>Messages</h3><p>Contact messages are deleted automatically after 24 months, or sooner on request through the Privacy request topic. The IP address is stored only as a scrambled value used for spam limits.</p></div>
+      <div class="panel"><h3>New third parties</h3><p>Before adding anything that loads from another site (analytics, video, a font host), decide whether it needs consent, add a consent notice if it does, and name it on the privacy page.</p></div>
     </div>
 
     <h2 id="access" class="ds-h">Accessibility and themes</h2>

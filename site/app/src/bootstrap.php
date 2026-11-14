@@ -195,6 +195,7 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/ui.php';
 require __DIR__ . '/stats.php';
+register_shutdown_function('purge_old_messages');
 require __DIR__ . '/contact.php';
 require __DIR__ . '/admin.php';
 

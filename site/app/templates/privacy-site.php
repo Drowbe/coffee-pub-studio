@@ -11,12 +11,12 @@
 
       <h2>What we collect, and why</h2>
       <div class="cols">
-        <div class="panel"><h3>Messages you send us</h3><p>If you use the contact form, we receive your name, email address, the topic you choose and your message. We use them to read and answer you. Our reason is that you asked us a question and we want to reply. We keep a message until we no longer need it to help you, and we delete it sooner if you ask.</p></div>
+        <div class="panel"><h3>Messages you send us</h3><p>If you use the contact form, we receive your name, email address, the topic you choose and your message. We use them to read and answer you. Our reason is that you asked us a question and we want to reply. We keep a message for 24 months and then delete it automatically. We delete it sooner if you ask.</p></div>
         <div class="panel"><h3>Spam protection</h3><p>When you send a message we also store a scrambled version of your IP address. It lets us limit how many messages one connection can send. We cannot turn it back into your address.</p></div>
         <div class="panel"><h3>Email alerts</h3><p>When a message arrives, the site may email a copy to us through Gmail. Google provides that email service and handles the message on our behalf.</p></div>
         <div class="panel"><h3>Server logs</h3><p>Like any website, our web server records standard technical details of each visit, such as the IP address, the page and the time. We use them for security and to fix problems, and we keep them only as long as that takes.</p></div>
       </div>
-      <p>We do not sell your information, and we do not use it for advertising.</p>
+      <p>We do not sell your information, and we do not use it for advertising. Messages are stored on our own server in the United States. If you are in the European Economic Area, the United Kingdom or Switzerland, sending a message through the form sends it there; that is your choice, and we look after it as described on this page.</p>
 
       <h2 id="cookies">Cookies and similar storage</h2>
       <p>These are the only things this website stores in your browser. Both are needed for something you asked for, so we do not show a consent banner. We use no advertising, analytics or tracking cookies.</p>

@@ -69,3 +69,18 @@ function meta_clip(string $s, int $max = 158): string
     $sp = mb_strrpos($cut, ' ');
     return rtrim($sp !== false && $sp > 80 ? mb_substr($cut, 0, $sp) : $cut, " ,;:-") . '…';
 }
+
+/** Deletes contact messages older than 24 months and stale sign-in attempts. Runs at most once a day. */
+function purge_old_messages(): void
+{
+    try {
+        $stamp = DATA_DIR . '/purge.stamp';
+        if (is_file($stamp) && time() - (int)@filemtime($stamp) < 86400) { return; }
+        @touch($stamp);
+        $pdo = db();
+        $pdo->prepare('DELETE FROM messages WHERE created_at < ?')->execute([time() - 63072000]);
+        $pdo->prepare('DELETE FROM login_attempts WHERE ts < ?')->execute([time() - 86400]);
+    } catch (Throwable $e) {
+        // Housekeeping only; never break a page.
+    }
+}
