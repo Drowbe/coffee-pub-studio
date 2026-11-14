@@ -2,20 +2,20 @@
   <section class="legal" style="padding-top:56px">
     <div class="eyebrow">Legal</div>
     <h1>Privacy policy</h1>
-    <p class="muted" style="margin-top:0">Coffee Pub Studio &middot; last updated October 14, 2026</p>
+    <p class="muted" style="margin-top:0">Coffee Pub Studio &middot; last updated November 14, 2026</p>
 <div class="narrow">
 <p>
     Coffee Pub Studio is a desktop application that runs on your own computer. It does not
     have an account system, a server of its own, advertising, or analytics, and it does not
     send information to Coffee Pub. The only places it connects are ones you set up yourself:
-    your own OBS, your own Coffee Pub Tavern server, and, if you turn it on, Google's YouTube
+    your own OBS, your own Chameleon server, and, if you turn it on, Google's YouTube
     service.
   </p>
 
   <h2>What is stored, and where</h2>
   <p>
     Everything Studio stores stays on your computer, in the application's own data folder:
-    your settings, and the passwords and sign-in tokens you give it (for OBS, Coffee Pub Tavern
+    your settings, and the passwords and sign-in tokens you give it (for OBS, Chameleon
     and YouTube). Passwords and tokens are encrypted with your operating system's keychain.
   </p>
 

@@ -2,7 +2,7 @@
   <section class="legal" style="padding-top:56px">
     <div class="eyebrow">Legal</div>
     <h1>Terms of service</h1>
-    <p class="muted" style="margin-top:0">Coffee Pub Studio &middot; last updated October 15, 2026</p>
+    <p class="muted" style="margin-top:0">Coffee Pub Studio &middot; last updated November 14, 2026</p>
 <div class="narrow">
 <p>
     These terms cover your use of Coffee Pub Studio, a free desktop application, and this
@@ -28,7 +28,8 @@
 
   <h2>Your accounts and content</h2>
   <ul>
-    <li>You are responsible for your own OBS, Coffee Pub Tavern, Google and YouTube accounts, and for the credentials you give the app. They are stored only on your computer.</li>
+    <li>The app works with other people's software and services: OBS on your computer, your Chameleon account, and, if you turn on uploads, your Google and YouTube account. We are not affiliated with or endorsed by OBS Project, Google or YouTube, and their own terms apply when you use them.</li>
+    <li>You are responsible for those accounts and for the passwords and sign-in tokens you give the app, including your OBS password. The app keeps them only on your computer, so we cannot see or reset them.</li>
     <li>You are responsible for the content you record and upload, and for following the rules of the services you use it with.</li>
     <li>If you use the YouTube upload feature, you are also bound by the
       <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and
