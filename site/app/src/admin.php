@@ -22,6 +22,7 @@ function admin_logged_in(): bool
         return false;
     }
     $_SESSION['admin_seen'] = time();
+    admin_remember_cookie();
     return true;
 }
 
@@ -50,6 +51,7 @@ function admin_login(string $user, string $pass): ?string
         session_regenerate_id(true);
         $_SESSION['admin'] = true;
         $_SESSION['admin_seen'] = time();
+        admin_remember_cookie();
         return null;
     }
     db()->prepare('INSERT INTO login_attempts (ip_hash, ts) VALUES (?, ?)')->execute([ip_hash(), time()]);

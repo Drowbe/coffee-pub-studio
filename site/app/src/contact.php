@@ -4,8 +4,10 @@ declare(strict_types=1);
 const CONTACT_TOPICS = [
     'Foundry module support',
     'Chameleon',
+    'Chameleon beta invite',
     'Showrunner',
     'A design or development project',
+    'Privacy request',
     'Something else',
 ];
 

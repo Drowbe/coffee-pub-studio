@@ -15,7 +15,7 @@
     "dnd5e"
   ],
   "fallbackVersion": "14.0.2",
-  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-product.webp",
+  "hero": "/assets/products/librarian/librarian-product.webp",
   "github": "https://github.com/Drowbe/coffee-pub-librarian",
   "wiki": "https://github.com/Drowbe/coffee-pub-librarian/wiki",
   "pitch": "Keep your campaign world organized with a searchable codex and map-pinned quests, and decide exactly what your players get to see.",
@@ -78,13 +78,13 @@
   ],
   "gallery": [
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-codex.webp",
+      "url": "/assets/products/librarian/librarian-codex.webp",
       "title": "One entry, three views",
       "text": "A codex entry shows as a card in the browser, in an edit form and as a journal page. The form takes a category, a location path, links and a plot hook that only the GM sees. The browser filters as you type and shows how many entries match.",
       "caption": "Codex browser"
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-librarian/master/documentation/assets/librarian-quest.webp",
+      "url": "/assets/products/librarian/librarian-quest.webp",
       "title": "Quests with steps",
       "text": "Quests are sorted into Active, Available and Complete. Each card lists its objectives, the GM's plot hook, treasure, experience, location and the people involved. Pins on the scene point to the quest, and each objective can have its own pin.",
       "caption": "Quest browser"

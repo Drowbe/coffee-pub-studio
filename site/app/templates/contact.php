@@ -31,11 +31,12 @@
           <input id="email" name="email" type="email" maxlength="190" autocomplete="email" required value="<?= h($old['email'] ?? '') ?>">
         </div>
         <div class="field">
+          <?php $qmap = ['beta' => 'Chameleon beta invite', 'project' => 'A design or development project', 'privacy' => 'Privacy request', 'support' => 'Foundry module support']; $sel = ($old['topic'] ?? '') ?: ($qmap[$_GET['topic'] ?? ''] ?? ''); ?>
           <label for="topic">What is it about?</label>
           <select id="topic" name="topic" required>
             <option value="">Choose one</option>
             <?php foreach (CONTACT_TOPICS as $t): ?>
-              <option value="<?= h($t) ?>"<?= ($old['topic'] ?? '') === $t ? ' selected' : '' ?>><?= h($t) ?></option>
+              <option value="<?= h($t) ?>"<?= $sel === $t ? ' selected' : '' ?>><?= h($t) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -44,6 +45,7 @@
           <textarea id="message" name="message" rows="7" maxlength="4000" required><?= h($old['message'] ?? '') ?></textarea>
         </div>
         <button class="btn" type="submit">Send message</button>
+        <p class="muted" style="font-size:.92rem;margin:14px 0 0">We use your name, email and message only to reply to you. Read <a href="/privacy">how we handle them</a>.</p>
         <p class="muted" style="font-size:.92rem;margin:18px 0 0">For module bugs, a <a href="/support">GitHub issue</a> is the fastest way to get help.</p>
       </form>
     <?php endif; ?>

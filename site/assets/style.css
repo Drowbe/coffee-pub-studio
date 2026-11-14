@@ -557,3 +557,14 @@ html.lb-open { overflow: hidden; }
 .btn.ghost:hover { background: var(--surface); color: var(--coral-text); border-color: var(--coral-text); box-shadow: 0 10px 22px color-mix(in srgb, var(--coral-text) 18%, transparent); }
 .btn.soon:hover { background: color-mix(in srgb, var(--accent) 55%, var(--bg)); color: var(--soon-ink); box-shadow: none; }
 .btn:focus-visible { outline-color: var(--coral-text); }
+
+/* proof: live numbers strip and approved quotes */
+.proof { list-style: none; margin: 0; padding: 28px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.proof li { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 22px; display: flex; flex-direction: column; gap: 4px; }
+.proof b { font-family: var(--serif); font-weight: 600; font-size: 1.9rem; line-height: 1.1; color: var(--accent-text); }
+.proof span { color: var(--muted); font-size: .95rem; }
+@media (max-width: 620px) { .proof { grid-template-columns: 1fr; gap: 10px; padding-top: 18px; } .proof li { flex-direction: row; align-items: baseline; gap: 12px; padding: 14px 18px; } .proof b { font-size: 1.5rem; } }
+.quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 28px; }
+.quote { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 26px; }
+.quote blockquote { margin: 0; } .quote p { font-family: var(--serif); font-size: 1.2rem; line-height: 1.5; margin: 0 0 14px; }
+.quote figcaption { color: var(--muted); font-size: .95rem; }

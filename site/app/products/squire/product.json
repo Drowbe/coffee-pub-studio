@@ -15,7 +15,7 @@
     "dnd5e"
   ],
   "fallbackVersion": "14.0.2",
-  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/product-expanded.webp",
+  "hero": "/assets/products/squire/product-expanded.webp",
   "github": "https://github.com/Drowbe/coffee-pub-squire",
   "wiki": "https://github.com/Drowbe/coffee-pub-squire/wiki",
   "featured": true,
@@ -68,37 +68,37 @@
   ],
   "gallery": [
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/product-collapsed.webp",
+      "url": "/assets/products/squire/product-collapsed.webp",
       "caption": "Collapsed tray handle",
       "title": "Tray, spells and transfers",
       "text": "The tray runs down the left edge with the character's portrait, health, conditions and favorites. Hover a spell for its item card, or give a stack of items to another party member from the transfer dialog."
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-party.webp",
+      "url": "/assets/products/squire/userguide-party.webp",
       "caption": "Party view",
       "title": "The whole party at a glance",
       "text": "The party tab shows each character's health, level and speed, plus a party health bar and a reputation slider. A lifetime leaderboard sits underneath."
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-spells.webp",
+      "url": "/assets/products/squire/userguide-spells.webp",
       "caption": "Spells",
       "title": "Spells on the tray",
       "text": "The character tab lists spells by level with component tags, a favorite heart and a prepared marker on each row. A search box covers every section of the sheet."
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-inventory.webp",
+      "url": "/assets/products/squire/userguide-inventory.webp",
       "caption": "Inventory",
       "title": "Inventory with actions per row",
       "text": "Currency and equipment are listed with row icons for equipping, transferring and favoriting items. Coins show their counts, and quantities sit beside each item name."
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-transfer.webp",
+      "url": "/assets/products/squire/userguide-transfer.webp",
       "caption": "Item transfer",
       "title": "Split a stack and hand it over",
       "text": "The transfer dialog has a slider for how many to give and how many to keep, then a list of party members. It will not let you send an item back to its source."
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-squire/master/documentation/assets/userguide-cleanup.webp",
+      "url": "/assets/products/squire/userguide-cleanup.webp",
       "caption": "Character sheet cleanup",
       "title": "Tidy a sheet, with a way back",
       "text": "Cleanup can consolidate currency into the fewest coins at the same total value, and link items to their compendium entries. Each change shows before and after, and a previous merge can be restored."

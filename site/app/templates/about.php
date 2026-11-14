@@ -151,7 +151,7 @@
         <h2 style="font-size:1.7rem">Have a problem worth solving?</h2>
         <p class="lead">I take on a small number of design and development projects. Tell me what you are trying to solve.</p>
       </div>
-      <div class="actions" style="margin:0"><a class="btn" href="/contact">Get in touch</a></div>
+      <div class="actions" style="margin:0"><a class="btn" href="/contact?topic=project">Tell us about it</a></div>
     </div>
   </section>
 </div>

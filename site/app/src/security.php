@@ -38,9 +38,18 @@ function start_session(): void
     session_save_path($dir);
     session_name('cpsid');
     session_set_cookie_params([
-        'lifetime' => 2592000, 'path' => '/', 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
+        'lifetime' => 0,   // visitors get a session cookie that ends with the browser; signed-in admins are given 30 days in admin.php
+        'path' => '/', 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
     ]);
     session_start();
+}
+
+/** Keeps the signed-in admin's session cookie for 30 days. Visitors never get this. */
+function admin_remember_cookie(): void
+{
+    if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
+        setcookie(session_name(), session_id(), ['expires' => time() + 2592000, 'path' => '/', 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict']);
+    }
 }
 
 function csrf_token(): string

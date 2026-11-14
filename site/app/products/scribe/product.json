@@ -13,7 +13,7 @@
   ],
   "system": [],
   "fallbackVersion": "14.0.3",
-  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-scribe/main/documentation/assets/scribe-product.webp",
+  "hero": "/assets/products/scribe/scribe-product.webp",
   "github": "https://github.com/Drowbe/coffee-pub-scribe",
   "wiki": "https://github.com/Drowbe/coffee-pub-scribe/wiki",
   "featured": true,
@@ -72,7 +72,7 @@
   ],
   "gallery": [
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-scribe/main/documentation/assets/scribe-illustration.webp",
+      "url": "/assets/products/scribe/scribe-illustration.webp",
       "caption": "Scribe",
       "title": "Read-aloud text, ready for chat",
       "text": "The toolbar under a journal passage posts it to chat as a narration card with its heading and image. Players get the card and a viewable illustration, while GM-only notes stay in the journal."

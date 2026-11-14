@@ -11,7 +11,7 @@
   "requires": [],
   "system": [],
   "fallbackVersion": "14.6.0",
-  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-blacksmith/master/documentation/assets/product-overview.webp",
+  "hero": "/assets/products/blacksmith/product-overview.webp",
   "github": "https://github.com/Drowbe/coffee-pub-blacksmith",
   "wiki": "https://github.com/Drowbe/coffee-pub-blacksmith/wiki",
   "pitch": "A toolbar of dice, party health, timers and combat stats across the top of Foundry, plus the shared styling that powers every other Coffee Pub module.",

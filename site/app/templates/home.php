@@ -10,7 +10,7 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
     <div>
       <div class="eyebrow">Boutique design and development</div>
       <h1><?= h($s['tagline']) ?></h1>
-      <p class="lead">We have solved hundreds of problems. Some of them grew into the products below.</p>
+      <p class="lead">We have solved hundreds of problems, from design systems to a game engine. These are the ones that grew into products.</p>
       <div class="actions">
         <a class="btn" href="/products">Stuff we've imagined and built</a>
         <a class="btn ghost" href="/about">About the studio</a>
@@ -19,10 +19,19 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
     <?php include APP_DIR . "/templates/_hero_art.php"; ?>
   </section>
 </div></div>
+<?php $gh = gh_stats(); if ($gh): ?>
+<div class="wrap">
+  <ul class="proof" aria-label="The studio in numbers">
+    <li><b><?= (int)$gh['repos'] ?></b><span>open-source repositories</span></li>
+    <li><b><?= $gh['capped'] ? (intdiv((int)$gh['releases'], 10) * 10) . '+' : (int)$gh['releases'] ?></b><span>releases shipped</span></li>
+    <li><b><?= h(ago((int)$gh['latest'])) ?></b><span>latest release</span></li>
+  </ul>
+</div>
+<?php endif; ?>
 
 <div class="wrap" id="more">
 <section style="padding-top:24px">
-  <div class="eyebrow">The work</div>
+  <div class="eyebrow">Products</div>
   <h2>Two apps and <?= count($modules) ?> Foundry modules</h2>
   <p class="lead">A few of the things that grew out of that work.</p>
 </section>
@@ -39,6 +48,7 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
       </ul>
       <div class="actions">
         <a class="btn" href="/products/chameleon"><?= h($flag["cta"] ?? "See Chameleon") ?></a>
+        <a class="btn ghost" href="/contact?topic=beta">Request an invite</a>
         <a class="btn ghost" href="<?= h($flag['external']) ?>">See it in action</a>
       </div>
     </div>
@@ -118,6 +128,18 @@ $featured = array_filter(array_map(fn($k) => $modules[$k] ?? null, ['blacksmith'
     <?php endforeach; ?>
   </div>
 </section>
+
+<?php $quotes = $s['quotes'] ?? []; if ($quotes): ?>
+<section id="quotes" style="padding-top:24px">
+  <div class="eyebrow">In their words</div>
+  <h2>What people say</h2>
+  <div class="quotes">
+    <?php foreach ($quotes as $q): if (empty($q['text'])) continue; ?>
+      <figure class="quote"><blockquote><p><?= h($q['text']) ?></p></blockquote><figcaption><?= h($q['who'] ?? '') ?></figcaption></figure>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php endif; ?>
 
 <section>
   <div class="band">

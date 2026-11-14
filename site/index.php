@@ -14,7 +14,7 @@ switch (true) {
 
     case $path === '/sitemap.xml':
         header('Content-Type: application/xml; charset=utf-8');
-        $urls = ['/', '/products', '/about', '/support', '/contact', '/design-system', '/design-system/icons', '/design-system/illustrations', '/privacy.html', '/terms.html'];
+        $urls = ['/', '/products', '/about', '/support', '/contact', '/design-system', '/design-system/icons', '/design-system/illustrations', '/privacy', '/privacy.html', '/terms.html'];
         foreach (products() as $slug => $p_) {
             $urls[] = '/products/' . $slug;
             foreach (($p_['areas'] ?? []) as $ar_) {
@@ -35,7 +35,8 @@ switch (true) {
         break;
 
     case $path === '/products':
-        page('products', ['title' => 'Products', 'desc' => 'Every Coffee Pub module and app.', 'products' => products()]);
+        $mods = count(array_filter(products(), fn($p_) => empty($p_['flagship']) && empty($p_['app'])));
+        page('products', ['title' => 'Products', 'desc' => 'Chameleon, Showrunner and ' . $mods . ' Foundry VTT modules: what each one does and how to try it.', 'products' => products()]);
         break;
 
     case $path === '/products/collaborator':
@@ -56,7 +57,7 @@ switch (true) {
             page('404', ['title' => 'Not found'], 404);
             break;
         }
-        page('product_area', ['title' => $a['title'] . ' · ' . $p['short'], 'desc' => $a['lead'] ?? $p['tagline'], 'p' => $p, 'a' => $a]);
+        page('product_area', ['title' => $a['title'] . ' · ' . $p['short'], 'desc' => meta_clip((string)($a['lead'] ?? $p['tagline'])), 'p' => $p, 'a' => $a]);
         break;
 
     case preg_match('#^/products/([a-z0-9-]+)$#', $path, $m) === 1:
@@ -66,12 +67,12 @@ switch (true) {
             break;
         }
         $own = APP_DIR . '/products/' . $p['slug'] . '/template.php';   // optional: a product may replace the shared page
-        page(is_file($own) ? $own : 'product', ['title' => $p['name'], 'desc' => $p['tagline'], 'p' => $p, 'live' => live_info($p)]);
+        page(is_file($own) ? $own : 'product', ['title' => preg_replace('/^Coffee Pub\s+/i', '', (string)$p['name']), 'desc' => meta_clip((string)($p['pitch'] ?? $p['tagline'])), 'p' => $p, 'live' => live_info($p)]);
         break;
 
     case $path === '/contact':
         no_cache_headers();
-        $view = ['title' => 'Contact', 'desc' => 'Get in touch with Coffee Pub Studio.', 'sent' => false, 'errors' => [], 'old' => []];
+        $view = ['title' => 'Contact', 'desc' => 'Message Coffee Pub Studio: module support, a Chameleon beta invite, Showrunner, or a project you want to talk about.', 'sent' => false, 'errors' => [], 'old' => []];
         if ($method === 'POST') {
             $res = handle_contact_post();
             if ($res['ok']) {
@@ -96,9 +97,13 @@ switch (true) {
         header('Location: /design-system#marks', true, 301);
         break;
 
+    case $path === '/privacy':
+        page('privacy-site', ['title' => 'Privacy and cookies', 'desc' => 'How this website handles your information: the contact form, the one cookie it sets, and your rights.']);
+        break;
+
     case $path === '/privacy.html' || $path === '/terms.html':
         $k = $path === '/privacy.html' ? 'privacy' : 'terms';
-        page($k, ['title' => $k === 'privacy' ? 'Privacy policy' : 'Terms of service', 'desc' => site()['description']]);
+        page($k, ['title' => $k === 'privacy' ? 'Privacy policy' : 'Terms of service', 'desc' => $k === 'privacy' ? 'Privacy policy for the Showrunner desktop app, including how it uses Google YouTube data.' : 'The terms for using the Showrunner desktop app.']);
         break;
 
     case $path === '/design-system/icons':
@@ -115,7 +120,8 @@ switch (true) {
 
     case in_array($path, ['/about', '/support'], true):
         $name = ltrim($path, '/');
-        page($name, ['title' => ucfirst($name), 'desc' => site()['description']]);
+        $descs = ['about' => 'Coffee Pub Studio is mostly one person: Thomas Carroll, a design and product leader who builds apps and Foundry VTT modules.', 'support' => 'Help for the Coffee Pub Foundry modules, Showrunner and Chameleon: documentation, known issues, and how to reach us.'];
+        page($name, ['title' => ucfirst($name), 'desc' => $descs[$name] ?? site()['description']]);
         break;
 
     default:

@@ -17,10 +17,11 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="<?= h($s['name']) ?>">
   <meta property="og:url" content="<?= h(rtrim($s['url'], '/') . ($cur === '/' ? '/' : $cur)) ?>">
-  <meta property="og:image" content="<?= h(rtrim($s['url'], '/') . '/assets/brand/og-image.png') ?>">
+  <?php $ogFile = (preg_match('#^/products/([a-z0-9-]+)#', $cur, $om) && is_file(dirname(__DIR__, 2) . '/assets/og/' . $om[1] . '.png')) ? '/assets/og/' . $om[1] . '.png' : '/assets/brand/og-image.png'; ?>
+  <meta property="og:image" content="<?= h(rtrim($s['url'], '/') . $ogFile) ?>">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Coffee Pub Studio: apps and Foundry VTT modules that solve real problems">
+  <meta property="og:image:alt" content="<?= h($full) ?>">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="/assets/fonts/fraunces/latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/figtree/latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -94,7 +95,7 @@ $full = ($title === $s['name']) ? $s['name'] : $title . ' · ' . $s['name'];
     </div>
     <div class="foot-base">
       <div class="buildnote"><?= h($s["buildNote"]) ?></div>
-      <div class="legal">&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/admin" rel="nofollow">Admin</a></div>
+      <div class="legal">&copy; <?= (int)$s['year'] ?> <?= h($s['legal']) ?> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/admin" rel="nofollow">Admin</a></div>
     </div>
   </div>
 </footer>

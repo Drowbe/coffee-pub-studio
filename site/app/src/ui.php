@@ -34,7 +34,7 @@ function btn_icon_for(string $label, string $attrs, bool $isLink): ?array
     if (preg_match('/documentation|docs|guide/', $t)) { return ['book', false]; }
     if (str_starts_with($t, 'back to')) { return ['back', false]; }
     if (!$isLink) { return preg_match('/send/', $t) ? ['send', false] : null; }
-    if (preg_match('/contact|get in touch/', $t) || str_starts_with($href, 'mailto:')) { return ['mail', false]; }
+    if (preg_match('/contact|get in touch|invite|tell us/', $t) || str_starts_with($href, 'mailto:')) { return ['mail', false]; }
     if (str_contains($t, 'see it in action') || preg_match('/watch|demo/', $t)) { return ['play', false]; }
     if (preg_match('/get help|support$/', $t)) { return ['help', false]; }
     if (preg_match('~^https?://~', $href) && !str_contains($href, 'coffeepubstudio.com')) { return ['ext', true]; }
@@ -58,4 +58,14 @@ function btn_icons(string $html): string
     $html = preg_replace_callback('~<a class="btn((?: [a-z]+)*)"([^>]*)>(.*?)</a>~s', fn($m) => $do($m, true), $html) ?? $html;
     $html = preg_replace_callback('~<button class="btn((?: [a-z]+)*)"([^>]*)>(.*?)</button>~s', fn($m) => $do($m, false), $html) ?? $html;
     return $html;
+}
+
+/** Trims text to a search-friendly length at a word boundary. */
+function meta_clip(string $s, int $max = 158): string
+{
+    $s = trim(preg_replace('/\s+/', ' ', $s) ?? $s);
+    if (mb_strlen($s) <= $max) { return $s; }
+    $cut = mb_substr($s, 0, $max - 1);
+    $sp = mb_strrpos($cut, ' ');
+    return rtrim($sp !== false && $sp > 80 ? mb_substr($cut, 0, $sp) : $cut, " ,;:-") . '…';
 }

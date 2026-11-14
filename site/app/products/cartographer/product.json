@@ -13,7 +13,7 @@
   ],
   "system": [],
   "fallbackVersion": "14.3.0",
-  "hero": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-product.webp",
+  "hero": "/assets/products/cartographer/cartographer-product.webp",
   "github": "https://github.com/Drowbe/coffee-pub-cartographer",
   "wiki": "https://github.com/Drowbe/coffee-pub-cartographer/wiki",
   "featured": true,
@@ -72,19 +72,19 @@
   ],
   "gallery": [
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-recording.webp",
+      "url": "/assets/products/cartographer/cartographer-recording.webp",
       "title": "A map that draws itself",
       "text": "Walk a token through a scene and the Party Map window fills in the squares it has seen, with the walls and doors around them. Record, Follow and View sit across the top, and Stop Recording keeps what you have.",
       "caption": "Map recording"
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-drawing.webp",
+      "url": "/assets/products/cartographer/cartographer-drawing.webp",
       "title": "Sketch it out together",
       "text": "Anyone can draw on the canvas in their own color: freehand, lines, boxes, ellipses and stamps. Everyone connected sees the strokes, and they are temporary, so planning does not clutter the scene.",
       "caption": "Canvas drawing"
     },
     {
-      "url": "https://raw.githubusercontent.com/Drowbe/coffee-pub-cartographer/main/documentation/assets/cartographer-maps.webp",
+      "url": "/assets/products/cartographer/cartographer-maps.webp",
       "title": "Find any map again",
       "text": "Recorded Maps lists every map you can see, grouped by scene, with the official map of a place first. Each map you may change has rename and delete buttons, and the list shows how far it has been mapped.",
       "caption": "Maps"
