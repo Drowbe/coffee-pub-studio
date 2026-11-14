@@ -38,7 +38,7 @@ $mk = $p['mark'] ?? null;
       <?php foreach ($others as $o): ?>
         <a class="more-tile" href="/products/<?= h($p['slug']) ?>/<?= h($o['slug']) ?>">
           <?php if (!empty($o['image'])): ?><img src="<?= h($o['image']) ?>" alt="" width="56" height="56" loading="lazy"><?php elseif ($mk): ?><?= mark_img($mk, 56, 'mk') ?><?php endif; ?>
-          <b><?= h($o['title']) ?></b><?php if (!empty($o['comingSoon'])): ?><span class="soon-tag"><?= h($p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
+          <b><?= h($o['title']) ?></b><?php if (!empty($o['comingSoon'])): ?><span class="soon-tag"><?= h($o['statusLabel'] ?? $p['statusLabel'] ?? 'Coming soon') ?></span><?php endif; ?>
           <span><?= h($o['blurb'] ?? '') ?></span>
         </a>
       <?php endforeach; ?>
