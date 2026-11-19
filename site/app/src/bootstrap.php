@@ -122,7 +122,7 @@ function live_info(array $p): array
     if (empty($p['repo']) || !empty($p['external'])) {
         return $info;
     }
-    $rel = cached_get('https://api.github.com/repos/' . $p['repo'] . '/releases/latest');
+    $rel = cached_get('https://api.github.com/repos/' . $p['repo'] . '/releases/latest', !empty($p['app']) ? 300 : 3600);
     if ($rel !== null && ($j = json_decode($rel, true)) && !empty($j['tag_name'])) {
         $info['version'] = ltrim((string)$j['tag_name'], 'v');
         $info['released'] = !empty($j['published_at']) ? substr((string)$j['published_at'], 0, 10) : null;
