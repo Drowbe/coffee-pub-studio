@@ -190,11 +190,14 @@ $wiki = fn(string $page) => $p['wiki'] . '/' . $page;
     <h2>Download and install</h2>
     <div class="install">
       <div>
-        <?php if (!empty($p['downloads'])): ?>
-          <p class="muted" style="margin-top:0">Version <?= h((string)($p['appVersion'] ?? '')) ?>. Pick your system, then follow the first-launch steps.</p>
+        <?php if (!empty($p['downloads'])):
+          $appVer = (string)($p['appVersion'] ?? '');
+          $lv = live_info($p)['version'] ?? null; if ($lv) { $appVer = (string)$lv; }
+          ?>
+          <p class="muted" style="margin-top:0">Version <?= h($appVer) ?>. Pick your system, then follow the first-launch steps.</p>
           <div class="actions" style="margin:0">
             <?php foreach ($p['downloads'] as $i => $d): ?>
-              <a class="btn<?= $i ? ' ghost' : '' ?>" href="<?= h($d['url']) ?>"><?= h($d['label']) ?></a>
+              <a class="btn<?= $i ? ' ghost' : '' ?>" href="<?= h(str_replace('{version}', $appVer, (string)$d['url'])) ?>"><?= h($d['label']) ?></a>
             <?php endforeach; ?>
           </div>
           <?php foreach ($p['downloads'] as $d): if (!empty($d['note'])): ?>
